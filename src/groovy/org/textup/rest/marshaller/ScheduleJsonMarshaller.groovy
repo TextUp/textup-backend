@@ -5,37 +5,48 @@ import javax.servlet.http.HttpServletRequest
 import org.joda.time.DateTime
 import org.textup.*
 import org.textup.rest.*
-import org.textup.type.LogLevel
+import org.textup.structure.*
+import org.textup.type.*
 import org.textup.util.*
-import org.textup.validator.LocalInterval
+import org.textup.util.domain.*
+import org.textup.validator.*
 
 @GrailsTypeChecked
 class ScheduleJsonMarshaller extends JsonNamedMarshaller {
-    static final Closure marshalClosure = { Schedule sched ->
+
+    static final Closure marshalClosure = { ReadOnlySchedule sched1 ->
         Map json = [:]
-
-        Result<String> res = Utils.tryGetFromRequest(Constants.REQUEST_TIMEZONE)
-            .logFail("ScheduleJsonMarshaller: no available request", LogLevel.DEBUG)
-        String tz = res.success ? res.payload : null
-
         json.with {
-            id = sched.id
-            isAvailableNow = sched.isAvailableNow()
-            timezone = tz
+            id                = sched1.id
+            isAvailableNow    = sched1.isAvailableNow()
+            manual            = sched1.manual
+            manualIsAvailable = sched1.manualIsAvailable
         }
-        sched.nextAvailable(tz).thenEnd({ DateTime dt -> json.nextAvailable = dt })
-        sched.nextUnavailable(tz).thenEnd({ DateTime dt -> json.nextUnavailable = dt })
-        // also return local intervals if a weekly schedule
-        if (sched.instanceOf(WeeklySchedule)) {
-            WeeklySchedule.get(sched.id)?.getAllAsLocalIntervals(tz).each {
-                String day, List<LocalInterval> intervals ->
-                json["${day}"] = intervals.collect(DateTimeUtils.&printLocalInterval)
+
+        RequestUtils.tryGet(RequestUtils.TIMEZONE)
+            .ifFailAndPreserveError {
+                json.with {
+                    nextAvailable   = sched1.nextAvailable()
+                    nextUnavailable = sched1.nextUnavailable()
+                }
+                sched1.getAllAsLocalIntervals()
+                    .each { String k, Collection v -> json[k] = v*.toString() }
             }
-        }
+            .thenEnd { Object zoneName ->
+                String tz = JodaUtils.getZoneFromId(TypeUtils.to(String, zoneName)).getID()
+                json.with {
+                    nextAvailable   = sched1.nextAvailable(tz)
+                    nextUnavailable = sched1.nextUnavailable(tz)
+                    timezone        = tz
+                }
+                sched1.getAllAsLocalIntervals(tz)
+                    .each { String k, Collection v -> json[k] = v*.toString() }
+            }
+
         json
     }
 
     ScheduleJsonMarshaller() {
-        super(Schedule, marshalClosure)
+        super(ReadOnlySchedule, marshalClosure)
     }
 }

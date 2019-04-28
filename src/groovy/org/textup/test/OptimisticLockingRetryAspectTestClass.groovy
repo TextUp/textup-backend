@@ -4,6 +4,7 @@ import grails.compiler.GrailsTypeChecked
 import org.hibernate.StaleObjectStateException
 import org.springframework.orm.hibernate4.HibernateOptimisticLockingFailureException
 import org.textup.*
+import org.textup.annotation.*
 import org.textup.util.*
 
 @GrailsTypeChecked

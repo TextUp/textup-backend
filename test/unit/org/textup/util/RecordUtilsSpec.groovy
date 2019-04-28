@@ -4,122 +4,43 @@ import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestMixin
 import grails.test.runtime.*
-import org.codehaus.groovy.grails.web.util.TypeConvertingMap
 import org.joda.time.*
 import org.textup.*
+import org.textup.structure.*
 import org.textup.test.*
 import org.textup.type.*
-import org.textup.util.*
+import org.textup.util.domain.*
 import org.textup.validator.*
 import spock.lang.*
 
-@Domain([CustomAccountDetails, Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
-    RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
-    Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole,
-    RecordNote, RecordNoteRevision, NotificationPolicy,
-    MediaInfo, MediaElement, MediaElementVersion])
+@Domain([AnnouncementReceipt, ContactNumber, CustomAccountDetails, FeaturedAnnouncement,
+    FutureMessage, GroupPhoneRecord, IncomingSession, IndividualPhoneRecord, Location, MediaElement,
+    MediaElementVersion, MediaInfo, Organization, OwnerPolicy, Phone, PhoneNumberHistory,
+    PhoneOwnership, PhoneRecord, PhoneRecordMembers, Record, RecordCall, RecordItem,
+    RecordItemReceipt, RecordNote, RecordNoteRevision, RecordText, Role, Schedule,
+    SimpleFutureMessage, Staff, StaffRole, Team, Token])
 @TestMixin(HibernateTestMixin)
-class RecordUtilsSpec extends CustomSpec {
+class RecordUtilsSpec extends Specification {
 
     static doWithSpring = {
         resultFactory(ResultFactory)
     }
 
     def setup() {
-        setupData()
-        IOCUtils.metaClass."static".getMessageSource = { -> TestUtils.mockMessageSource() }
-    }
-
-    def cleanup() {
-        cleanupData()
-    }
-
-    void "test building record item request"() {
-        given:
-        TypeConvertingMap body = new TypeConvertingMap()
-        DateTime start = DateTime.now().minusDays(2)
-        DateTime end = DateTime.now()
-
-        when: "missing inputs"
-        Result<RecordItemRequest> res = RecordUtils.buildRecordItemRequest(null, body, false)
-
-        then:
-        res.status == ResultStatus.UNPROCESSABLE_ENTITY
-
-        when: "no params"
-        res = RecordUtils.buildRecordItemRequest(p1, body, false)
-
-        then:
-        res.status == ResultStatus.OK
-        res.payload instanceof RecordItemRequest
-        res.payload.phone == p1
-        res.payload.groupByEntity == false
-
-        when: "has params"
-        assert sc2.sharedWith.id == p1.id
-
-        body = new TypeConvertingMap(
-            since: start.toString(),
-            before: end.toString(),
-            "types[]": ["text"],
-            "contactIds[]": [c1.id],
-            "sharedContactIds[]":[sc2.contactId],
-            "tagIds[]": [tag1.id]
-        )
-        res = RecordUtils.buildRecordItemRequest(p1, body, false)
-
-        then:
-        res.status == ResultStatus.OK
-        res.payload instanceof RecordItemRequest
-        res.payload.start == start
-        res.payload.end == end
-        res.payload.types == [RecordText]
-        res.payload.contacts.recipients == [c1]
-        res.payload.sharedContacts.recipients == [sc2]
-        res.payload.tags.recipients == [tag1]
-    }
-
-    // Identification
-    // --------------
-
-    void "test parsing types"() {
-        given: "a record with one of each type"
-        Record rec1 = new Record()
-        rec1.save(flush:true, failOnError:true)
-
-        RecordText rText1 = rec1.storeOutgoingText("hi").payload
-        RecordCall rCall1 = rec1.storeOutgoingCall().payload
-        RecordNote rNote1 = new RecordNote(record: rec1)
-        [rText1, rCall1, rNote1]*.save(flush:true, failOnError:true)
-
-        when:
-        List<Class<? extends RecordItem>> clazzes = RecordUtils.parseTypes(typesFilter)
-
-        then:
-        clazzes.size() == numResults
-
-        where:
-        typesFilter              | numResults
-        ["call"]                 | 1
-        ["text"]                 | 1
-        ["note"]                 | 1
-        ["call", "text"]         | 2
-        ["text", "note"]         | 2
-        ["call", "text", "note"] | 3
-        ["BAD!", "text", "note"] | 2
+        TestUtils.standardMockSetup()
     }
 
     void "test determine class"() {
         when: "unknown entity"
-        Result res = RecordUtils.determineClass([:])
+        Result res = RecordUtils.tryDetermineClass(TypeMap.create())
 
         then:
         res.success == false
         res.status == ResultStatus.UNPROCESSABLE_ENTITY
-        res.errorMessages[0] == "recordUtils.determineClass.unknownType"
+        res.errorMessages[0] == "recordUtils.noClassForUnknownType"
 
         when: "text"
-        res = RecordUtils.determineClass([sendToContacts:[1]])
+        res = RecordUtils.tryDetermineClass(TypeMap.create(type: "text"))
 
         then:
         res.success == true
@@ -127,7 +48,7 @@ class RecordUtilsSpec extends CustomSpec {
         res.payload == RecordText
 
         when: "note"
-        res = RecordUtils.determineClass([forContact:1])
+        res = RecordUtils.tryDetermineClass(TypeMap.create(type: "note"))
 
         then:
         res.success == true
@@ -135,7 +56,7 @@ class RecordUtilsSpec extends CustomSpec {
         res.payload == RecordNote
 
         when: "call"
-        res = RecordUtils.determineClass([callContact:c1.id])
+        res = RecordUtils.tryDetermineClass(TypeMap.create(type: "call"))
 
         then:
         res.success == true
@@ -143,198 +64,124 @@ class RecordUtilsSpec extends CustomSpec {
         res.payload == RecordCall
     }
 
-    // Texts
-    // -----
-
-    @DirtiesRuntime
-    void "test check outgoing message recipients"() {
+    void "test adjusting position in record based on `whenCreated` timestamp"() {
         given:
-        OutgoingMessage msg1 = TestUtils.buildOutgoingMessage(p1)
+        DateTime dt = DateTime.now().minusHours(1)
 
-        when: "no recipients"
-        Result<OutgoingMessage> res = RecordUtils.checkOutgoingMessageRecipients(msg1)
+        Record rec1 = TestUtils.buildRecord()
+        Record rec2 = TestUtils.buildRecord()
+        RecordItem rItem1 = TestUtils.buildRecordItem(rec2)
+        RecordItem rItem2 = TestUtils.buildRecordItem(rec2)
+        rItem2.whenCreated = rItem1.whenCreated.plusYears(1)
+
+        RecordItem.withSession { it.flush() }
+
+        when: "no before item found"
+        DateTime retDt = RecordUtils.adjustPosition(rec1.id, dt)
+
+        then: "return the current time as the timestamp because no need to manipulate `whenCreated`"
+        retDt.isAfter(dt)
+
+        when: "yes before item found"
+        retDt = RecordUtils.adjustPosition(rec2.id, dt)
+
+        then: "placed between the after time and the oldest record item (`rItem1`)"
+        retDt.isAfter(dt)
+        retDt.isBefore(rItem1.whenCreated)
+        retDt.isBefore(rItem2.whenCreated)
+        retDt.isAfter(dt.plus(ValidationUtils.MIN_NOTE_SPACING_MILLIS))
+        // note that passed-in time is one HOUR ago so we definitely hit the max spacing
+        retDt.isEqual(dt.plus(ValidationUtils.MAX_NOTE_SPACING_MILLIS))
+    }
+
+    void "test building record item request"() {
+        given:
+        Phone p1 = TestUtils.buildActiveStaffPhone()
+        IndividualPhoneRecord ipr1 = TestUtils.buildIndPhoneRecord(p1)
+        ipr1.status = PhoneRecordStatus.BLOCKED
+        GroupPhoneRecord gpr1 = TestUtils.buildGroupPhoneRecord(p1)
+        PhoneRecord spr1 = TestUtils.buildSharedPhoneRecord(null, p1)
+        DateTime start = DateTime.now().minusDays(2)
+        DateTime end = DateTime.now()
+
+        when: "missing inputs"
+        Result<RecordItemRequest> res = RecordUtils.buildRecordItemRequest(null, TypeMap.create())
 
         then:
-        res.status == ResultStatus.BAD_REQUEST
-        res.errorMessages[0] == "recordUtils.atLeastOneRecipient"
+        res.status == ResultStatus.NOT_FOUND
 
-        when: "valid number of recipients"
-        msg1.contacts.recipients = [c1]
-        res = RecordUtils.checkOutgoingMessageRecipients(msg1)
+        when: "no params"
+        res = RecordUtils.buildRecordItemRequest(p1.id, TypeMap.create())
 
         then:
-        res.status == ResultStatus.OK
+        res.status == ResultStatus.CREATED
+        res.payload instanceof RecordItemRequest
+        res.payload.mutablePhone == p1
+        res.payload.groupByEntity == false
 
-        when: "too many recipients"
-        TestUtils.mock(msg1, "toRecipients") {
-            Collection<Contactable> recipients = []
-            (Constants.MAX_NUM_TEXT_RECIPIENTS + 1).times { recipients << c1 }
-            recipients
+        when: "has params"
+        res = RecordUtils.buildRecordItemRequest(p1.id, TypeMap.create(start: start.toString(),
+            end: end.toString(),
+            "types[]": ["text"],
+            "owners[]": [ipr1, gpr1, spr1]*.id))
+
+        then: "non-active non-expired `PhoneRecord`s are included too"
+        res.status == ResultStatus.CREATED
+        res.payload instanceof RecordItemRequest
+        res.payload.mutablePhone == p1
+        res.payload.start == start
+        res.payload.end == end
+        res.payload.types == [RecordText]
+        ipr1.toWrapper() in res.payload.wrappers
+        gpr1.toWrapper() in res.payload.wrappers
+        spr1.toWrapper() in res.payload.wrappers
+    }
+
+    void "test building single section"() {
+        given:
+        Phone p1 = TestUtils.buildStaffPhone()
+        RecordItem rItem1 = TestUtils.buildRecordItem()
+        IndividualPhoneRecord ipr1 = TestUtils.buildIndPhoneRecord()
+
+        when:
+        RecordItemRequestSection section1 = RecordUtils.buildSingleSection(null, null, null)
+
+        then:
+        section1 == null
+
+        when:
+        section1 = RecordUtils.buildSingleSection(p1, [rItem1], [ipr1.toWrapper()])
+
+        then:
+        section1 != null
+        section1.contactNames.size() == 1
+        section1.phoneNumber == p1.number.prettyPhoneNumber
+        section1.recordItems*.id == [rItem1]*.id
+    }
+
+    void "test building sections by entity"() {
+        given:
+        IndividualPhoneRecord ipr1 = TestUtils.buildIndPhoneRecord()
+        GroupPhoneRecord gpr1 = TestUtils.buildGroupPhoneRecord()
+        RecordItem rItem1 = TestUtils.buildRecordItem(ipr1.record)
+        RecordItem rItem2 = TestUtils.buildRecordItem(gpr1.record)
+
+        when:
+        List sections = RecordUtils.buildSectionsByEntity(null, null)
+
+        then:
+        sections == []
+
+        when:
+        sections = RecordUtils.buildSectionsByEntity([rItem2, rItem1], [ipr1, gpr1]*.toWrapper())
+
+        then:
+        sections.size() == 2
+        sections.find {
+            it.phoneNumber == ipr1.phone.number.prettyPhoneNumber && it.recordItems*.id == [rItem1]*.id
         }
-        res = RecordUtils.checkOutgoingMessageRecipients(msg1)
-
-        then:
-        res.status == ResultStatus.UNPROCESSABLE_ENTITY
-        res.errorMessages[0] == "recordUtils.checkOutgoingMessageRecipients.tooMany"
-    }
-
-    void "test building outgoing message target"() {
-        given:
-        int cBaseline = Contact.count()
-        int cnBaseline = ContactNumber.count()
-
-        when: "contacts not belonging to me"
-        TypeConvertingMap body = new TypeConvertingMap(contents: "hi", sendToContacts: [c2.id])
-        assert c2.phone != p1
-        Result<OutgoingMessage> res = RecordUtils.buildOutgoingMessageTarget(p1, body, null)
-
-        then:
-        res.status == ResultStatus.UNPROCESSABLE_ENTITY
-        Contact.count() == cBaseline
-        ContactNumber.count() == cnBaseline
-
-        when: "expired shared contacts"
-        assert sc2.sharedWith == p1
-        body = new TypeConvertingMap(contents: "hi", sendToSharedContacts: [sc2.contactId])
-        sc2.stopSharing()
-        sc2.save(flush: true, failOnError: true)
-        res = RecordUtils.buildOutgoingMessageTarget(p1, body, null)
-
-        then:
-        res.status == ResultStatus.UNPROCESSABLE_ENTITY
-        Contact.count() == cBaseline
-        ContactNumber.count() == cnBaseline
-
-        when: "not my tags"
-        body = new TypeConvertingMap(contents: "hi", sendToTags: [tag2.id])
-        assert tag2.phone != p1
-        res = RecordUtils.buildOutgoingMessageTarget(p1, body, null)
-
-        then:
-        res.status == ResultStatus.UNPROCESSABLE_ENTITY
-        Contact.count() == cBaseline
-        ContactNumber.count() == cnBaseline
-
-        when: "invalid phone numbers"
-        body = new TypeConvertingMap(contents: "hi", sendToPhoneNumbers: ["i am not a valid phone number"])
-        res = RecordUtils.buildOutgoingMessageTarget(p1, body, null)
-
-        then: "invalid phone numbers are ignored"
-        res.status == ResultStatus.BAD_REQUEST
-        res.errorMessages[0] == "recordUtils.atLeastOneRecipient"
-        Contact.count() == cBaseline
-        ContactNumber.count() == cnBaseline
-
-        when: "valid, no recipients"
-        body = new TypeConvertingMap(contents: "hi")
-        res = RecordUtils.buildOutgoingMessageTarget(p1, body, null)
-
-        then:
-        res.status == ResultStatus.BAD_REQUEST
-        res.errorMessages[0] == "recordUtils.atLeastOneRecipient"
-        Contact.count() == cBaseline
-        ContactNumber.count() == cnBaseline
-
-        when: "valid, with recipients"
-        sc2.startSharing(ContactStatus.ACTIVE, SharePermission.DELEGATE)
-        sc2.save(flush: true, failOnError: true)
-        body = new TypeConvertingMap(contents: "hi",
-            sendToContacts: [c1.id],
-            sendToSharedContacts: [sc2.contactId],
-            sendToTags: [tag1.id],
-            sendToPhoneNumbers: [TestUtils.randPhoneNumber()])
-        res = RecordUtils.buildOutgoingMessageTarget(p1, body, null)
-        Contact.withSession { it.flush() }
-
-        then:
-        res.status == ResultStatus.OK
-        Contact.count() == cBaseline + 1
-        ContactNumber.count() == cnBaseline + 1
-    }
-
-    // Calls
-    // -----
-
-    void "test building outgoing call target"() {
-        given:
-        Phone thisPhone = t1.phone
-        assert tC1.phone == thisPhone
-        sc1.sharedWith = thisPhone
-        sc1.save(flush: true, failOnError: true)
-
-        when: "no recipients"
-        TypeConvertingMap body = new TypeConvertingMap()
-        Result<Contactable> res = RecordUtils.buildOutgoingCallTarget(thisPhone, body)
-
-        then:
-        res.status == ResultStatus.BAD_REQUEST
-        res.errorMessages.contains("recordUtils.atLeastOneRecipient")
-
-        when: "both contact and shared contact provided"
-        body = new TypeConvertingMap(callContact: tC1.id, callSharedContact: sc1.contactId)
-        res = RecordUtils.buildOutgoingCallTarget(thisPhone, body)
-
-        then: "use contact, arbitrarily choose one first, still valid, multiple recipients check happens in controller"
-        res.status == ResultStatus.OK
-        res.payload instanceof Contactable
-        res.payload.contactId == tC1.id
-
-        when: "only valid contact id for a shared contact"
-        body = new TypeConvertingMap(callSharedContact: sc1.contactId)
-        res = RecordUtils.buildOutgoingCallTarget(thisPhone, body)
-
-        then:
-        res.status == ResultStatus.OK
-        res.payload instanceof Contactable
-        res.payload.contactId == sc1.contactId
-    }
-
-    // Notes
-    // -----
-
-    void "test building note target"() {
-        when: "no recipients"
-        TypeConvertingMap body = new TypeConvertingMap([:])
-        Result<Record> res = RecordUtils.buildNoteTarget(t1.phone, body)
-
-        then: "error"
-        res.status == ResultStatus.BAD_REQUEST
-        res.errorMessages.contains("recordUtils.atLeastOneRecipient")
-
-        when: "multiple recipients"
-        body = new TypeConvertingMap(forContact: tC1.id, forSharedContact: sc1.contactId)
-        res = RecordUtils.buildNoteTarget(sc1.sharedWith, body)
-        RecordNote.withSession { it.flush() }
-
-        then: "arbitrarily choose one first, still valid, multiple recipients check happens in controller"
-        res.status == ResultStatus.OK
-        res.payload instanceof Record
-
-        when: "creating for a contact"
-        body = new TypeConvertingMap(forContact: tC1.id)
-        res = RecordUtils.buildNoteTarget(t1.phone, body)
-        RecordNote.withSession { it.flush() }
-
-        then:
-        res.status == ResultStatus.OK
-        res.payload == tC1.record
-
-        when: "creating for a shared contact"
-        body = new TypeConvertingMap(forSharedContact: sc1.contactId)
-        res = RecordUtils.buildNoteTarget(sc1.sharedWith, body)
-        RecordNote.withSession { it.flush() }
-
-        then:
-        res.status == ResultStatus.OK
-        res.payload == sc1.contact.record
-
-        when: "creating for a tag"
-        body = new TypeConvertingMap(forTag: tag1.id)
-        res = RecordUtils.buildNoteTarget(tag1.phone, body)
-        RecordNote.withSession { it.flush() }
-
-        then:
-        res.status == ResultStatus.OK
-        res.payload == tag1.record
+        sections.find {
+            it.phoneNumber == gpr1.phone.number.prettyPhoneNumber && it.recordItems*.id == [rItem2]*.id
+        }
     }
 }

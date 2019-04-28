@@ -3,27 +3,24 @@ package org.textup.rest.marshaller
 import grails.compiler.GrailsTypeChecked
 import org.textup.*
 import org.textup.rest.*
+import org.textup.structure.*
+import org.textup.type.*
+import org.textup.util.*
+import org.textup.util.domain.*
+import org.textup.validator.*
 
 @GrailsTypeChecked
 class MediaElementJsonMarshaller extends JsonNamedMarshaller {
 
-    static final Closure marshalClosure = { ReadOnlyMediaElement e1 ->
-        Map json = [
-            uid: e1.uid,
-            whenCreated: e1.whenCreated,
-            versions: e1.allVersions.collect { ReadOnlyMediaElementVersion v1 ->
-                [
-                    type   : v1.type.mimeType,
-                    link   : v1.getLink()?.toString(),
-                    width  : v1.widthInPixels,
-                    height : v1.heightInPixels
-                ]
-            }
+    static final Closure marshalClosure = { ReadOnlyMediaElement el1 ->
+        [
+            uid         : el1.uid,
+            versions    : el1.allVersions,
+            whenCreated : el1.whenCreated
         ]
-        json
     }
 
     MediaElementJsonMarshaller() {
-        super(MediaElement, marshalClosure)
+        super(ReadOnlyMediaElement, marshalClosure)
     }
 }

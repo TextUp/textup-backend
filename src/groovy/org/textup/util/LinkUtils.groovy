@@ -5,14 +5,34 @@ import com.amazonaws.services.cloudfront.CloudFrontUrlSigner.Protocol
 import grails.compiler.GrailsTypeChecked
 import grails.util.Holders
 import groovy.util.logging.Log4j
-import org.codehaus.groovy.grails.web.util.TypeConvertingMap
 import org.joda.time.DateTime
 import org.textup.*
+import org.textup.structure.*
+import org.textup.type.*
+import org.textup.util.domain.*
 import org.textup.validator.*
 
 @GrailsTypeChecked
 @Log4j
 class LinkUtils {
+
+    private static final String LINK_CONFIG_ROOT = "textup.links"
+
+    static String adminDashboard() { Holders.flatConfig["${LINK_CONFIG_ROOT}.adminDashboard"] }
+
+    static String setupAccount() { Holders.flatConfig["${LINK_CONFIG_ROOT}.setupAccount"] }
+
+    static String superDashboard() { Holders.flatConfig["${LINK_CONFIG_ROOT}.superDashboard"] }
+
+    static String passwordReset(String tokenVal) {
+        String root = Holders.flatConfig["${LINK_CONFIG_ROOT}.passwordReset"]
+        root + tokenVal
+    }
+
+    static String notification(String tokenVal) {
+        String root = Holders.flatConfig["${LINK_CONFIG_ROOT}.notification"]
+        root + tokenVal
+    }
 
     // for voicemail greetings to enable caching
     // With a single behavior in one CloudFront distribution, cannot support both signed and
@@ -23,7 +43,7 @@ class LinkUtils {
         }
         try {
             String bucketName = Holders.flatConfig["textup.media.bucketName"]
-            new URL(Constants.PROTOCOL_HTTPS, "s3.amazonaws.com", "/${bucketName}/${ident}")
+            new URL(HttpUtils.PROTOCOL_HTTPS, "s3.amazonaws.com", "/${bucketName}/${ident}")
         }
         catch (Throwable e) {
             log.error("unsignedLink: ${e.class}, ${e.message}")

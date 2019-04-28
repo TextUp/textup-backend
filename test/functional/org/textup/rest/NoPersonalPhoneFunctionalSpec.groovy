@@ -1,49 +1,48 @@
 package org.textup.rest
 
-import org.textup.test.*
 import grails.plugins.rest.client.RestResponse
-import java.util.UUID
+import grails.test.mixin.*
+import grails.test.mixin.support.*
 import javax.servlet.http.HttpServletRequest
-import org.codehaus.groovy.grails.web.util.TypeConvertingMap
-import org.quartz.JobDataMap
-import org.quartz.JobExecutionContext
-import org.quartz.Trigger
+import org.joda.time.*
 import org.springframework.util.LinkedMultiValueMap
 import org.springframework.util.MultiValueMap
 import org.textup.*
-import org.textup.job.FutureMessageJob
-import org.textup.type.CallResponse
-import org.textup.type.FutureMessageType
-import org.textup.type.ReceiptStatus
+import org.textup.cache.*
+import org.textup.media.*
+import org.textup.structure.*
+import org.textup.test.*
+import org.textup.type.*
 import org.textup.util.*
+import org.textup.util.domain.*
 import org.textup.validator.*
-import static org.springframework.http.HttpStatus.*
+import spock.lang.*
 
-class NoPersonalPhoneFunctionalSpec extends RestSpec {
+@TestMixin(GrailsUnitTestMixin) // enables local use of validator classes
+class NoPersonalPhoneFunctionalSpec extends FunctionalSpec {
 
-	String targetPhoneNumber
+	static doWithSpring = {
+        resultFactory(ResultFactory)
+    }
+
+	String toNum
 	String prevPersonalNumber
+	String requestUrl = "${baseUrl}/v1/public/records"
 
 	def setup() {
-		setupData()
-		(targetPhoneNumber, prevPersonalNumber) = remote.exec({ un ->
-            // return TextUp phone number of the logged-in
+		doSetup()
+		(toNum, prevPersonalNumber) = remote.exec({ un ->
             Staff s1 = Staff.findByUsername(un)
-            String prevPersonalNumber = s1.personalPhoneAsString
-            s1.personalPhoneAsString = ""
-            s1.save(flush:true, failOnError:true)
-            return [s1.phone.numberAsString, prevPersonalNumber]
+            String prevPersonalNumber = s1.personalNumberAsString
+            s1.personalNumberAsString = null
+            s1.save(flush: true, failOnError: true)
+            Phone p1 = IOCUtils.phoneCache.findPhone(s1.id, PhoneOwnershipType.INDIVIDUAL)
+            return [p1.numberAsString, prevPersonalNumber]
         }.curry(loggedInUsername))
 	}
 
 	def cleanup() {
-		cleanupData()
-        remote.exec({ un, prevNum ->
-            Staff s1 = Staff.findByUsername(un)
-            s1.personalPhoneAsString = prevNum
-            s1.save(flush:true, failOnError:true)
-            return
-        }.curry(loggedInUsername, prevPersonalNumber))
+		doCleanup()
 	}
 
 	// Calls
@@ -51,25 +50,24 @@ class NoPersonalPhoneFunctionalSpec extends RestSpec {
 
 	void "test incoming call"() {
 		given:
-		String sid = "iAmAValidSid"
-        String fromNum = "+16262027548"
-        String requestUrl = "${baseUrl}/v1/public/records"
+		String sid = TestUtils.randString()
+        String fromNum = TestUtils.randPhoneNumberString()
 
 		when:
         MultiValueMap<String,String> form = new LinkedMultiValueMap<>()
-        form.add("CallSid", sid)
-        form.add("From", fromNum)
-        form.add("To", targetPhoneNumber)
+        form.add(TwilioUtils.ID_CALL, sid)
+        form.add(TwilioUtils.FROM, fromNum)
+        form.add(TwilioUtils.TO, toNum)
         RestResponse response = rest.post(requestUrl) {
             contentType("application/x-www-form-urlencoded")
             body(form)
         }
 
 		then: "call sent to voicemail"
-		response.status == OK.value()
+		response.status == ResultStatus.OK.intStatus
         response.xml != null
-        response.xml.Record.@action.toString().contains("handle=${CallResponse.END_CALL}")
-        response.xml.Record.@recordingStatusCallback.toString().contains("handle=${CallResponse.VOICEMAIL_DONE}")
+        response.xml.Record.@action.toString().contains("${CallbackUtils.PARAM_HANDLE}=${CallResponse.END_CALL}")
+        response.xml.Record.@recordingStatusCallback.toString().contains("${CallbackUtils.PARAM_HANDLE}=${CallResponse.VOICEMAIL_DONE}")
         // first Say verb contains the phone's away message which is guaranteed to
         // have the default emergency message
         response.xml.Say[0].text().contains(Constants.DEFAULT_AWAY_MESSAGE_SUFFIX)
@@ -77,25 +75,24 @@ class NoPersonalPhoneFunctionalSpec extends RestSpec {
 
 	void "test incoming self call"() {
 		given:
-		String sid = "iAmAValidSid"
+		String sid = TestUtils.randString()
         String fromNum = prevPersonalNumber
-        String requestUrl = "${baseUrl}/v1/public/records"
 
 		when:
 		MultiValueMap<String,String> form = new LinkedMultiValueMap<>()
-        form.add("CallSid", sid)
-        form.add("From", fromNum)
-        form.add("To", targetPhoneNumber)
+        form.add(TwilioUtils.ID_CALL, sid)
+        form.add(TwilioUtils.FROM, fromNum)
+        form.add(TwilioUtils.TO, toNum)
         RestResponse response = rest.post(requestUrl) {
             contentType("application/x-www-form-urlencoded")
             body(form)
         }
 
 		then: "treating as normal incoming call, sent to voicemail"
-		response.status == OK.value()
+		response.status == ResultStatus.OK.intStatus
         response.xml != null
-        response.xml.Record.@action.toString().contains("handle=${CallResponse.END_CALL}")
-        response.xml.Record.@recordingStatusCallback.toString().contains("handle=${CallResponse.VOICEMAIL_DONE}")
+        response.xml.Record.@action.toString().contains("${CallbackUtils.PARAM_HANDLE}=${CallResponse.END_CALL}")
+        response.xml.Record.@recordingStatusCallback.toString().contains("${CallbackUtils.PARAM_HANDLE}=${CallResponse.VOICEMAIL_DONE}")
         // first Say verb contains the phone's away message which is guaranteed to
         // have the default emergency message
         response.xml.Say[0].text().contains(Constants.DEFAULT_AWAY_MESSAGE_SUFFIX)
@@ -104,11 +101,10 @@ class NoPersonalPhoneFunctionalSpec extends RestSpec {
 	void "test attempting to start an outgoing bridge call"() {
 		given:
         String authToken = getAuthToken()
-        long contactId = remote.exec({ un ->
+        long iprId = remote.exec({ un ->
         	Staff s1 = Staff.findByUsername(un)
-            Contact contact = s1.phone.createContact([:], ["1112223333"]).payload
-            contact.save(flush:true, failOnError:true)
-        	return contact.id
+        	Phone p1 = IOCUtils.phoneCache.findPhone(s1.id, PhoneOwnershipType.INDIVIDUAL)
+        	return TestUtils.buildIndPhoneRecord(p1).id
     	}.curry(loggedInUsername))
 
 		when:
@@ -117,13 +113,14 @@ class NoPersonalPhoneFunctionalSpec extends RestSpec {
             header("Authorization", "Bearer $authToken")
             json {
                 record {
-                    callContact = contactId
+                	type = RecordItemType.CALL.toString()
+                    ids = [iprId]
                 }
             }
         }
 
 		then: "returns error with unprocessable status"
-		response.status == UNPROCESSABLE_ENTITY.value()
+		response.status == ResultStatus.UNPROCESSABLE_ENTITY.intStatus
 		response.json.errors instanceof List
 		response.json.errors.size() == 1
 	}
@@ -133,25 +130,24 @@ class NoPersonalPhoneFunctionalSpec extends RestSpec {
 
 	void "test incoming text when no personal phone associated"() {
 		given:
-		String sid = "iAmAValidSid"
-        String fromNum = "+16262027548"
-        String requestUrl = "${baseUrl}/v1/public/records"
+		String sid = TestUtils.randString()
+        String fromNum = TestUtils.randPhoneNumberString()
 
 		when:
 		MultiValueMap<String,String> form = new LinkedMultiValueMap<>()
-        form.add("MessageSid", sid)
-        form.add("From", fromNum)
-        form.add("To", targetPhoneNumber)
-        form.add("Body", "hi!")
-        form.add("NumSegments", "8")
+        form.add(TwilioUtils.ID_TEXT, sid)
+        form.add(TwilioUtils.FROM, fromNum)
+        form.add(TwilioUtils.TO, toNum)
+        form.add(TwilioUtils.BODY, "hi!")
+        form.add(TwilioUtils.NUM_SEGMENTS, "8")
         RestResponse response = rest.post(requestUrl) {
             contentType("application/x-www-form-urlencoded")
             body(form)
         }
 
-		then: "no personal phone implicitly means we cannot notify -> respond with away message"
-		response.status == OK.value()
-        response.body.contains(Constants.DEFAULT_AWAY_MESSAGE_SUFFIX)
+		then: "still attempts to notify and silenty fails so no away message returned"
+		response.status == ResultStatus.OK.intStatus
+		response.text == "<Response></Response>"
 	}
 
 	// for outgoing text test see OutgoingTextFunctionalSpec

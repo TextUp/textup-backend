@@ -1,12 +1,12 @@
 dataSource {
     pooled = true
     jmxExport = true
-    // For debugging only
+    // // For debugging only
     // logSql = true
 }
 hibernate {
-    charSet = 'utf8mb4'
-    characterEncoding = 'utf8mb4'
+    charSet = "utf8mb4"
+    characterEncoding = "utf8mb4"
     useUnicode = true
 
     // // For debugging only
@@ -45,10 +45,10 @@ hibernate {
     // finder based on the accountId. Therefore, we need to cache this query so that we don't
     // keep on hitting the database.
     cache.use_query_cache = true
-    cache.region.factory_class = 'org.hibernate.cache.ehcache.EhCacheRegionFactory' // Hibernate 4
+    cache.region.factory_class = "org.hibernate.cache.ehcache.EhCacheRegionFactory" // Hibernate 4
 
     singleSession = true // configure OSIV singleSession mode
-    flush.mode = 'manual' // OSIV session flush mode outside of transactional context
+    flush.mode = "manual" // OSIV session flush mode outside of transactional context
 }
 
 // environment specific settings
@@ -56,10 +56,10 @@ environments {
     development {
         dataSource {
             driverClassName = "org.h2.Driver"
-            dialect = "org.textup.util.ImprovedH2Dialect"
+            dialect = "org.textup.override.ImprovedH2Dialect"
             username = "sa"
             password = ""
-            dbCreate = "create-drop" // one of 'create', 'create-drop', 'update', 'validate', ''
+            dbCreate = "create"
             // For DATABASE_TO_UPPER, see https://stackoverflow.com/a/10793358
             // For MySQL compatibility mode, see https://stokito.wordpress.com/2014/05/07/grails-mock-mysql-database-in-test-environment/
             url = "jdbc:h2:mem:devDb;MVCC=TRUE;LOCK_TIMEOUT=10000;DB_CLOSE_ON_EXIT=FALSE;MODE=MySQL;DATABASE_TO_UPPER=FALSE;IGNORECASE=TRUE"
@@ -68,7 +68,7 @@ environments {
     test {
         dataSource {
             driverClassName = "org.h2.Driver"
-            dialect = "org.textup.util.ImprovedH2Dialect"
+            dialect = "org.textup.override.ImprovedH2Dialect"
             username = "sa"
             password = ""
             // see `development` environment block for notes on URL options
@@ -84,11 +84,14 @@ environments {
             // see: https://stackoverflow.com/a/39271754
             dbCreate = "none" //use dbmigration plugin to manage schema changes
             driverClassName = "com.mysql.jdbc.Driver"
-            dialect = "org.textup.util.MySQL5UTF8MB4InnoDBDialect"
-            // url CANNOT HAVE characterEncoding=utf8 because that will
+            dialect = "org.textup.override.MySQL5UTF8MB4InnoDBDialect"
+            // [NOTE] url CANNOT HAVE characterEncoding=utf8 because that will
             // override our settings in /etc/mysql/my.cnf to set the character
             // encoding to utf8mb4
-            url = "jdbc:mysql://localhost/prodDb?useUnicode=true"
+            // [NOTE] to prevent mysql from using the system timezone, we force mysql to use
+            // the server timezone, which we set to UTC in `BootStrap.groovy`
+            // see https://stackoverflow.com/a/7610174
+            url = "jdbc:mysql://localhost/prodDb?useUnicode=true&useLegacyDatetimeCode=false&serverTimezone=UTC"
             username = System.getenv("TEXTUP_BACKEND_DB_USERNAME") ?: System.getProperty("TEXTUP_BACKEND_DB_USERNAME")
             password = System.getenv("TEXTUP_BACKEND_DB_PASSWORD") ?: System.getProperty("TEXTUP_BACKEND_DB_PASSWORD")
 

@@ -2,24 +2,27 @@ package org.textup
 
 import grails.converters.JSON
 import grails.compiler.GrailsTypeChecked
+import grails.transaction.Transactional
 import javax.servlet.http.HttpSession
 import org.joda.time.*
 import org.joda.time.format.DateTimeFormat
 import org.springframework.security.access.annotation.Secured
 import org.textup.type.*
 import org.textup.util.*
+import org.textup.util.domain.*
 
 @GrailsTypeChecked
 @Secured("ROLE_ADMIN")
+@Transactional
 class UsageController {
 
-    final String SESSION_MONTH_KEY = "monthString"
+    static final String SESSION_MONTH_KEY = "monthString"
 
     UsageService usageService
 
     def index() {
         DateTime dt = getTimeframe(session)
-        List<UsageService.Organization> staffOrgs = usageService
+        List<ActivityEntity.Organization> staffOrgs = usageService
                 .getOverallPhoneActivity(dt, PhoneOwnershipType.INDIVIDUAL),
             teamOrgs = usageService.getOverallPhoneActivity(dt, PhoneOwnershipType.GROUP)
         [
@@ -39,8 +42,8 @@ class UsageController {
             return redirect(action: "index")
         }
         DateTime dt = getTimeframe(session)
-        List<UsageService.Staff> staffs = usageService.getStaffPhoneActivity(dt, orgId)
-        List<UsageService.Team> teams = usageService.getTeamPhoneActivity(dt, orgId)
+        List<ActivityEntity.Staff> staffs = usageService.getStaffPhoneActivity(dt, orgId)
+        List<ActivityEntity.Team> teams = usageService.getTeamPhoneActivity(dt, orgId)
         [
             *: buildTimeframeParams(dt),
             staffUsageAndCosts: buildUsageAndCosts(staffs),
@@ -76,9 +79,9 @@ class UsageController {
                 currentMonthIndex: currentMonthIndex
             ]
         }
-        else if (params.number) {
+        else if (params.long("phoneId")) {
             payload = [
-                numberData: usageService.getActivityForNumber(params.number as String),
+                phoneIdData: usageService.getActivityForPhoneId(params.long("phoneId")),
                 currentMonthIndex: currentMonthIndex
             ]
         }
@@ -89,7 +92,7 @@ class UsageController {
                 currentMonthIndex: currentMonthIndex
             ]
         }
-        render(payload as JSON)
+        render(new JSON(payload))
     }
 
     // Helpers
@@ -109,26 +112,26 @@ class UsageController {
         ]
     }
 
-    protected Map buildUsageAndCosts(Collection<? extends UsageService.HasActivity> aList) {
+    protected Map buildUsageAndCosts(Collection<? extends ActivityEntity.HasActivity> aList) {
         [
-            totalCost: aList.sum { UsageService.HasActivity a1 -> a1.totalCost },
-            usageCost: aList.sum { UsageService.HasActivity a1 -> a1.activity.cost },
-            textCost: aList.sum { UsageService.HasActivity a1 -> a1.activity.textCost },
-            callCost: aList.sum { UsageService.HasActivity a1 -> a1.activity.callCost },
-            numTexts: aList.sum { UsageService.HasActivity a1 -> a1.activity.numTexts },
-            numSegments: aList.sum { UsageService.HasActivity a1 -> a1.activity.numSegments },
-            numCalls: aList.sum { UsageService.HasActivity a1 -> a1.activity.numCalls },
-            numMinutes: aList.sum { UsageService.HasActivity a1 -> a1.activity.numMinutes },
+            totalCost: aList.sum { ActivityEntity.HasActivity a1 -> a1.totalCost },
+            usageCost: aList.sum { ActivityEntity.HasActivity a1 -> a1.activity.cost },
+            textCost: aList.sum { ActivityEntity.HasActivity a1 -> a1.activity.textCost },
+            callCost: aList.sum { ActivityEntity.HasActivity a1 -> a1.activity.callCost },
+            numTexts: aList.sum { ActivityEntity.HasActivity a1 -> a1.activity.numTexts },
+            numSegments: aList.sum { ActivityEntity.HasActivity a1 -> a1.activity.numSegments },
+            numCalls: aList.sum { ActivityEntity.HasActivity a1 -> a1.activity.numCalls },
+            numMinutes: aList.sum { ActivityEntity.HasActivity a1 -> a1.activity.numMinutes },
             numBillableMinutes: aList
-                .sum { UsageService.HasActivity a1 -> a1.activity.numBillableMinutes }
+                .sum { ActivityEntity.HasActivity a1 -> a1.activity.numBillableMinutes }
         ]
     }
 
     // numActivePhones is really only meaningful in an organizational context
-    protected Map buildPhoneCounts(Collection<UsageService.Organization> orgs) {
+    protected Map buildPhoneCounts(Collection<ActivityEntity.Organization> orgs) {
         [
-            numPhones: orgs.sum { UsageService.Organization o1 -> o1.totalNumPhones },
-            numActivePhones: orgs.sum { UsageService.Organization o1 -> o1.activity.numActivePhones }
+            numPhones: orgs.sum { ActivityEntity.Organization o1 -> o1.totalNumPhones },
+            numActivePhones: orgs.sum { ActivityEntity.Organization o1 -> o1.activity.numActivePhones }
         ]
     }
 

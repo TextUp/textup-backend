@@ -1,601 +1,275 @@
 package org.textup
 
+import grails.test.mixin.*
+import grails.test.mixin.gorm.*
+import grails.test.mixin.hibernate.*
+import grails.test.mixin.support.*
+import grails.test.runtime.*
+import grails.validation.*
+import java.util.concurrent.*
+import org.joda.time.*
+import org.textup.action.*
+import org.textup.cache.*
+import org.textup.structure.*
 import org.textup.test.*
-import grails.test.mixin.gorm.Domain
-import grails.test.mixin.hibernate.HibernateTestMixin
-import grails.test.mixin.TestMixin
-import grails.test.runtime.DirtiesRuntime
-import grails.test.runtime.FreshRuntime
-import grails.validation.ValidationErrors
-import java.util.concurrent.atomic.AtomicInteger
-import java.util.concurrent.Future
-import org.codehaus.groovy.grails.commons.GrailsApplication
-import org.hibernate.Session
-import org.joda.time.DateTime
 import org.textup.type.*
 import org.textup.util.*
 import org.textup.validator.*
 import spock.lang.*
-import static org.springframework.http.HttpStatus.*
 
+@Domain([AnnouncementReceipt, ContactNumber, CustomAccountDetails, FeaturedAnnouncement,
+    FutureMessage, GroupPhoneRecord, IncomingSession, IndividualPhoneRecord, Location, MediaElement,
+    MediaElementVersion, MediaInfo, Organization, OwnerPolicy, Phone, PhoneNumberHistory,
+    PhoneOwnership, PhoneRecord, PhoneRecordMembers, Record, RecordCall, RecordItem,
+    RecordItemReceipt, RecordNote, RecordNoteRevision, RecordText, Role, Schedule,
+    SimpleFutureMessage, Staff, StaffRole, Team, Token])
 @TestFor(PhoneService)
-@Domain([CustomAccountDetails, Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
-    RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization, Schedule,
-    Location, WeeklySchedule, PhoneOwnership, FeaturedAnnouncement, IncomingSession,
-    AnnouncementReceipt, Role, StaffRole, NotificationPolicy,
-    MediaInfo, MediaElement, MediaElementVersion])
 @TestMixin(HibernateTestMixin)
-@Unroll
-class PhoneServiceSpec extends CustomSpec {
+class PhoneServiceSpec extends Specification {
 
     static doWithSpring = {
         resultFactory(ResultFactory)
+        phoneCache(PhoneCache)
     }
 
     def setup() {
-        setupData()
+        TestUtils.standardMockSetup()
     }
 
-    def cleanup() {
-        cleanupData()
-    }
-
-    // Phone actions
-    // -------------
-
-    void "test deactivating phone"() {
+    void "test finding active given owner"() {
         given:
-        service.numberService = Mock(NumberService)
+        Team t1 = TestUtils.buildTeam()
+        int pBaseline = Phone.count()
+
+        when: "owner does not have phone"
+        Result res = service.tryFindAnyIdOrCreateImmediatelyForOwner(t1.id, PhoneOwnershipType.GROUP)
+        Phone newPhone = Phone.get(res.payload)
+
+        then:
+        res.status == ResultStatus.CREATED
+        Phone.count() == pBaseline + 1
+        newPhone != null
+        newPhone.isActive() == false
+        res.hasErrorBeenHandled == false
+
+        when: "newly created phone is still not active yet"
+        res = service.tryFindAnyIdOrCreateImmediatelyForOwner(t1.id, PhoneOwnershipType.GROUP)
+
+        then:
+        res.status == ResultStatus.OK
+        res.payload == newPhone.id
+        Phone.count() == pBaseline + 1
+
+        when: "newly created phone is active"
+        newPhone.tryActivate(TestUtils.randPhoneNumber(), TestUtils.randString())
+        newPhone.save(flush: true, failOnError: true)
+
+        res = service.tryFindAnyIdOrCreateImmediatelyForOwner(t1.id, PhoneOwnershipType.GROUP)
+
+        then:
+        res.status == ResultStatus.OK
+        res.payload == newPhone.id
+        Phone.count() == pBaseline + 1
+    }
+
+    void "test getting greeting call number"() {
+        given:
+        String num1 = TestUtils.randPhoneNumberString()
+        PhoneNumber pNum1 = TestUtils.randPhoneNumber()
 
         when:
-        p1.apiId = TestUtils.randString()
-        p1.save(flush: true, failOnError: true)
-        Result<Phone> res = service.deactivatePhone(p1)
+        Result res = service.tryGetGreetingCallNum("true", pNum1)
 
         then:
-        1 * service.numberService.freeExistingNumberToInternalPool(*_) >> new Result()
-        res.success == true
-        res.payload instanceof Phone
-        res.payload.numberAsString == null
-        res.payload.apiId == null
-    }
-
-    void "test updating phone number given a phone number error conditions"() {
-        given: "baseline"
-        int baseline = Phone.count()
-        String oldApiId = TestUtils.randString()
-        s1.phone.apiId = oldApiId
-        s1.phone.save(flush:true, failOnError:true)
-
-        when: "invalid number"
-        PhoneNumber pNum = new PhoneNumber(number:"invalid123")
-        Result<Phone> res = service.updatePhoneForNumber(s1.phone, pNum)
-
-        then:
-        res.success == false
-        res.status == ResultStatus.UNPROCESSABLE_ENTITY
-        res.errorMessages.size() == 1
-        Phone.count() == baseline
-
-        when: "same number"
-        res = service.updatePhoneForNumber(s1.phone, s1.phone.number)
-
-        then:
-        res.success == true
         res.status == ResultStatus.OK
-        res.payload instanceof Phone
-        res.payload.numberAsString == s1.phone.numberAsString
-        Phone.count() == baseline
-
-        when: "duplicate number"
-        res = service.updatePhoneForNumber(s1.phone, p2.number)
-
-        then:
-        res.success == false
-        res.status == ResultStatus.UNPROCESSABLE_ENTITY
-        res.errorMessages[0] == "phoneService.changeNumber.duplicate"
-    }
-
-    @FreshRuntime
-    void "test updating phone number given an api id error conditions"() {
-        given: "baseline"
-        int baseline = Phone.count()
-        String oldApiId = TestUtils.randString(),
-            anotherApiId = TestUtils.randString()
-        s1.phone.apiId = oldApiId
-        s2.phone.apiId = anotherApiId
-        [s1, s2]*.save(flush:true, failOnError:true)
-
-        when: "with same phone number apiId"
-        Result<Phone> res = service.updatePhoneForApiId(s1.phone, oldApiId)
-
-        then:
-        res.success == true
-        res.payload instanceof Phone
-        res.payload.apiId == oldApiId
-        Phone.count() == baseline
-
-        when: "with apiId belonging to another phone"
-        res = service.updatePhoneForApiId(s1.phone, anotherApiId)
-
-        then:
-        res.success == false
-        res.status == ResultStatus.UNPROCESSABLE_ENTITY
-        res.errorMessages[0] == "phoneService.changeNumber.duplicate"
-    }
-
-    @DirtiesRuntime
-    void "test phone action errors"() {
-        given:
-        CustomAccountDetails cad1 = TestUtils.buildCustomAccountDetails()
-
-        when: "not a list"
-        Result<Phone> res = service.handlePhoneActions(p1, [doPhoneActions: [
-            hello:"i am not a list"
-        ]])
-
-        then:
-        res.success == false
-        res.status == ResultStatus.UNPROCESSABLE_ENTITY
-        res.errorMessages.size() == 1
-        res.errorMessages[0] == "emptyOrNotACollection"
-
-        when: "item is not a map"
-        res = service.handlePhoneActions(p1, [doPhoneActions: [
-            ["i", "am", "not", "a", "map"]
-        ]])
-
-        then: "ignored"
-        res.success == false
-        res.status == ResultStatus.UNPROCESSABLE_ENTITY
-        res.errorMessages.size() == 1
-        res.errorMessages[0] == "emptyOrNotAMap"
-
-        when: "item has an invalid action"
-        res = service.handlePhoneActions(p1, [doPhoneActions: [
-            [
-                action: "i am an invalid action",
-                test:"I'm a property that doesn't exist"
-            ]
-        ]])
-
-        then:
-        res.success == false
-        res.status == ResultStatus.UNPROCESSABLE_ENTITY
-        res.errorMessages.size() == 1
-        res.errorMessages[0] == "actionContainer.invalidActions"
-
-        when: "phone is on a subaccount and is in debugging mode"
-        p1.customAccount = cad1
-        res = service.handlePhoneActions(p1, [doPhoneActions: [
-            [action: Constants.PHONE_ACTION_DEACTIVATE]
-        ]])
-
-        then:
-        res.status == ResultStatus.FORBIDDEN
-        res.errorMessages[0] == "phoneService.handlePhoneActions.disabledWhenDebugging"
-    }
-
-    @DirtiesRuntime
-    void "test handling phone actions overall"() {
-        given:
-        MockedMethod deactivatePhone = TestUtils.mock(service, "deactivatePhone") { new Result() }
-        MockedMethod transferPhone = TestUtils.mock(service, "transferPhone") { new Result() }
-        MockedMethod updatePhoneForNumber = TestUtils.mock(service, "updatePhoneForNumber") { new Result() }
-        MockedMethod updatePhoneForApiId = TestUtils.mock(service, "updatePhoneForApiId") { new Result() }
-
-        when: "no phone actions"
-        Result<Phone> res = service.handlePhoneActions(p1, [:])
-
-        then:
-        res.success == true
-        res.payload == p1
-        deactivatePhone.callCount == 0
-        transferPhone.callCount == 0
-        updatePhoneForNumber.callCount == 0
-        updatePhoneForApiId.callCount == 0
-
-        when: "valid deactivate"
-        res = service.handlePhoneActions(p1, [doPhoneActions: [
-            [action: Constants.PHONE_ACTION_DEACTIVATE]
-        ]])
-
-        then:
-        deactivatePhone.callCount == 1
-        transferPhone.callCount == 0
-        updatePhoneForNumber.callCount == 0
-        updatePhoneForApiId.callCount == 0
-
-        when: "valid transfer"
-        res = service.handlePhoneActions(p1, [doPhoneActions: [
-            [
-                action: Constants.PHONE_ACTION_TRANSFER,
-                id: 88L,
-                type: PhoneOwnershipType.GROUP.toString()
-            ]
-        ]])
-
-        then:
-        deactivatePhone.callCount == 1
-        transferPhone.callCount == 1
-        updatePhoneForNumber.callCount == 0
-        updatePhoneForApiId.callCount == 0
-
-        when: "new number via number"
-        res = service.handlePhoneActions(p1, [doPhoneActions: [
-            [
-                action: Constants.PHONE_ACTION_NEW_NUM_BY_NUM,
-                number: TestUtils.randPhoneNumber()
-            ]
-        ]])
-
-        then:
-        deactivatePhone.callCount == 1
-        transferPhone.callCount == 1
-        updatePhoneForNumber.callCount == 1
-        updatePhoneForApiId.callCount == 0
-
-        when: "new number via api id"
-        res = service.handlePhoneActions(p1, [doPhoneActions: [
-            [
-                action: Constants.PHONE_ACTION_NEW_NUM_BY_ID,
-                numberId: TestUtils.randString()
-            ]
-        ]])
-
-        then:
-        deactivatePhone.callCount == 1
-        transferPhone.callCount == 1
-        updatePhoneForNumber.callCount == 1
-        updatePhoneForApiId.callCount == 1
-    }
-
-    // Updating
-    // --------
-
-    void "test updating phone away message"() {
-        when:
-        String msg = "ting ting 123"
-        Result<Phone> res = service.updateFields(s1.phone, [awayMessage: msg])
-
-        then:
-        res.success == true
-        res.status == ResultStatus.OK
-        res.payload instanceof Phone
-        res.payload.awayMessage.contains(msg)
-
-        and: "no longer contains suffix because this lives on the org now"
-        res.payload.awayMessage.contains(Constants.DEFAULT_AWAY_MESSAGE_SUFFIX) == false
-        res.payload.buildAwayMessage().contains(Constants.DEFAULT_AWAY_MESSAGE_SUFFIX)
-    }
-
-    void "test updating useVoicemailRecordingIfPresent"() {
-        when:
-        boolean originalVal = s1.phone.useVoicemailRecordingIfPresent
-        Result<Phone> res = service.updateFields(s1.phone, [useVoicemailRecordingIfPresent: null])
-
-        then:
-        res.success == true
-        res.status == ResultStatus.OK
-        res.payload instanceof Phone
-        res.payload.useVoicemailRecordingIfPresent == originalVal
+        res.payload == pNum1
 
         when:
-        res = service.updateFields(s1.phone, [useVoicemailRecordingIfPresent: !originalVal])
+        res = service.tryGetGreetingCallNum(num1, pNum1)
 
         then:
-        res.success == true
-        res.status == ResultStatus.OK
-        res.payload instanceof Phone
-        res.payload.useVoicemailRecordingIfPresent == !originalVal
-
-        when:
-        res = service.updateFields(s1.phone, [useVoicemailRecordingIfPresent: originalVal])
-
-        then:
-        res.success == true
-        res.status == ResultStatus.OK
-        res.payload instanceof Phone
-        res.payload.useVoicemailRecordingIfPresent == originalVal
-
-        when:
-        res = service.updateFields(s1.phone, [useVoicemailRecordingIfPresent: 'NOT A BOOL'])
-
-        then:
-        res.success == true
-        res.status == ResultStatus.OK
-        res.payload instanceof Phone
-        res.payload.useVoicemailRecordingIfPresent == originalVal
+        res.status == ResultStatus.CREATED
+        res.payload == PhoneNumber.create(num1)
     }
 
-    void "test updating voice type"() {
-        when: "invalid voice type"
-        Result<Phone> res = service.updateFields(s1.phone, [voice:"invalid"])
-
-        then:
-        res.success == false
-        res.status == ResultStatus.UNPROCESSABLE_ENTITY
-        res.errorMessages[0] == "nullable"
-
-        when: "valid voice type"
-        res = service.updateFields(s1.phone, [voice:VoiceType.FEMALE.toString()])
-
-        then:
-        res.success == true
-        res.status == ResultStatus.OK
-        res.payload instanceof Phone
-        res.payload.voice == VoiceType.FEMALE
-    }
-
-    void "test updating voice language"() {
-        when: "invalid voice language"
-        Result<Phone> res = service.updateFields(s1.phone, [language:"invalid"])
-
-        then:
-        res.success == false
-        res.status == ResultStatus.UNPROCESSABLE_ENTITY
-        res.errorMessages[0] == "nullable"
-
-        when: "valid voice language"
-        res = service.updateFields(s1.phone, [language:VoiceLanguage.RUSSIAN.toString()])
-
-        then:
-        res.success == true
-        res.status == ResultStatus.OK
-        res.payload instanceof Phone
-        res.payload.language == VoiceLanguage.RUSSIAN
-    }
-
-    void "testing handling availability"() {
+    void "test requesting voicemail greeting call"() {
         given:
-        service.notificationService = Mock(NotificationService)
-        service.authService = Mock(AuthService)
-        Staff staff1 = new Staff(username: TestUtils.randString(),
-            password: "password",
-            name: "hi",
-            email:"hi@textup.org",
-            org: org,
-            personalPhoneAsString: TestUtils.randPhoneNumber(),
-            lockCode:Constants.DEFAULT_LOCK_CODE)
-        staff1.save(flush: true, failOnError: true)
-        int npBaseline = NotificationPolicy.count()
+        PhoneNumber pNum1 = TestUtils.randPhoneNumber()
 
-        when: "no availability in body"
-        Result<Phone> res = service.handleAvailability(p1, [:], null)
+        Staff s1 = TestUtils.buildStaff()
+        Phone tp1 = TestUtils.buildActiveTeamPhone()
 
-        then: "bypassed"
-        0 * service.authService._
-        0 * service.notificationService._
-        NotificationPolicy.count() == npBaseline
-
-        when: "has availability in body"
-        assert p1.owner.findPolicyForStaff(staff1.id) == null
-        res = service.handleAvailability(p1, [availability:[hello: 'there!']], null)
-
-        then: "a new notification policy is created and policy is updated"
-        1 * service.authService.loggedIn >> staff1
-        1 * service.notificationService.update(*_) >> { args ->
-            assert args[0].save() // need to this to mark newly-created policy as persistent
-            new Result()
-        }
-        NotificationPolicy.count() == npBaseline + 1
-    }
-
-    // Voicemail greeting
-    // ------------------
-
-    void "test getting number to call for voicemail greeting"() {
-        given:
-        String randNum1 = TestUtils.randPhoneNumber()
-        String randNum2 = TestUtils.randPhoneNumber()
-        service.authService = Mock(AuthService)
-
-        when: "fall back to personal phone"
-        String num = service.getNumberToCallForVoicemailGreeting("true")
-
-        then:
-        1 * service.authService.loggedInAndActive >> [personalPhoneAsString: randNum1]
-        num == randNum1
-
-        when: "specify different phone number to call"
-        num = service.getNumberToCallForVoicemailGreeting(randNum2)
-
-        then:
-        0 * service.authService._
-        num == randNum2
-    }
-
-    void "test requesting voicemail greeting"() {
-        given:
-        String customAccountId = TestUtils.randString()
         service.callService = GroovyMock(CallService)
-        Phone p1 = GroovyMock(Phone)
-        String randNum1 = TestUtils.randPhoneNumber()
+        MockedMethod tryGetActiveAuthUser = MockedMethod.create(AuthUtils, "tryGetActiveAuthUser") {
+            Result.createSuccess(s1)
+        }
 
-        when: "not requesting voicemail greeting"
-        Result<?> res = service.requestVoicemailGreetingCall(p1, [:])
+        when:
+        Result res = service.tryRequestVoicemailGreetingCall(tp1, null)
 
         then:
-        0 * service.callService._
+        tryGetActiveAuthUser.notCalled
         res.status == ResultStatus.NO_CONTENT
 
-        when: "invalid phone number to call"
-        res = service.requestVoicemailGreetingCall(p1, [requestVoicemailGreetingCall: "invalid"])
+        when:
+        res = service.tryRequestVoicemailGreetingCall(tp1, pNum1.number)
 
         then:
-        0 * service.callService._
-        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+        tryGetActiveAuthUser.hasBeenCalled
+        1 * service.callService.start(tp1.number, [pNum1], _, _) >> Result.void()
+        res.status == ResultStatus.NO_CONTENT
 
-        when: "valid phone number to call"
-        res = service.requestVoicemailGreetingCall(p1, [requestVoicemailGreetingCall: randNum1])
-
-        then:
-        1 * p1.customAccountId >> customAccountId
-        1 * service.callService.start(_, _, _, customAccountId) >> new Result()
+        cleanup:
+        tryGetActiveAuthUser?.restore()
     }
 
-    // Merging
-    // -------
-
-    @DirtiesRuntime
-    void "test short circuiting when logged-in user is not active"() {
+    void "test trying to update owner policy"() {
         given:
-        service.authService = Mock(AuthService)
-        MockedMethod mergeHelper = TestUtils.mock(service, "mergeHelper") { new Result() }
+        String tz = TestUtils.randString()
 
-        when: "merge for staff"
-        Result<Staff> staffRes = service.mergePhone(s1, [phone: [awayMessage: "hi"]], null)
+        Staff s1 = TestUtils.buildStaff()
+        Staff s2 = TestUtils.buildStaff()
+        Phone tp1 = TestUtils.buildActiveTeamPhone()
 
-        then:
-        (1.._) * service.authService.isActive >> false
-        staffRes.payload instanceof Staff
-        mergeHelper.callCount == 0
+        TypeMap oInfo1 = TestUtils.randTypeMap()
+        TypeMap oInfo2 = TypeMap.create(staffId: s1.id)
+        TypeMap oInfo3 = TestUtils.randTypeMap()
 
-        when: "merge for team"
-        Result<Team> teamRes = service.mergePhone(t1, [phone: [awayMessage: "hi"]], null)
-
-        then:
-        (1.._) * service.authService.isActive >> false
-        teamRes.payload instanceof Team
-        mergeHelper.callCount == 0
-
-        when: "becomes active"
-        teamRes = service.mergePhone(t1, [phone: [awayMessage: "hi"]], null)
-
-        then:
-        (1.._) * service.authService.isActive >> true
-        mergeHelper.callCount == 1
-    }
-
-    @DirtiesRuntime
-    void "test merging phone creates a new phone if no phone"() {
-        given: "staff and team with no phone"
-        Staff staff1 = new Staff(username: TestUtils.randString(),
-            password: "password",
-            name: "hi",
-            email:"hi@textup.org",
-            org: org,
-            personalPhoneAsString: TestUtils.randPhoneNumber(),
-            lockCode:Constants.DEFAULT_LOCK_CODE)
-        Team team1 = new Team(name: TestUtils.randString(),
-            org: org,
-            location: new Location(address: "address", lat: 8G, lon: 10G))
-        [staff1, team1]*.save(flush: true, failOnError: true)
-        service.authService = Stub(AuthService) { getIsActive() >> true }
-        MockedMethod mergeHelper = TestUtils.mock(service, "mergeHelper")
-            { Phone p1 -> p1.save(); new Result(); }
-        int pBaseline = Phone.count()
-        int oBaseline = PhoneOwnership.count()
-
-        when: "merge for staff"
-        Result<Staff> staffRes = service.mergePhone(staff1, [phone:[:]], null)
-
-        then: "new phone created"
-        staffRes.payload instanceof Staff
-        Phone.count() == pBaseline + 1
-        PhoneOwnership.count() == oBaseline + 1
-
-        when: "merge for team"
-        Result<Team> teamRes = service.mergePhone(team1, [phone:[:]], null)
-
-        then: "new phone created"
-        teamRes.payload instanceof Team
-        Phone.count() == pBaseline + 2
-        PhoneOwnership.count() == oBaseline + 2
-    }
-
-    @DirtiesRuntime
-    void "test lazy creation of notification policy and schedule when merging"() {
-        given: "phone without notification policy for owner"
-        String utcTimezone = "Etc/UTC"
-        service.notificationService = Stub(NotificationService) {
-            update(*_) >> { args -> args[0].save(); new Result(); }
-        }
-        service.authService = Stub(AuthService) {
-            getIsActive() >> true
-            getLoggedIn() >> s1
-        }
-        service.mediaService = Stub(MediaService) {
-            tryProcess(_, _, true) >> new Result(payload: Tuple.create(null, null))
-        }
-        Long staffId = 888L
-        assert p1.owner.findPolicyForStaff(staffId) == null
-        int policyBaseline = NotificationPolicy.count()
-
-        when: "update without availability"
-        Map body = [awayMessage: "hello there!"]
-        Result<Phone> res = service.mergeHelper(p1, body, utcTimezone)
-
-        then: "policy and schedule not created"
-        res.status == ResultStatus.OK
-        res.payload instanceof Phone
-        res.payload.awayMessage.contains(body.awayMessage)
-        NotificationPolicy.count() == policyBaseline
-
-        and: "no longer contains suffix because this lives on the org now"
-        res.payload.awayMessage.contains(Constants.DEFAULT_AWAY_MESSAGE_SUFFIX) == false
-        res.payload.buildAwayMessage().contains(Constants.DEFAULT_AWAY_MESSAGE_SUFFIX)
-
-        when: "update with availability"
-        body = [availability: [hi: "there"]]
-        res = service.mergeHelper(p1, body, utcTimezone)
-
-        then: "policy and schedule ARE created"
-        res.status == ResultStatus.OK
-        res.payload instanceof Phone
-        NotificationPolicy.count() == policyBaseline + 1
-
-        when: "update again with availability"
-        res = service.mergeHelper(p1, body, utcTimezone)
-
-        then: "use already-created policy and schedule"
-        res.status == ResultStatus.OK
-        res.payload instanceof Phone
-        NotificationPolicy.count() == policyBaseline + 1
-    }
-
-    @DirtiesRuntime
-    void "test cancelling future processing if error during merging"() {
-        given:
-        service.mediaService = Mock(MediaService)
-        MockedMethod handlePhoneActions = TestUtils.mock(service, "handlePhoneActions")
-            { new Result(status: ResultStatus.UNPROCESSABLE_ENTITY) }
-        MockedMethod requestVoicemailGreetingCall = TestUtils.mock(service, "requestVoicemailGreetingCall")
-        Future fut1 = Mock()
+        int opBaseline = OwnerPolicy.count()
+        service.ownerPolicyService = GroovyMock(OwnerPolicyService)
 
         when:
-        Result<Phone> res = service.mergeHelper(null, null, null)
+        Result res = service.tryUpdateOwnerPolicy(tp1, null, null, tz)
 
         then:
-        1 * service.mediaService.tryProcess(_, _, true) >> new Result(payload: Tuple.create(null, fut1))
+        res.status == ResultStatus.OK
+        res.payload == tp1
+        OwnerPolicy.count() == opBaseline
+
+        when:
+        res = service.tryUpdateOwnerPolicy(tp1, s2.id, [oInfo1, oInfo2, oInfo3], tz)
+
+        then:
+        res.status == ResultStatus.OK
+        res.payload == tp1
+        OwnerPolicy.count() == opBaseline
+
+        when:
+        res = service.tryUpdateOwnerPolicy(tp1, s1.id, [oInfo1, oInfo2, oInfo3], tz)
+
+        then:
+        1 * service.ownerPolicyService.tryUpdate({ it.staff == s1 }, oInfo2, tz) >> Result.void()
+        res.status == ResultStatus.OK
+        res.payload == tp1
+        OwnerPolicy.count() == opBaseline + 1
+    }
+
+    void "test trying to update fields"() {
+        given:
+        TypeMap body = TypeMap.create(awayMessage: TestUtils.randString(),
+            voice: VoiceType.values()[0],
+            language: VoiceLanguage.values()[0],
+            useVoicemailRecordingIfPresent: true,
+            allowSharingWithOtherTeams: false)
+        Phone p1 = TestUtils.buildStaffPhone()
+
+        when:
+        Result res = service.trySetFields(p1, body)
+
+        then:
+        res.status == ResultStatus.OK
+        res.payload == p1
+        p1.awayMessage == body.awayMessage
+        p1.voice == body.voice
+        p1.language == body.language
+        p1.useVoicemailRecordingIfPresent == body.useVoicemailRecordingIfPresent
+        p1.owner.allowSharingWithOtherTeams == body.allowSharingWithOtherTeams
+    }
+
+    void "test handling phone actions"() {
+        given:
+        TypeMap body = TestUtils.randTypeMap()
+        Long pId = TestUtils.randIntegerUpTo(88)
+        Phone p1 = GroovyMock() { getId() >> pId }
+        Staff authUser = GroovyMock()
+
+        service.phoneActionService = GroovyMock(PhoneActionService)
+        MockedMethod tryGetActiveAuthUser = MockedMethod.create(AuthUtils, "tryGetActiveAuthUser") {
+            Result.createSuccess(authUser)
+        }
+
+        when:
+        Result res = service.tryHandlePhoneActionsImmediatelyAndRefresh(p1, body)
+
+        then:
+        1 * service.phoneActionService.hasActions(body) >> false
+        res.status == ResultStatus.NO_CONTENT
+
+        when:
+        res = service.tryHandlePhoneActionsImmediatelyAndRefresh(p1, body)
+
+        then:
+        1 * service.phoneActionService.hasActions(body) >> true
+        1 * authUser.status >> StaffStatus.ADMIN
+        1 * service.phoneActionService.tryHandleActions(pId, body) >> Result.void()
+        1 * p1.refresh()
+        res.status == ResultStatus.NO_CONTENT
+
+        cleanup:
+        tryGetActiveAuthUser?.restore()
+    }
+
+    void "test updating overall"() {
+        given:
+        String errMsg1 = TestUtils.randString()
+        String tz = TestUtils.randString()
+        Long staffId = TestUtils.randIntegerUpTo(88)
+        TypeMap selfMap = TestUtils.randTypeMap()
+        TypeMap body = TypeMap.create(policies: [selfMap],
+            requestVoicemailGreetingCall: TestUtils.randString())
+
+        Phone p1 = TestUtils.buildStaffPhone()
+
+        Future fut1 = GroovyMock()
+        service.mediaService = GroovyMock(MediaService)
+        MockedMethod tryHandlePhoneActionsImmediatelyAndRefresh = MockedMethod.create(service, "tryHandlePhoneActionsImmediatelyAndRefresh") { Result.void() }
+        MockedMethod tryUpdateOwnerPolicy = MockedMethod.create(service, "tryUpdateOwnerPolicy") {
+            Result.createError([errMsg1], ResultStatus.BAD_REQUEST)
+        }
+        MockedMethod trySetFields = MockedMethod.create(service, "trySetFields") { Result.void() }
+        MockedMethod tryRequestVoicemailGreetingCall = MockedMethod.create(service, "tryRequestVoicemailGreetingCall") { Result.void() }
+
+        when:
+        Result res = service.tryUpdate(p1, body, staffId, tz)
+
+        then:
+        tryHandlePhoneActionsImmediatelyAndRefresh.latestArgs == [p1, body]
+        1 * service.mediaService.tryCreateOrUpdate(p1, body, true) >> Result.createSuccess(fut1)
+        tryUpdateOwnerPolicy.hasBeenCalled
+        trySetFields.notCalled
+        tryRequestVoicemailGreetingCall.notCalled
         1 * fut1.cancel(true)
-        handlePhoneActions.callCount == 1
-        requestVoicemailGreetingCall.callCount == 0
-    }
-
-    @DirtiesRuntime
-    void "test requesting voicemail greeting call during merging"() {
-        given:
-        service.mediaService = Mock(MediaService)
-        MockedMethod handlePhoneActions = TestUtils.mock(service, "handlePhoneActions")
-            { new Result() }
-        MockedMethod handleAvailability = TestUtils.mock(service, "handleAvailability")
-            { new Result() }
-        MockedMethod updateFields = TestUtils.mock(service, "updateFields")
-            { new Result() }
-        MockedMethod requestVoicemailGreetingCall = TestUtils.mock(service, "requestVoicemailGreetingCall")
-            { new Result() }
-        Future fut1 = Mock()
+        res.status == ResultStatus.BAD_REQUEST
+        res.errorMessages == [errMsg1]
 
         when:
-        Result<Phone> res = service.mergeHelper(null, null, null)
+        tryUpdateOwnerPolicy = MockedMethod.create(tryUpdateOwnerPolicy) { Result.void() }
+        res = service.tryUpdate(p1, body, staffId, tz)
 
         then:
-        1 * service.mediaService.tryProcess(_, _, true) >> new Result(payload: Tuple.create(null, fut1))
+        tryHandlePhoneActionsImmediatelyAndRefresh.latestArgs == [p1, body]
+        1 * service.mediaService.tryCreateOrUpdate(p1, body, true) >> Result.createSuccess(fut1)
+        tryUpdateOwnerPolicy.latestArgs == [p1, staffId, [selfMap], tz]
+        trySetFields.latestArgs == [p1, body]
+        tryRequestVoicemailGreetingCall.latestArgs == [p1, body.requestVoicemailGreetingCall]
         0 * fut1._
-        handlePhoneActions.callCount == 1
-        handleAvailability.callCount == 1
-        updateFields.callCount == 1
-        requestVoicemailGreetingCall.callCount == 1
+        res.status == ResultStatus.OK
+        res.payload == p1
+
+        cleanup:
+        tryHandlePhoneActionsImmediatelyAndRefresh?.restore()
+        tryUpdateOwnerPolicy?.restore()
+        trySetFields?.restore()
+        tryRequestVoicemailGreetingCall?.restore()
     }
 }

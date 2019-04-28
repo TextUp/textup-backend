@@ -1,116 +1,91 @@
 package org.textup
 
-import grails.test.mixin.gorm.Domain
-import grails.test.mixin.hibernate.HibernateTestMixin
-import grails.test.mixin.TestFor
-import grails.test.mixin.TestMixin
-import grails.validation.ValidationErrors
-import org.joda.time.DateTime
+import grails.test.mixin.*
+import grails.test.mixin.gorm.*
+import grails.test.mixin.hibernate.*
+import grails.test.mixin.support.*
+import grails.test.runtime.*
+import grails.validation.*
+import org.joda.time.*
+import org.textup.structure.*
 import org.textup.test.*
 import org.textup.type.*
 import org.textup.util.*
-import spock.lang.Shared
+import org.textup.validator.*
+import spock.lang.*
 
-@TestFor(SessionService)
-@Domain([CustomAccountDetails, Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
-    RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
-    Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole,
-    IncomingSession, FeaturedAnnouncement, AnnouncementReceipt, NotificationPolicy,
-    MediaInfo, MediaElement, MediaElementVersion])
+@Domain([AnnouncementReceipt, ContactNumber, CustomAccountDetails, FeaturedAnnouncement,
+    FutureMessage, GroupPhoneRecord, IncomingSession, IndividualPhoneRecord, Location, MediaElement,
+    MediaElementVersion, MediaInfo, Organization, OwnerPolicy, Phone, PhoneNumberHistory,
+    PhoneOwnership, PhoneRecord, PhoneRecordMembers, Record, RecordCall, RecordItem,
+    RecordItemReceipt, RecordNote, RecordNoteRevision, RecordText, Role, Schedule,
+    SimpleFutureMessage, Staff, StaffRole, Team, Token])
 @TestMixin(HibernateTestMixin)
-class SessionServiceSpec extends CustomSpec {
+@TestFor(SessionService)
+class SessionServiceSpec extends Specification {
 
-    static doWithSpring = {
+   static doWithSpring = {
         resultFactory(ResultFactory)
     }
 
     def setup() {
-        super.setupData()
-        service.resultFactory = TestUtils.getResultFactory(grailsApplication)
-        service.authService = [getLoggedInAndActive:{
-			s1
-    	}] as AuthService
+        TestUtils.standardMockSetup()
     }
 
-    def cleanup() {
-        super.cleanupData()
-    }
+    void "test creating"() {
+        given:
+        Phone p1 = TestUtils.buildActiveTeamPhone()
+        TypeMap body1 = TypeMap.create(number: TestUtils.randString())
+        TypeMap body2 = TypeMap.create(number: TestUtils.randPhoneNumberString(),
+            isSubscribedToText: true,
+            isSubscribedToCall: true)
 
-    void "test create"() {
-    	given: "baselines"
-    	int sBaseline = IncomingSession.count()
+        int isBaseline = IncomingSession.count()
 
-    	when: "without phone"
-    	Result res = service.create(null, [:])
+        when:
+        Result res = service.tryCreate(null, null)
 
-    	then:
-    	res.success == false
-    	res.status == ResultStatus.UNPROCESSABLE_ENTITY
-    	res.errorMessages[0] == "sessionService.create.noPhone"
+        then:
+        res.status == ResultStatus.NOT_FOUND
+        IncomingSession.count() == isBaseline
 
-    	when: "invalid number"
-		res = service.create(p1, [number:"invalid"])
+        when:
+        res = service.tryCreate(p1.id, body1)
 
-    	then:
-    	res.success == false
+        then:
         res.status == ResultStatus.UNPROCESSABLE_ENTITY
-    	res.errorMessages.size() == 1
+        IncomingSession.count() == isBaseline
 
-    	when: "all valid"
-    	Map body = [number:"1112223333"]
-    	assert IncomingSession.findByNumberAsStringAndPhone(body.number, p1) == null
-    	res = service.create(p1, body)
+        when:
+        res = service.tryCreate(p1.id, body2)
 
-    	then:
-    	res.success == true
+        then:
         res.status == ResultStatus.CREATED
-    	res.payload instanceof IncomingSession
-    	res.payload.numberAsString == body.number
-    	IncomingSession.count() == sBaseline + 1
-
-    	when: "same number"
-    	res = service.create(p1, body)
-
-    	then: "merge"
-    	res.success == true
-        res.status == ResultStatus.CREATED
-    	res.payload instanceof IncomingSession
-    	res.payload.numberAsString == body.number
-    	IncomingSession.count() == sBaseline + 1
+        res.payload.phone == p1
+        res.payload.number == PhoneNumber.create(body2.number)
+        res.payload.isSubscribedToText == true
+        res.payload.isSubscribedToCall == true
+        IncomingSession.count() == isBaseline + 1
     }
 
-    void "test update"() {
-    	given: "baselines"
-    	String num = "2349302930"
-    	assert IncomingSession.findByNumberAsStringAndPhone(num, p1) == null
-    	IncomingSession sess1 = new IncomingSession(phone:p1, numberAsString:num)
-    	sess1.save(flush:true, failOnError:true)
-    	int sBaseline = IncomingSession.count()
+    void "test updating"() {
+        given:
+        IncomingSession is1 = TestUtils.buildSession()
+        TypeMap body1 = TypeMap.create(isSubscribedToText: true, isSubscribedToCall: true)
 
-    	when: "nonexistent id"
-    	Result res = service.update(-88L, [:])
+        when:
+        Result res = service.tryUpdate(null, null)
 
-    	then:
-    	res.success == false
-    	res.status == ResultStatus.NOT_FOUND
-    	res.errorMessages[0] == "sessionService.update.notFound"
+        then:
+        res.status == ResultStatus.NOT_FOUND
 
-    	when: "existing id, invalid"
-    	res = service.update(sess1.id, [isSubscribedToText:"hello"])
+        when:
+        res = service.tryUpdate(is1.id, body1)
 
-    	then:
-    	res.success == false
-        res.status == ResultStatus.UNPROCESSABLE_ENTITY
-    	res.errorMessages.size() == 1
-
-    	when: "existing id, valid"
-    	res = service.update(sess1.id, [isSubscribedToText:true])
-
-    	then:
-    	res.success == true
+        then:
         res.status == ResultStatus.OK
-    	res.payload instanceof IncomingSession
-    	res.payload.isSubscribedToText == true
-    	IncomingSession.count() == sBaseline
+        res.payload == is1
+        res.payload.isSubscribedToText == true
+        res.payload.isSubscribedToCall == true
     }
 }

@@ -1,7 +1,9 @@
 package org.textup.type
 
 import grails.compiler.GrailsTypeChecked
-import org.textup.Constants
+import org.textup.*
+import org.textup.util.*
+import org.textup.validator.*
 
 // If changing the audio mime types here, make sure to also check AudioUtils to see if building
 // options from the MediaType should be updated too
@@ -36,6 +38,15 @@ enum MediaType {
             MediaType.values().find { MediaType mType -> mType.mimeTypes?.contains(lowerCased) }
         }
     }
+
+    static Result<MediaType> tryConvertMimeType(String inputType) {
+        MediaType type = MediaType.convertMimeType(inputType)
+        type ?
+            IOCUtils.resultFactory.success(type) :
+            IOCUtils.resultFactory.failWithCodeAndStatus("mediaType.invalidMimeType",
+                ResultStatus.UNPROCESSABLE_ENTITY, [inputType])
+    }
+
     static boolean isValidMimeType(String inputType) {
         MediaType.convertMimeType(inputType) != null
     }

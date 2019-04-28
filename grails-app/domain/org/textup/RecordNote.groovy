@@ -5,96 +5,67 @@ import groovy.transform.EqualsAndHashCode
 import org.jadira.usertype.dateandtime.joda.PersistentDateTime
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
-import org.restapidoc.annotation.*
+import org.textup.structure.*
+import org.textup.type.*
 import org.textup.util.*
+import org.textup.util.domain.*
+import org.textup.validator.*
 
-@EqualsAndHashCode(callSuper=true)
-@RestApiObject(name="RecordNote", description="Notes that are part of the record.")
+@EqualsAndHashCode(callSuper = true)
+@GrailsTypeChecked
 class RecordNote extends RecordItem implements ReadOnlyRecordNote {
 
 	// whenCreated is used for making notes show up in the correct
-	// position in the chronological record, this 'whenChanged' field
+	// position in the chronological record, this `whenChanged` field
 	// is when this note actually was created
-    @RestApiObjectField(
-        description    = "Date this note was actually added to record. For notes, \
-            the whenCreated field is used for appropriate ordering in the record.",
-        allowedType    = "DateTime",
-        useForCreation = false)
-	DateTime whenChanged = DateTime.now(DateTimeZone.UTC)
-
-    @RestApiObjectField(
-        description    = "Whether this item is a read-only note",
-        allowedType    = "Boolean",
-        useForCreation = false)
+	DateTime whenChanged = JodaUtils.utcNow()
+    Location location
     boolean isReadOnly = false
 
-    @RestApiObjectField(
-        description    = "Location this note is associated with",
-        allowedType    = "Location",
-        useForCreation = true)
-	Location location
-
-    @RestApiObjectField(
-        apiFieldName   = "revisions",
-        description    = "Previous revisions of this note.",
-        allowedType    = "List<RecordNoteRevision>",
-        useForCreation = true)
-	static hasMany = [revisions:RecordNoteRevision]
+	static hasMany = [revisions: RecordNoteRevision]
+    static mapping = {
+        whenChanged type: PersistentDateTime
+        location fetch: "join", cascade: "all-delete-orphan"
+        // [NOTE] one-to-many relationships should not have `fetch: "join"` because of GORM using
+        // a left outer join to fetch the data runs into issues when a max is provided
+        // see: https://stackoverflow.com/a/25426734
+        revisions cascade: "all-delete-orphan"
+    }
     static constraints = {
     	location cascadeValidation: true, nullable: true
+        revisions cascadeValidation: true
     }
-    static mapping = {
-    	whenChanged type: PersistentDateTime
-        location lazy: false, cascade: "all-delete-orphan"
-        revisions lazy: false, cascade: "all-delete-orphan"
+
+    static Result<RecordNote> tryCreate(Record rec1, TempRecordItem temp1) {
+        RecordNote.tryCreate(rec1, temp1?.text, temp1?.media, temp1?.location)
+    }
+
+    static Result<RecordNote> tryCreate(Record rec1, String text, MediaInfo mInfo, Location loc1) {
+        RecordNote rNote1 = new RecordNote(record: rec1,
+            noteContents: text,
+            media: mInfo,
+            location: loc1)
+        DomainUtils.trySave(rNote1, ResultStatus.CREATED)
     }
 
     // Methods
     // -------
 
-    @GrailsTypeChecked
     Result<RecordNote> tryCreateRevision() {
-        if (hasDirtyNonObjectFields() || location?.isDirty() || media?.isDirty()) {
+        if (DomainUtils.hasDirtyNonObjectFields(this, ["isDeleted"]) || media?.isDirty() ||
+            location?.isActuallyDirty()) {
             // update whenChanged timestamp to keep it current for any revisions
-            this.whenChanged = DateTime.now(DateTimeZone.UTC)
+            whenChanged = JodaUtils.utcNow()
             // create revision of persistent values
-            RecordNoteRevision rev = this.createRevision()
-            if (!rev.save()) {
-                return IOCUtils.resultFactory.failWithValidationErrors(rev.errors)
-            }
+            RecordNoteRevision.tryCreate(this)
+                .then { DomainUtils.trySave(this) }
         }
-        IOCUtils.resultFactory.success(this)
+        else { IOCUtils.resultFactory.success(this) }
     }
 
-    @GrailsTypeChecked
-    protected boolean hasDirtyNonObjectFields() {
-        List<String> dirtyProps = this.dirtyPropertyNames
-        !dirtyProps.isEmpty() && (dirtyProps.size() > 1 || dirtyProps[0] != "isDeleted")
-    }
+    // Properties
+    // ----------
 
-    @GrailsTypeChecked
-    protected RecordNoteRevision createRevision() {
-        Closure doGet = { String propName -> this.getPersistentValue(propName) }
-    	RecordNoteRevision rev1 = new RecordNoteRevision(authorName:doGet("authorName"),
-            authorId: doGet("authorId"),
-            authorType: doGet("authorType"),
-            whenChanged: doGet("whenChanged"),
-            noteContents: doGet("noteContents"))
-        Object originalLoc = doGet('location')
-        if (originalLoc instanceof Location) {
-            rev1.location = originalLoc.tryDuplicatePersistentState()
-        }
-        Object originalMedia = doGet('media')
-        if (originalMedia instanceof MediaInfo) {
-            rev1.media = originalMedia.tryDuplicatePersistentState()
-        }
-    	this.addToRevisions(rev1)
-    	rev1
-    }
-
-    // Property access
-    // ---------------
-
-    @GrailsTypeChecked
+    @Override
     ReadOnlyLocation getReadOnlyLocation() { location }
 }

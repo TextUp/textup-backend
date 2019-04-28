@@ -1,5 +1,6 @@
 package org.textup.rest
 
+import grails.gorm.DetachedCriteria
 import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestFor
@@ -7,205 +8,155 @@ import grails.test.mixin.TestMixin
 import org.joda.time.DateTime
 import org.springframework.context.MessageSource
 import org.textup.*
+import org.textup.structure.*
 import org.textup.test.*
 import org.textup.type.*
 import org.textup.util.*
-import spock.lang.Shared
-import static javax.servlet.http.HttpServletResponse.*
+import org.textup.util.domain.*
+import org.textup.validator.*
+import spock.lang.*
 
+@Domain([AnnouncementReceipt, ContactNumber, CustomAccountDetails, FeaturedAnnouncement,
+    FutureMessage, GroupPhoneRecord, IncomingSession, IndividualPhoneRecord, Location, MediaElement,
+    MediaElementVersion, MediaInfo, Organization, OwnerPolicy, Phone, PhoneNumberHistory,
+    PhoneOwnership, PhoneRecord, PhoneRecordMembers, Record, RecordCall, RecordItem,
+    RecordItemReceipt, RecordNote, RecordNoteRevision, RecordText, Role, Schedule,
+    SimpleFutureMessage, Staff, StaffRole, Team, Token])
 @TestFor(AnnouncementController)
-@Domain([CustomAccountDetails, Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
-    RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
-    Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole,
-    IncomingSession, FeaturedAnnouncement, AnnouncementReceipt, NotificationPolicy,
-    MediaInfo, MediaElement, MediaElementVersion])
 @TestMixin(HibernateTestMixin)
-class AnnouncementControllerSpec extends CustomSpec {
+class AnnouncementControllerSpec extends Specification {
 
     static doWithSpring = {
         resultFactory(ResultFactory)
     }
 
     def setup() {
-        setupData()
+        TestUtils.standardMockSetup()
     }
 
-    def cleanup() {
-        cleanupData()
-    }
+    void "test index"() {
+        given:
+        String err1 = TestUtils.randString()
+        Long teamId = TestUtils.randIntegerUpTo(88)
+        Long pId = TestUtils.randIntegerUpTo(88)
 
-    // List
-    // ----
+        MockedMethod tryGetPhoneId = MockedMethod.create(ControllerUtils, "tryGetPhoneId") {
+            Result.createError([err1], ResultStatus.BAD_REQUEST)
+        }
+        MockedMethod respondWithCriteria = MockedMethod.create(controller, "respondWithCriteria")
 
-    protected void mockForList() {
-		controller.authService = [
-			hasPermissionsForTeam:{ Long tId -> true },
-			getLoggedInAndActive: { -> s1 }
-		] as AuthService
-    }
+        when:
+        params.teamId = teamId
+        controller.index()
 
-    void "test list with no id"() {
-    	given:
-    	mockForList()
-    	FeaturedAnnouncement announce = new FeaturedAnnouncement(owner:p1,
-    		message:"1112223333", expiresAt:DateTime.now().plusMinutes(30))
-    	announce.save(flush:true, failOnError:true)
+        then:
+        tryGetPhoneId.latestArgs == [teamId]
+        respondWithCriteria.notCalled
+        response.status == ResultStatus.BAD_REQUEST.intStatus
+        response.text.contains(err1)
 
-    	when:
-    	request.method = "GET"
-    	controller.index()
-    	Staff loggedIn = Staff.findByUsername(loggedInUsername)
-        List<Long> ids = TypeConversionUtils.allTo(Long, loggedIn.phone.announcements*.id)
+        when:
+        tryGetPhoneId = MockedMethod.create(tryGetPhoneId) { Result.createSuccess(pId) }
+        response.reset()
+        controller.index()
 
-    	then: "implicit staff"
-        response.status == SC_OK
-        response.json.size() == ids.size()
-        response.json*.id.every { ids.contains(it as Long) }
-    }
+        then:
+        tryGetPhoneId.latestArgs == [teamId]
+        respondWithCriteria.latestArgs[0] instanceof DetachedCriteria
+        respondWithCriteria.latestArgs[1] == params
+        respondWithCriteria.latestArgs[2] instanceof Closure
+        respondWithCriteria.latestArgs[3] == MarshallerUtils.KEY_ANNOUNCEMENT
 
-    void "test with team id"() {
-    	given:
-    	mockForList()
-    	FeaturedAnnouncement announce = new FeaturedAnnouncement(owner:t1.phone,
-    		message:"1112223333", expiresAt:DateTime.now().plusMinutes(30))
-    	announce.save(flush:true, failOnError:true)
-
-    	when:
-    	params.teamId = t1.id
-    	request.method = "GET"
-    	controller.index()
-        List<Long> ids = TypeConversionUtils.allTo(Long, t1.phone.announcements*.id)
-
-    	then:
-        response.status == SC_OK
-        response.json.size() == ids.size()
-        response.json*.id.every { ids.contains(it as Long) }
-    }
-
-    // Show
-    // ----
-
-    void "test show nonexistent id"() {
-    	when:
-    	params.id = "nonexistent"
-    	request.method = "GET"
-    	controller.show()
-
-    	then:
-    	response.status == SC_NOT_FOUND
-    }
-
-    void "test show forbidden"() {
-    	given:
-    	controller.authService = [
-			hasPermissionsForAnnouncement:{ Long id -> false }
-		] as AuthService
-		FeaturedAnnouncement announce = new FeaturedAnnouncement(owner:t1.phone,
-    		message:"1112223333", expiresAt:DateTime.now().plusMinutes(30))
-    	announce.save(flush:true, failOnError:true)
-
-    	when:
-    	params.id = announce.id
-    	request.method = "GET"
-    	controller.show()
-
-    	then:
-        response.status == SC_FORBIDDEN
+        cleanup:
+        tryGetPhoneId?.restore()
+        respondWithCriteria?.restore()
     }
 
     void "test show"() {
-    	given:
-    	controller.authService = [
-			hasPermissionsForAnnouncement:{ Long id -> true }
-		] as AuthService
-		FeaturedAnnouncement announce = new FeaturedAnnouncement(owner:t1.phone,
-    		message:"1112223333", expiresAt:DateTime.now().plusMinutes(30))
-    	announce.save(flush:true, failOnError:true)
+        given:
+        Long id = TestUtils.randIntegerUpTo(88)
 
-    	when:
-    	params.id = announce.id
-    	request.method = "GET"
-    	controller.show()
+        MockedMethod doShow = MockedMethod.create(controller, "doShow")
+        MockedMethod isAllowed = MockedMethod.create(FeaturedAnnouncements, "isAllowed")
+        MockedMethod mustFindForId = MockedMethod.create(FeaturedAnnouncements, "mustFindForId")
 
-    	then:
-    	response.status == SC_OK
-        response.json.id == announce.id
+        when:
+        params.id = id
+        controller.show()
+
+        then:
+        doShow.latestArgs[0] instanceof Closure
+        doShow.latestArgs[1] instanceof Closure
+
+        when:
+        doShow.latestArgs[0].call()
+        doShow.latestArgs[1].call()
+
+        then:
+        isAllowed.latestArgs == [id]
+        mustFindForId.latestArgs == [id]
+
+        cleanup:
+        doShow?.restore()
+        isAllowed?.restore()
+        mustFindForId?.restore()
     }
 
-    // Save
-    // ----
+    void "test save"() {
+        given:
+        Long teamId = TestUtils.randIntegerUpTo(88)
 
-    void "test save no id"() {
-    	given:
-    	controller.authService = [getIsActive:{ -> true }] as AuthService
-    	controller.announcementService = [createForStaff: { Map body ->
-    		new Result(success:true, payload:body, status:ResultStatus.CREATED)
-		}] as AnnouncementService
+        controller.announcementService = GroovyMock(AnnouncementService)
+        MockedMethod doSave = MockedMethod.create(controller, "doSave")
+        MockedMethod tryGetPhoneId = MockedMethod.create(ControllerUtils, "tryGetPhoneId")
 
-		when:
-		request.json = "{'announcement':{ 'hello':'okay' }}"
-		request.method = "POST"
-		controller.save()
+        when:
+        params.teamId = teamId
+        controller.save()
 
-    	then: "implicit staff"
-    	response.status == SC_CREATED
-        response.json.hello == "okay"
+        then:
+        doSave.latestArgs[0] == MarshallerUtils.KEY_ANNOUNCEMENT
+        doSave.latestArgs[1] == request
+        doSave.latestArgs[2] == controller.announcementService
+        doSave.latestArgs[3] instanceof Closure
+
+        when:
+        doSave.latestArgs[3].call()
+
+        then:
+        tryGetPhoneId.latestArgs == [teamId]
+
+        cleanup:
+        doSave?.restore()
+        tryGetPhoneId?.restore()
     }
-
-    void "test save team id"() {
-    	given:
-    	controller.authService = [
-    		exists:{ clazz, id -> true },
-    		hasPermissionsForTeam:{ Long id -> true }
-		] as AuthService
-    	controller.announcementService = [createForTeam: { Long id, Map body ->
-    		new Result(success:true, payload:body, status:ResultStatus.CREATED)
-		}] as AnnouncementService
-
-		when:
-		request.json = "{'announcement':{ 'hello':'okay' }}"
-		request.method = "POST"
-		params.teamId = t1.id
-		controller.save()
-
-    	then:
-    	response.status == SC_CREATED
-        response.json.hello == "okay"
-    }
-
-    // Update
-    // ------
 
     void "test update"() {
-    	given:
-    	controller.authService = [
-    		exists:{ clazz, id -> true },
-    		hasPermissionsForAnnouncement:{ Long id -> true }
-		] as AuthService
-    	controller.announcementService = [update: { Long id, Map body ->
-    		new Result(success:true, payload:body)
-		}] as AnnouncementService
+        given:
+        Long id = TestUtils.randIntegerUpTo(88)
 
-		when:
-		request.json = "{'announcement':{ 'hello':'okay' }}"
-		request.method = "PUT"
-		params.id = 123L
-		controller.update()
+        controller.announcementService = GroovyMock(AnnouncementService)
+        MockedMethod doUpdate = MockedMethod.create(controller, "doUpdate")
+        MockedMethod isAllowed = MockedMethod.create(FeaturedAnnouncements, "isAllowed")
 
-		then:
-		response.status == SC_OK
-        response.json.hello == "okay"
-    }
+        when:
+        params.id = id
+        controller.update()
 
-    // Delete
-    // ------
+        then:
+        doUpdate.latestArgs[0] == MarshallerUtils.KEY_ANNOUNCEMENT
+        doUpdate.latestArgs[1] == request
+        doUpdate.latestArgs[2] == controller.announcementService
+        doUpdate.latestArgs[3] instanceof Closure
 
-    void "test delete"() {
-    	when:
-    	request.method = "DELETE"
-    	controller.delete()
+        when:
+        doUpdate.latestArgs[3].call()
 
-    	then:
-    	response.status == SC_METHOD_NOT_ALLOWED
+        then:
+        isAllowed.latestArgs == [id]
+
+        cleanup:
+        doUpdate?.restore()
+        isAllowed?.restore()
     }
 }

@@ -1,268 +1,180 @@
 package org.textup.rest
 
-import grails.plugin.springsecurity.SpringSecurityService
-import grails.test.mixin.gorm.Domain
-import grails.test.mixin.hibernate.HibernateTestMixin
-import grails.test.mixin.TestFor
-import grails.test.mixin.TestMixin
-import grails.validation.ValidationErrors
-import org.springframework.context.MessageSource
+import grails.gorm.DetachedCriteria
+import grails.test.mixin.*
+import grails.test.mixin.gorm.*
+import grails.test.mixin.hibernate.*
 import org.textup.*
+import org.textup.structure.*
 import org.textup.test.*
 import org.textup.type.*
 import org.textup.util.*
-import spock.lang.Shared
-import spock.lang.Specification
-import static javax.servlet.http.HttpServletResponse.*
+import org.textup.util.domain.*
+import org.textup.validator.*
+import spock.lang.*
 
+@Domain([AnnouncementReceipt, ContactNumber, CustomAccountDetails, FeaturedAnnouncement,
+    FutureMessage, GroupPhoneRecord, IncomingSession, IndividualPhoneRecord, Location, MediaElement,
+    MediaElementVersion, MediaInfo, Organization, OwnerPolicy, Phone, PhoneNumberHistory,
+    PhoneOwnership, PhoneRecord, PhoneRecordMembers, Record, RecordCall, RecordItem,
+    RecordItemReceipt, RecordNote, RecordNoteRevision, RecordText, Role, Schedule,
+    SimpleFutureMessage, Staff, StaffRole, Team, Token])
 @TestFor(TagController)
-@Domain([CustomAccountDetails, Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
-    RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
-    Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole, NotificationPolicy,
-    MediaInfo, MediaElement, MediaElementVersion])
 @TestMixin(HibernateTestMixin)
-class TagControllerSpec extends CustomSpec {
+class TagControllerSpec extends Specification {
 
     static doWithSpring = {
         resultFactory(ResultFactory)
     }
+
     def setup() {
-        super.setupData()
-    }
-    def cleanup() {
-        super.cleanupData()
+        TestUtils.standardMockSetup()
     }
 
-    // List
-    // ----
-
-    protected void mockForList() {
-        controller.authService = [
-            getLoggedInAndActive:{ Staff.findByUsername(loggedInUsername) },
-            hasPermissionsForTeam:{ Long id -> true }
-        ] as AuthService
-    }
-
-    void "test list with no ids"() {
-        when:
-        mockForList()
-        request.method = "GET"
-        controller.index()
-        Staff loggedIn = Staff.findByUsername(loggedInUsername)
-        List<Long> ids = TypeConversionUtils.allTo(Long, loggedIn.phone.tags*.id)
-
-        then:
-        response.status == SC_OK
-        response.json.size() == ids.size()
-        response.json*.id.every { ids.contains(it as Long) }
-    }
-
-    void "test list with team id"() {
-        when:
-        mockForList()
-        params.teamId = t1.id
-        request.method = "GET"
-        controller.index()
-        List<Long> ids = TypeConversionUtils.allTo(Long, t1.phone.tags*.id)
-
-        then:
-        response.status == SC_OK
-        response.json.size() == ids.size()
-        response.json*.id.every { ids.contains(it as Long) }
-    }
-
-    // Show
-    // ----
-
-    void "test show nonexistent tag"() {
-        when:
-        request.method = "GET"
-        params.id = -88L
-        controller.show()
-
-        then:
-        response.status == SC_NOT_FOUND
-    }
-
-    void "test show forbidden tag"() {
+    void "test index"() {
         given:
-        controller.authService = [
-            hasPermissionsForTag:{ Long id -> false },
-        ] as AuthService
+        Long teamId = TestUtils.randIntegerUpTo(88)
+        Long pId = TestUtils.randIntegerUpTo(88)
+
+        DetachedCriteria crit1 = GroovyMock()
+        MockedMethod tryGetPhoneId = MockedMethod.create(ControllerUtils, "tryGetPhoneId") {
+            Result.createSuccess(pId)
+        }
+        MockedMethod buildForPhoneIdAndOptions = MockedMethod.create(GroupPhoneRecords, "buildForPhoneIdAndOptions") {
+            crit1
+        }
+        MockedMethod respondWithCriteria = MockedMethod.create(controller, "respondWithCriteria")
 
         when:
-        request.method = "GET"
-        params.id = tag1.id
-        controller.show()
+        params.teamId = teamId
+        controller.index()
 
         then:
-        response.status == SC_FORBIDDEN
+        tryGetPhoneId.latestArgs == [teamId]
+        buildForPhoneIdAndOptions.latestArgs == [pId, null]
+        respondWithCriteria.latestArgs[0] == crit1
+        respondWithCriteria.latestArgs[1] == params
+        respondWithCriteria.latestArgs[2] instanceof Closure
+        respondWithCriteria.latestArgs[3] == MarshallerUtils.KEY_TAG
+
+        cleanup:
+        tryGetPhoneId?.restore()
+        buildForPhoneIdAndOptions?.restore()
+        respondWithCriteria?.restore()
     }
 
-    void "test show tag"() {
+    void "test show"() {
         given:
-        controller.authService = [
-            hasPermissionsForTag:{ Long id -> true },
-        ] as AuthService
+        Long id = TestUtils.randIntegerUpTo(88)
+
+        MockedMethod doShow = MockedMethod.create(controller, "doShow")
+        MockedMethod isAllowed = MockedMethod.create(PhoneRecords, "isAllowed")
+        MockedMethod mustFindForId = MockedMethod.create(GroupPhoneRecords, "mustFindForId")
 
         when:
-        request.method = "GET"
-        params.id = tag1.id
+        params.id = id
         controller.show()
 
         then:
-        response.status == SC_OK
-        response.json.id == tag1.id
-    }
+        doShow.latestArgs[0] instanceof Closure
+        doShow.latestArgs[1] instanceof Closure
 
-    // Save
-    // ----
-
-    protected void mockForSave() {
-        controller.tagService = [createForStaff:{ Map body ->
-            new Result(payload:tag1, status:ResultStatus.CREATED)
-        }, createForTeam:{ Long tId, Map body ->
-            new Result(payload:teTag1, status:ResultStatus.CREATED)
-        }] as TagService
-        controller.authService = [
-            exists:{ Class clazz, Long id -> true },
-            getIsActive:{ true },
-            hasPermissionsForTeam:{ Long id -> true }
-        ] as AuthService
-    }
-
-    void "test save with no id"() {
         when:
-        mockForSave()
-        request.json = "{'tag':{}}"
-        request.method = "POST"
+        doShow.latestArgs[0].call()
+        doShow.latestArgs[1].call()
+
+        then:
+        isAllowed.latestArgs == [id]
+        mustFindForId.latestArgs == [id]
+
+        cleanup:
+        doShow?.restore()
+        isAllowed?.restore()
+        mustFindForId?.restore()
+    }
+
+    void "test save"() {
+        given:
+        Long teamId = TestUtils.randIntegerUpTo(88)
+
+        controller.tagService = GroovyMock(TagService)
+        MockedMethod doSave = MockedMethod.create(controller, "doSave")
+        MockedMethod tryGetPhoneId = MockedMethod.create(ControllerUtils, "tryGetPhoneId")
+
+        when:
+        params.teamId = teamId
         controller.save()
 
         then:
-        response.status == SC_CREATED
-        response.json.id == tag1.id
-    }
+        doSave.latestArgs[0] == MarshallerUtils.KEY_TAG
+        doSave.latestArgs[1] == request
+        doSave.latestArgs[2] == controller.tagService
+        doSave.latestArgs[3] instanceof Closure
 
-    void "test save with team id"() {
         when:
-        mockForSave()
-        request.json = "{'tag':{}}"
-        params.teamId = t1.id
-        request.method = "POST"
-        controller.save()
+        doSave.latestArgs[3].call()
 
         then:
-        response.status == SC_CREATED
-        response.json.id == teTag1.id
+        tryGetPhoneId.latestArgs == [teamId]
+
+        cleanup:
+        doSave?.restore()
+        tryGetPhoneId?.restore()
     }
 
-    // Update
-    // ------
-
-    void "test update nonexistent tag"() {
+    void "test update"() {
         given:
-        controller.authService = [
-            exists:{ Class clazz, Long id -> false }
-        ] as AuthService
+        Long id = TestUtils.randIntegerUpTo(88)
+
+        controller.tagService = GroovyMock(TagService)
+        MockedMethod doUpdate = MockedMethod.create(controller, "doUpdate")
+        MockedMethod isAllowed = MockedMethod.create(PhoneRecords, "isAllowed")
 
         when:
-        request.json = "{'tag':{}}"
-        params.id = -88L
-        request.method = "PUT"
+        params.id = id
         controller.update()
 
         then:
-        response.status == SC_NOT_FOUND
-    }
-
-    void "test update forbidden tag"() {
-        given:
-        controller.authService = [
-            exists:{ Class clazz, Long id -> true },
-            hasPermissionsForTag:{ Long id -> false }
-        ] as AuthService
+        doUpdate.latestArgs[0] == MarshallerUtils.KEY_TAG
+        doUpdate.latestArgs[1] == request
+        doUpdate.latestArgs[2] == controller.tagService
+        doUpdate.latestArgs[3] instanceof Closure
 
         when:
-        request.json = "{'tag':{}}"
-        params.id = tag1.id
-        request.method = "PUT"
-        controller.update()
+        doUpdate.latestArgs[3].call()
 
         then:
-        response.status == SC_FORBIDDEN
+        isAllowed.latestArgs == [id]
+
+        cleanup:
+        doUpdate?.restore()
+        isAllowed?.restore()
     }
 
-    void "test update tag"() {
+    void "test delete"() {
         given:
-        controller.tagService = [update:{ Long cId, Map body ->
-            new Result(payload:tag1, status:ResultStatus.OK)
-        }] as TagService
-        controller.authService = [
-            exists:{ Class clazz, Long id -> true },
-            hasPermissionsForTag:{ Long id -> true }
-        ] as AuthService
+        Long id = TestUtils.randIntegerUpTo(88)
+
+        controller.tagService = GroovyMock(TagService)
+        MockedMethod doDelete = MockedMethod.create(controller, "doDelete")
+        MockedMethod isAllowed = MockedMethod.create(PhoneRecords, "isAllowed")
 
         when:
-        request.json = "{'tag':{}}"
-        params.id = tag1.id
-        request.method = "PUT"
-        controller.update()
-
-        then:
-        response.status == SC_OK
-        response.json.id == tag1.id
-    }
-
-    // Delete
-    // ------
-
-    void "test delete nonexistent tag"() {
-        given:
-        controller.authService = [
-            exists:{ Class clazz, Long id -> false }
-        ] as AuthService
-
-        when:
-        params.id = -88L
-        request.method = "DELETE"
+        params.id = id
         controller.delete()
 
         then:
-        response.status == SC_NOT_FOUND
-    }
-
-    void "test delete forbidden tag"() {
-        given:
-        controller.authService = [
-            exists:{ Class clazz, Long id -> true },
-            hasPermissionsForTag:{ Long id -> false }
-        ] as AuthService
+        doDelete.latestArgs[0] == controller.tagService
+        doDelete.latestArgs[1] instanceof Closure
 
         when:
-        params.id = tag1.id
-        request.method = "DELETE"
-        controller.delete()
+        doDelete.latestArgs[1].call()
 
         then:
-        response.status == SC_FORBIDDEN
-    }
+        isAllowed.latestArgs == [id]
 
-    void "test delete tag"() {
-        given:
-        controller.tagService = [delete:{ Long cId ->
-            new Result(payload:null, status:ResultStatus.NO_CONTENT)
-        }] as TagService
-        controller.authService = [
-            exists:{ Class clazz, Long id -> true },
-            hasPermissionsForTag:{ Long id -> true }
-        ] as AuthService
-
-        when:
-        params.id = tag1.id
-        request.method = "DELETE"
-        controller.delete()
-
-        then:
-        response.status == SC_NO_CONTENT
+        cleanup:
+        doDelete?.restore()
+        isAllowed?.restore()
     }
 }

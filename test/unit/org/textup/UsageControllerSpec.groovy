@@ -1,27 +1,39 @@
 package org.textup
 
-import grails.test.mixin.TestFor
-import grails.test.runtime.DirtiesRuntime
-import org.joda.time.DateTime
+import grails.test.mixin.*
+import grails.test.mixin.gorm.*
+import grails.test.mixin.hibernate.*
+import grails.test.mixin.support.*
+import grails.test.runtime.*
+import grails.validation.*
+import javax.servlet.http.*
+import org.joda.time.*
+import org.textup.structure.*
 import org.textup.test.*
 import org.textup.type.*
 import org.textup.util.*
-import spock.lang.Specification
+import org.textup.validator.*
+import spock.lang.*
+
+// For some reason all controllers that have the `@Transactional` annotation must have
+// `HibernateTestMixin` mixed for proper initialization of transaction manager
+// see https://stackoverflow.com/a/25865276
 
 @TestFor(UsageController)
+@TestMixin(HibernateTestMixin)
 class UsageControllerSpec extends Specification {
 
     void "test building usage and costs"() {
         given:
-        UsageService.HasActivity a1 = Mock()
-        UsageService.ActivityRecord activity1 = Mock()
+        ActivityEntity.HasActivity ha1 = GroovyMock()
+        ActivityRecord activity1 = GroovyMock()
 
         when:
-        Map info = controller.buildUsageAndCosts([a1])
+        Map info = controller.buildUsageAndCosts([ha1])
 
         then:
-        1 * a1.totalCost >> TestUtils.randIntegerUpTo(888) + 1
-        (1.._) * a1.activity >> activity1
+        1 * ha1.totalCost >> TestUtils.randIntegerUpTo(888) + 1
+        (1.._) * ha1.activity >> activity1
         1 * activity1.cost >> TestUtils.randIntegerUpTo(888) + 1
         1 * activity1.textCost >> TestUtils.randIntegerUpTo(888) + 1
         1 * activity1.callCost >> TestUtils.randIntegerUpTo(888) + 1
@@ -43,8 +55,8 @@ class UsageControllerSpec extends Specification {
 
     void "test building phone counts"() {
         given:
-        UsageService.Organization org1 = Mock()
-        UsageService.ActivityRecord activity1 = Mock()
+        ActivityEntity.Organization org1 = GroovyMock()
+        ActivityRecord activity1 = GroovyMock()
 
         when:
         Map info = controller.buildPhoneCounts([org1])
@@ -66,12 +78,11 @@ class UsageControllerSpec extends Specification {
         info.numActivePhones == numActivePhones
     }
 
-    @DirtiesRuntime
     void "test building timeframe parameters"() {
         given:
-        MockedMethod dateTimeToMonthString = TestUtils.mock(UsageUtils, "dateTimeToMonthString") { "hi" }
-        MockedMethod getAvailableMonthStrings = TestUtils.mock(UsageUtils, "getAvailableMonthStrings") { "hi" }
-        MockedMethod dateTimeToTimestamp = TestUtils.mock(UsageUtils, "dateTimeToTimestamp") { "hi" }
+        MockedMethod dateTimeToMonthString = MockedMethod.create(UsageUtils, "dateTimeToMonthString") { "hi" }
+        MockedMethod getAvailableMonthStrings = MockedMethod.create(UsageUtils, "getAvailableMonthStrings") { "hi" }
+        MockedMethod dateTimeToTimestamp = MockedMethod.create(UsageUtils, "dateTimeToTimestamp") { "hi" }
 
         when:
         Map info = controller.buildTimeframeParams(null)
@@ -84,6 +95,11 @@ class UsageControllerSpec extends Specification {
         info.monthString != null
         info.availableMonthStrings != null
         info.currentTime != null
+
+        cleanup:
+        dateTimeToMonthString?.restore()
+        getAvailableMonthStrings?.restore()
+        dateTimeToTimestamp?.restore()
     }
 
     void "test getting timeframe from session with fallback"() {
@@ -132,14 +148,13 @@ class UsageControllerSpec extends Specification {
         response.redirectedUrl == "/usage/show/${orgId}"
     }
 
-    @DirtiesRuntime
     void "test getting longitudinal activity action"() {
         given:
-        controller.usageService = Mock(UsageService)
-        MockedMethod getAvailableMonthStringIndex = TestUtils.mock(UsageUtils, "getAvailableMonthStringIndex") { 8 }
+        controller.usageService = GroovyMock(UsageService)
+        MockedMethod getAvailableMonthStringIndex = MockedMethod.create(UsageUtils, "getAvailableMonthStringIndex") { 8 }
 
-        Long orgId = TestUtils.randIntegerUpTo(88) + 1
-        String number = TestUtils.randString()
+        Long orgId = TestUtils.randIntegerUpTo(88, true)
+        Long phoneId = TestUtils.randIntegerUpTo(88)
 
         when: "no query params"
         controller.ajaxGetActivity()
@@ -167,28 +182,30 @@ class UsageControllerSpec extends Specification {
         response.json.teamData != null
         response.json.currentMonthIndex != null
 
-        when: "phone number query param"
+        when: "phone id query param"
         response.reset()
         params.clear()
 
-        params.number = number
+        params.phoneId = phoneId
         controller.ajaxGetActivity()
 
         then:
         getAvailableMonthStringIndex.callCount == 3
-        1 * controller.usageService.getActivityForNumber(number) >> ["hi"]
-        response.json.numberData != null
+        1 * controller.usageService.getActivityForPhoneId(phoneId) >> ["hi"]
+        response.json.phoneIdData != null
         response.json.currentMonthIndex != null
+
+        cleanup:
+        getAvailableMonthStringIndex?.restore()
     }
 
-    @DirtiesRuntime
     void "test show endpoint"() {
         given:
-        controller.usageService = Mock(UsageService)
+        controller.usageService = GroovyMock(UsageService)
         Long orgId = TestUtils.randIntegerUpTo(88) + 1
-        Organization mockOrg = Mock()
+        Organization mockOrg = GroovyMock()
         Organization.metaClass."static".get = { Long id -> mockOrg }
-        MockedMethod getAvailableMonthStrings = TestUtils.mock(UsageUtils, "getAvailableMonthStrings") { 8 }
+        MockedMethod getAvailableMonthStrings = MockedMethod.create(UsageUtils, "getAvailableMonthStrings") { 8 }
 
         when: "missing orgId"
         controller.show()
@@ -219,13 +236,15 @@ class UsageControllerSpec extends Specification {
         model.org != null
         model.staffs != null
         model.teams != null
+
+        cleanup:
+        getAvailableMonthStrings?.restore()
     }
 
-    @DirtiesRuntime
     void "test index endpoint"() {
         given:
-        controller.usageService = Mock(UsageService)
-        MockedMethod getAvailableMonthStrings = TestUtils.mock(UsageUtils, "getAvailableMonthStrings") { 8 }
+        controller.usageService = GroovyMock(UsageService)
+        MockedMethod getAvailableMonthStrings = MockedMethod.create(UsageUtils, "getAvailableMonthStrings") { 8 }
 
         when:
         Map model = controller.index()
@@ -246,5 +265,8 @@ class UsageControllerSpec extends Specification {
         model.teamPhoneCounts != null
         model.staffOrgs != null
         model.teamOrgs != null
+
+        cleanup:
+        getAvailableMonthStrings?.restore()
     }
 }

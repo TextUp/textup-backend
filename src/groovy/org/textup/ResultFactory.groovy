@@ -24,9 +24,6 @@ class ResultFactory {
 	public <T> Result<T> success(T payload, ResultStatus status = ResultStatus.OK) {
 		Result.createSuccess(payload, status)
 	}
-	Result<Void> success() {
-		Result.<Void>createSuccess(null, ResultStatus.NO_CONTENT)
-	}
 
 	// Failure
 	// -------
@@ -45,7 +42,15 @@ class ResultFactory {
         Result.<T>createError([IOCUtils.getMessage(code, params)], status)
     }
 
-	public <T> Result<T> failWithThrowable(Throwable t) {
+	public <T> Result<T> failWithThrowable(Throwable t, String logPrefix = null,
+        boolean printStackTrace = false ) {
+
+        if (logPrefix) {
+            log.error("${logPrefix}: ${t.message}")
+        }
+        if (printStackTrace) {
+            t.printStackTrace()
+        }
         Result.<T>createError([t.message], ResultStatus.INTERNAL_SERVER_ERROR)
 	}
 

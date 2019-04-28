@@ -1,275 +1,183 @@
 package org.textup.validator
 
-import grails.test.mixin.gorm.Domain
-import grails.test.mixin.hibernate.HibernateTestMixin
-import grails.test.mixin.TestMixin
+import grails.test.mixin.*
+import grails.test.mixin.gorm.*
+import grails.test.mixin.hibernate.*
+import grails.test.mixin.support.*
 import grails.test.runtime.*
+import grails.validation.*
 import org.joda.time.*
 import org.textup.*
+import org.textup.structure.*
 import org.textup.test.*
 import org.textup.type.*
 import org.textup.util.*
 import spock.lang.*
 
-@Domain([CustomAccountDetails, Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
-    RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
-    Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole, NotificationPolicy,
-    MediaInfo, MediaElement, MediaElementVersion])
+@Domain([AnnouncementReceipt, ContactNumber, CustomAccountDetails, FeaturedAnnouncement,
+    FutureMessage, GroupPhoneRecord, IncomingSession, IndividualPhoneRecord, Location, MediaElement,
+    MediaElementVersion, MediaInfo, Organization, OwnerPolicy, Phone, PhoneNumberHistory,
+    PhoneOwnership, PhoneRecord, PhoneRecordMembers, Record, RecordCall, RecordItem,
+    RecordItemReceipt, RecordNote, RecordNoteRevision, RecordText, Role, Schedule,
+    SimpleFutureMessage, Staff, StaffRole, Team, Token])
 @TestMixin(HibernateTestMixin)
-class RecordItemRequestSpec extends CustomSpec {
+class RecordItemRequestSpec extends Specification {
 
     static doWithSpring = {
         resultFactory(ResultFactory)
     }
 
     def setup() {
-        setupData()
+        TestUtils.standardMockSetup()
     }
 
-    def cleanup() {
-        cleanupData()
-    }
-
-    void "test properties + validation"() {
-        when: "empty"
-        RecordItemRequest iReq = new RecordItemRequest()
-
-        then:
-        iReq.validate() == false
-
-        when: "all required filled out but contained objects are invalid"
-        iReq.with {
-            phone = p1
-            contacts = new ContactRecipients()
-            sharedContacts = new SharedContactRecipients()
-            tags = new ContactTagRecipients()
-        }
-
-        then:
-        iReq.validate() == false
-        iReq.errors.getFieldErrorCount("contacts.phone") == 1
-        iReq.errors.getFieldErrorCount("sharedContacts.phone") == 1
-        iReq.errors.getFieldErrorCount("tags.phone") == 1
+    void "test creation + constraints"() {
+        given:
+        Phone p1 = TestUtils.buildActiveStaffPhone()
+        IndividualPhoneRecord ipr1 = TestUtils.buildIndPhoneRecord(p1)
+        IndividualPhoneRecord foreign = TestUtils.buildIndPhoneRecord()
+        PhoneRecord spr1 = TestUtils.buildSharedPhoneRecord(null, p1)
+        spr1.permission = SharePermission.VIEW
+        PhoneRecord spr2 = TestUtils.buildSharedPhoneRecord(null, p1)
+        spr2.permission = SharePermission.NONE
 
         when:
-        iReq.contacts.phone = p1
-        iReq.sharedContacts.phone = p1
-        iReq.tags.phone = p1
+        Result res = RecordItemRequest.tryCreate(null, null, false)
 
         then:
-        iReq.validate() == true
-    }
-
-    void "test if has any recipients"() {
-        when: "no recipients"
-        RecordItemRequest iReq = TestUtils.buildRecordItemRequest(p1)
-
-        then:
-        iReq.hasAnyRecipients() == false
-
-        when: "has recipients"
-        iReq.contacts.recipients << c1
-
-        then:
-        iReq.hasAnyRecipients() == true
-    }
-
-    void "test counting + getting record items"() {
-        when: "get all records from phone"
-        RecordItemRequest iReq = TestUtils.buildRecordItemRequest(p1)
-        c1.phone = p1
-        RecordItem rItem1 = c1.record.storeOutgoingText(TestUtils.randString()).payload
-        tag1.phone = p1
-        RecordItem rItem2 = tag1.record.storeOutgoingCall().payload
-        RecordItem rItem3 = tag1.record.storeOutgoingCall().payload
-
-        rItem1.whenCreated = DateTime.now()
-        rItem2.whenCreated = DateTime.now().minusDays(2)
-        rItem3.whenCreated = DateTime.now().minusDays(8)
-
-        Record.withSession { it.flush() }
-
-        then: "default sort is recent first"
-        iReq.countRecordItems() > 0
-        iReq.recordItems.findIndexOf { it.id == rItem1.id } <
-            iReq.recordItems.findIndexOf { it.id == rItem2.id }
-        iReq.getRecordItems(null, false) .findIndexOf { it.id == rItem1.id } >
-            iReq.getRecordItems(null, false).findIndexOf { it.id == rItem2.id }
-
-        when: "get records for specified record owners"
-        iReq.tags.recipients << tag1
-
-        then: "only record items for specified tag"
-        iReq.countRecordItems() > 0
-        -1 == iReq.recordItems.findIndexOf { it.id == rItem1.id }
-        iReq.recordItems.findIndexOf { it.id == rItem2.id } <
-            iReq.recordItems.findIndexOf { it.id == rItem3.id }
-        iReq.getRecordItems(null, false) .findIndexOf { it.id == rItem2.id } >
-            iReq.getRecordItems(null, false).findIndexOf { it.id == rItem3.id }
-    }
-
-    @DirtiesRuntime
-    void "test getting record items normalizes pagination parameters"() {
-        given:
-        MockedMethod normalizePagination = TestUtils.mock(Utils, "normalizePagination") { [] }
-        Integer offset = 88
-        Integer max = 888
-
-        RecordItemRequest iReq = TestUtils.buildRecordItemRequest(p1)
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
 
         when:
-        iReq.getRecordItems(offset: offset, max: max)
+        res = RecordItemRequest.tryCreate(p1, [ipr1, spr1, spr2]*.toWrapper(), false)
 
         then:
-        normalizePagination.callCount == 1
-        normalizePagination.callArguments[0] == [offset, max]
-    }
-
-    void "test getting record ids"() {
-        given:
-        RecordItemRequest iReq = TestUtils.buildRecordItemRequest(p1)
-        iReq.contacts.recipients << c1
-        iReq.sharedContacts.recipients << sc1
-        iReq.tags.recipients << tag1
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+        res.errorMessages == ["someNoPermissions"]
 
         when:
-        Collection<Long> recIds = iReq.recordIds
+        res = RecordItemRequest.tryCreate(p1, [ipr1, spr1, foreign]*.toWrapper(), false)
 
         then:
-        recIds.size() == 3
-        c1.record.id in recIds
-        sc1.contact.record.id in recIds
-        tag1.record.id in recIds
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+        res.errorMessages == ["foreign"]
+
+        when:
+        res = RecordItemRequest.tryCreate(p1, [ipr1, spr1]*.toWrapper(), false)
+
+        then:
+        res.status == ResultStatus.CREATED
+        ipr1.toWrapper() in res.payload.wrappers
+        spr1.toWrapper() in res.payload.wrappers
+        res.payload.mutablePhone == p1
     }
 
-    void "test getting sections when getting all records for a phone"() {
+    void "test formatting start and end times"() {
         given:
-        RecordItemRequest iReq = TestUtils.buildRecordItemRequest(p1)
-        c1.phone = p1
-        RecordItem rItem1 = c1.record.storeOutgoingText(TestUtils.randString()).payload
-        tag1.phone = p1
-        RecordItem rItem2 = tag1.record.storeOutgoingCall().payload
+        Phone p1 = TestUtils.buildActiveStaffPhone()
+        IndividualPhoneRecord ipr1 = TestUtils.buildIndPhoneRecord(p1)
+        DateTime start = DateTime.now()
+        DateTime end = DateTime.now()
 
-        Record.withSession { it.flush() }
-
-        when: "sections as single stream"
-        iReq.groupByEntity = false
-        List<RecordItemRequestSection> sections = iReq.sections
+        when:
+        RecordItemRequest iReq1 = RecordItemRequest.tryCreate(p1, [ipr1.toWrapper()], false).payload
 
         then:
-        sections.size() == 1
-        sections[0].phoneName == p1.owner.buildName()
-        sections[0].phoneNumber == p1.number.prettyPhoneNumber
-        sections[0].contactNames == []
-        sections[0].tagNames == []
-        sections[0].sharedContactNames == []
-        sections[0].recordItems.size() > 0
+        iReq1.buildFormattedStart(null) == RecordItemRequest.DEFAULT_START
+        iReq1.buildFormattedEnd(null) == RecordItemRequest.DEFAULT_END
 
-        when: "sections as grouped by entity"
-        iReq.groupByEntity = true
-        sections = iReq.sections
+        when:
+        iReq1.start = start
+        iReq1.end = end
 
-        then: "when getting from phone, grouped by entity is the same as single stream"
-        sections.size() == 1
-        sections[0].phoneName == p1.owner.buildName()
-        sections[0].phoneNumber == p1.number.prettyPhoneNumber
-        sections[0].contactNames == []
-        sections[0].tagNames == []
-        sections[0].sharedContactNames == []
-        sections[0].recordItems.size() > 0
+        then:
+        iReq1.buildFormattedStart(null) instanceof String
+        iReq1.buildFormattedStart(null) != RecordItemRequest.DEFAULT_START
+        iReq1.buildFormattedEnd(null) instanceof String
+        iReq1.buildFormattedEnd(null) != RecordItemRequest.DEFAULT_END
     }
 
-    void "test getting sections when getting records for specified record owners"() {
+    void "test getting criteria"() {
         given:
-        RecordItemRequest iReq = TestUtils.buildRecordItemRequest(p1)
-        iReq.contacts.recipients << c1
-        iReq.sharedContacts.recipients << sc2
-        iReq.tags.recipients << tag1
+        Phone p1 = TestUtils.buildActiveStaffPhone()
+        IndividualPhoneRecord ipr1 = TestUtils.buildIndPhoneRecord(p1)
+        IndividualPhoneRecord ipr2 = TestUtils.buildIndPhoneRecord(p1)
+        RecordItem rItem1 = TestUtils.buildRecordItem(ipr1.record)
+        RecordItem rItem2 = TestUtils.buildRecordItem(ipr2.record)
 
-        assert sc2.sharedBy.id != p1.id
-
-        RecordItem rItem1 = c1.record.storeOutgoingText(TestUtils.randString()).payload
-        RecordItem rItem2 = sc2.contact.record.storeOutgoingText(TestUtils.randString()).payload
-        RecordItem rItem3 = tag1.record.storeOutgoingText(TestUtils.randString()).payload
-
-        Record.withSession { it.flush() }
-
-        when: "sections as single stream"
-        iReq.groupByEntity = false
-        List<RecordItemRequestSection> sections = iReq.sections
+        when: "no wrappers"
+        RecordItemRequest iReq1 = RecordItemRequest.tryCreate(p1, null, false).payload
+        Collection rItems = iReq1.criteria.list()
 
         then:
-        sections.size() == 1
-        sections[0].phoneName == p1.owner.buildName()
-        sections[0].phoneNumber == p1.number.prettyPhoneNumber
-        sections[0].contactNames == [c1.nameOrNumber]
-        sections[0].sharedContactNames == [sc2.name]
-        sections[0].tagNames == [tag1.name]
-        sections[0].recordItems.size() > 0
-        rItem1.id in sections[0].recordItems*.id
-        rItem2.id in sections[0].recordItems*.id
-        rItem3.id in sections[0].recordItems*.id
+        rItems.size() == 2
+        rItem1.id in rItems*.id
+        rItem2.id in rItems*.id
 
-        when: "sections as grouped by entity"
-        iReq.groupByEntity = true
-        sections = iReq.sections
+        when: "has wrappers"
+        iReq1 = RecordItemRequest.tryCreate(p1, [ipr1.toWrapper()], false).payload
+        rItems = iReq1.criteria.list()
 
-        then: "when a shared contact is alone in its section, the phone for that section is the sharedBy phone"
-        sections.size() == 3
-        sections.any { it.phoneName == sc2.sharedBy.owner.buildName() }
-        sections.any { it.phoneNumber == sc2.sharedBy.number.prettyPhoneNumber }
-        sections.every {
-            it.phoneName in [sc2.sharedBy.owner.buildName(), p1.owner.buildName()]
+        then:
+        rItems*.id == [rItem1.id]
+    }
+
+    void "test building sections"() {
+        given:
+        Phone p1 = TestUtils.buildStaffPhone()
+        PhoneRecordWrapper w1 = TestUtils.buildIndPhoneRecord(p1).toWrapper()
+        Map params = [(TestUtils.randString()): TestUtils.randString()]
+        RecordItemRequestSection mockSection = GroovyStub() { asBoolean() >> true }
+        MockedMethod buildPagination = MockedMethod.create(ControllerUtils, "buildPagination") {
+            [:]
         }
-        sections.every {
-            it.phoneNumber in [sc2.sharedBy.number.prettyPhoneNumber, p1.number.prettyPhoneNumber]
+        MockedMethod buildSectionsByEntity = MockedMethod.create(RecordUtils, "buildSectionsByEntity") {
+            [mockSection]
         }
-        sections.any { it.contactNames == [c1.nameOrNumber] && rItem1.id in it.recordItems*.id }
-        sections.any { it.sharedContactNames == [sc2.name] && rItem2.id in it.recordItems*.id }
-        sections.any { it.tagNames == [tag1.name] && rItem3.id in it.recordItems*.id }
-    }
+        MockedMethod buildSingleSection = MockedMethod.create(RecordUtils, "buildSingleSection") {
+            mockSection
+        }
 
-    void "test passing on datetime and type criteria, if specified"() {
-        given:
-        RecordItemRequest iReq = TestUtils.buildRecordItemRequest(p1)
-        iReq.contacts.recipients << c1
-        iReq.sharedContacts.recipients << sc1
-        iReq.tags.recipients << tag1
-
-        RecordItem rText1 = c1.record.storeOutgoingText(TestUtils.randString()).payload
-        RecordItem rText2 = tag1.record.storeOutgoingText(TestUtils.randString()).payload
-        RecordItem rCall1 = sc1.contact.record.storeOutgoingCall().payload
-
-        rText1.whenCreated = DateTime.now().minusDays(8)
-        rText2.whenCreated = DateTime.now().minusDays(2)
-        rCall1.whenCreated = DateTime.now()
-
-        Record.withSession { it.flush() }
-
-        when: "no criteria specified"
-        List<RecordItem> recList = iReq.recordItems
-
-        then: "show all"
-        rText1.id in recList*.id
-        rText2.id in recList*.id
-        rCall1.id in recList*.id
-
-        when: "with date criteria"
-        iReq.start = rText1.whenCreated.plusDays(1)
-        recList = iReq.recordItems
+        when: "no wrappers + not group by entity"
+        List sections = RecordItemRequest.tryCreate(p1, null, false).payload.buildSections(params)
 
         then:
-        (rText1.id in recList*.id) == false
-        rText2.id in recList*.id
-        rCall1.id in recList*.id
+        sections == [mockSection]
+        buildPagination.callCount == 1
+        buildSectionsByEntity.callCount == 0
+        buildSingleSection.callCount == 1
 
-        when: "with date + type criteria"
-        iReq.types = [RecordText]
-        recList = iReq.recordItems
+        when: "no wrappers + group by entity"
+        sections = RecordItemRequest.tryCreate(p1, null, true).payload.buildSections(params)
 
         then:
-        (rText1.id in recList*.id) == false
-        rText2.id in recList*.id
-        (rCall1.id in recList*.id) == false
+        sections == [mockSection]
+        buildPagination.callCount == 2
+        buildSectionsByEntity.callCount == 0
+        buildSingleSection.callCount == 2
+
+        when: "has wrappers + not group by entity"
+        sections = RecordItemRequest.tryCreate(p1, [w1], false).payload.buildSections(params)
+
+        then:
+        sections == [mockSection]
+        buildPagination.callCount == 3
+        buildSectionsByEntity.callCount == 0
+        buildSingleSection.callCount == 3
+
+        when: "has wrappers + group by entity"
+        sections = RecordItemRequest.tryCreate(p1, [w1], true).payload.buildSections(params)
+
+        then:
+        sections == [mockSection]
+        buildPagination.callCount == 4
+        buildPagination.allArgs.every { it == [params, 0] }
+        buildSectionsByEntity.callCount == 1
+        buildSingleSection.callCount == 3
+
+        cleanup:
+        buildPagination.restore()
+        buildSectionsByEntity.restore()
+        buildSingleSection.restore()
     }
+
 }

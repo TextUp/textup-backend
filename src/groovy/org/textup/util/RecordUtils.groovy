@@ -1,161 +1,105 @@
 package org.textup.util
 
 import grails.compiler.GrailsTypeChecked
-import org.codehaus.groovy.grails.web.util.TypeConvertingMap
-import org.joda.time.DateTime
+import org.joda.time.*
 import org.textup.*
-import org.textup.validator.*
+import org.textup.structure.*
 import org.textup.type.*
+import org.textup.util.domain.*
+import org.textup.validator.*
 
 @GrailsTypeChecked
 class RecordUtils {
 
-    static List<Class<? extends RecordItem>> parseTypes(Collection<?> rawTypes) {
-        if (!rawTypes) {
-            return []
+    private static final String EXPORT_TYPE_GROUPED = "groupByEntity"
+
+    static Result<Class<RecordItem>> tryDetermineClass(TypeMap body) {
+        RecordItemType type = body.enum(RecordItemType, "type")
+        type ?
+            IOCUtils.resultFactory.success(type.toClass()) :
+            IOCUtils.resultFactory.failWithCodeAndStatus("recordUtils.noClassForUnknownType",
+                ResultStatus.UNPROCESSABLE_ENTITY)
+    }
+
+    static DateTime adjustPosition(Long recordId, DateTime afterTime) {
+        RecordItem beforeItem
+        if (afterTime) {
+            // the afterTime is usually the whenCreated timestamp of the item we need to be after
+            // Therefore, we add 1 millisecond so that the new whenCreated is actually right after
+            beforeItem = RecordItems.buildForRecordIdsWithOptions([recordId], afterTime.plusMillis(1))
+                .build(RecordItems.forSort(false)) // want older items first
+                .list(max: 1)[0]
         }
-        HashSet<Class<? extends RecordItem>> types = new HashSet<>()
-        rawTypes.each { Object obj ->
-            switch (obj as String) {
-                case "text": types << RecordText; break;
-                case "call": types << RecordCall; break;
-                case "note": types << RecordNote
+        if (beforeItem) {
+            Long val  = new Duration(afterTime, beforeItem.whenCreated).millis / 2 as Long,
+                min = ValidationUtils.MIN_NOTE_SPACING_MILLIS,
+                max = ValidationUtils.MAX_NOTE_SPACING_MILLIS
+            // # millis to be add should be half the # of millis between time we need to be after
+            // and the time that we need to be before (to avoid passing next item)
+            // BUT this # must be between the specified lower and upper bounds
+            long plusAmount = Utils.inclusiveBound(val, min, max)
+            // set note's whenCreated to the DateTime we need to be after plus an offset
+            afterTime.plus(plusAmount)
+        }
+        else {
+            // if no item to place this new item before, then this means that we are trying to
+            // add an item after the most recent item in this record. Therefore, there's no need
+            // to manipulate the whenCreated timestamp and we just return the current time to allow
+            // for enough space to insert in additional items in between this item and the earlier
+            // one if we want to in the future
+            JodaUtils.utcNow()
+        }
+    }
+
+    static Result<RecordItemRequest> buildRecordItemRequest(Long pId, TypeMap body) {
+        Phones.mustFindActiveForId(pId)
+            .then { Phone mutPhone1 ->
+                Collection<? extends PhoneRecordWrapper> wrappers = PhoneRecords
+                    .buildNotExpiredForPhoneIds([pId])
+                    .build(PhoneRecords.forIds(body.typedList(Long, "owners[]")))
+                    .list()
+                    *.toWrapper()
+                boolean isGrouped = (body.string("exportFormatType") == EXPORT_TYPE_GROUPED)
+                RecordItemRequest.tryCreate(mutPhone1, wrappers, isGrouped)
             }
-        }
-        new ArrayList<Class<? extends RecordItem>>(types)
+            .then { RecordItemRequest iReq1 ->
+                iReq1.with {
+                    types = body.enumList(RecordItemType, "types[]")*.toClass()
+                    start = body.dateTime("start")
+                    end = body.dateTime("end")
+                }
+                DomainUtils.tryValidate(iReq1, ResultStatus.CREATED)
+            }
     }
 
-    static Result<Class<RecordItem>> determineClass(Map body) {
-        if (body.callContact || body.callSharedContact) {
-            IOCUtils.resultFactory.success(RecordCall)
-        }
-        else if (body.sendToPhoneNumbers || body.sendToContacts ||
-            body.sendToSharedContacts || body.sendToTags) {
-            IOCUtils.resultFactory.success(RecordText)
-        }
-        else if (body.forContact || body.forSharedContact || body.forTag) {
-            IOCUtils.resultFactory.success(RecordNote)
-        }
-        else {
-            IOCUtils.resultFactory.failWithCodeAndStatus("recordUtils.determineClass.unknownType",
-                ResultStatus.UNPROCESSABLE_ENTITY)
-        }
+    static RecordItemRequestSection buildSingleSection(Phone mutPhone1, List<RecordItem> rItems,
+        Collection<? extends PhoneRecordWrapper> wrappers) {
+
+        RecordItemRequestSection
+            .tryCreate(mutPhone1?.buildName(), mutPhone1?.number, rItems, wrappers)
+            .logFail("buildSingleSection")
+            .payload as RecordItemRequestSection
     }
 
-    // Building targets
-    // ----------------
+    static List<RecordItemRequestSection> buildSectionsByEntity(List<RecordItem> rItems,
+        Collection<? extends PhoneRecordWrapper> wrappers) {
 
-    static Result<RecordItemRequest> buildRecordItemRequest(Phone p1, TypeConvertingMap body,
-        boolean groupByEntity) {
-        Collection<Class<? extends RecordItem>> types = RecordUtils.parseTypes(body.list("types[]"))
-        DateTime start = DateTimeUtils.toDateTimeWithZone(body.since),
-            end = DateTimeUtils.toDateTimeWithZone(body.before)
-        RecordItemRequest itemRequest = new RecordItemRequest(phone: p1,
-            types: types,
-            start: start,
-            end: end,
-            groupByEntity: groupByEntity,
-            contacts: new ContactRecipients(phone: p1,
-                ids: TypeConversionUtils.allTo(Long, body.list("contactIds[]"))),
-            sharedContacts: new SharedContactRecipients(phone: p1,
-                ids: TypeConversionUtils.allTo(Long, body.list("sharedContactIds[]"))),
-            tags: new ContactTagRecipients(phone: p1,
-                ids: TypeConversionUtils.allTo(Long, body.list("tagIds[]"))))
-        if (itemRequest.validate()) {
-            IOCUtils.resultFactory.success(itemRequest)
-        }
-        else { IOCUtils.resultFactory.failWithValidationErrors(itemRequest.errors) }
-    }
-
-    static Result<OutgoingMessage> buildOutgoingMessageTarget(Phone p1, TypeConvertingMap body,
-        MediaInfo mInfo = null) {
-
-        // step 1: create each type of recipient
-        ContactRecipients contacts = new ContactRecipients(phone: p1,
-            ids: TypeConversionUtils.allTo(Long, body.list("sendToContacts")))
-        NumberToContactRecipients numToContacts = new NumberToContactRecipients(phone: p1,
-            ids: TypeConversionUtils.allTo(String, body.list("sendToPhoneNumbers")))
-        // step 2: build outgoing msg
-        OutgoingMessage msg1 = new OutgoingMessage(message: body.contents as String,
-            media: mInfo,
-            contacts: contacts.mergeRecipients(numToContacts),
-            sharedContacts: new SharedContactRecipients(phone: p1,
-                ids: TypeConversionUtils.allTo(Long, body.list("sendToSharedContacts"))),
-            tags: new ContactTagRecipients(phone: p1,
-                ids: TypeConversionUtils.allTo(Long, body.list("sendToTags"))))
-        if (msg1.validate()) {
-            RecordUtils.checkOutgoingMessageRecipients(msg1)
-        }
-        else { IOCUtils.resultFactory.failWithValidationErrors(msg1.errors) }
-    }
-
-    static Result<Contactable> buildOutgoingCallTarget(Phone p1, TypeConvertingMap body) {
-        // step 1: create and validate recipients
-        Recipients<Long, ? extends Contactable> recips
-        if (body.callContact) {
-            recips = new ContactRecipients(phone: p1, ids: [body.long("callContact")])
-        }
-        else { // body.callSharedContact
-            recips = new SharedContactRecipients(phone: p1, ids: [body.long("callSharedContact")])
-        }
-        if (!recips.validate()) {
-            return IOCUtils.resultFactory.failWithValidationErrors(recips.errors)
-        }
-        // step 2: ensure that we have at least one contactable to send to.
-        // That is, ensure that the provided id actually resolved to a contactable as the check
-        // in the RecordController only checks for the form of the body
-        Contactable cont1 = recips.recipients[0] as Contactable
-        if (cont1) {
-            IOCUtils.resultFactory.success(cont1)
-        }
-        else {
-            IOCUtils.resultFactory.failWithCodeAndStatus("recordUtils.atLeastOneRecipient",
-                ResultStatus.BAD_REQUEST)
-        }
-    }
-
-    static Result<Record> buildNoteTarget(Phone p1, TypeConvertingMap body) {
-        // step 1: create and validate recipients
-        Recipients<Long, ? extends WithRecord> recips
-        if (body.forSharedContact) {
-            recips = new SharedContactRecipients(phone: p1, ids: [body.long("forSharedContact")])
-        }
-        else if (body.forContact) {
-            recips = new ContactRecipients(phone: p1, ids: [body.long("forContact")])
-        }
-        else { // body.forTag
-            recips = new ContactTagRecipients(phone: p1, ids: [body.long("forTag")])
-        }
-        if (!recips.validate()) {
-            return IOCUtils.resultFactory.failWithValidationErrors(recips.errors)
-        }
-        // step 2: ensure that we have at least one entity to add the note to
-        // That is, ensure that the provided id actually resolved to a entity as the check
-        // in the RecordController only checks for the form of the body
-        WithRecord with1 = recips.recipients[0]
-        if (with1) {
-            with1.tryGetRecord()
-        }
-        else {
-            IOCUtils.resultFactory.failWithCodeAndStatus("recordUtils.atLeastOneRecipient",
-                ResultStatus.BAD_REQUEST)
-        }
-    }
-
-    // Helpers
-    // -------
-
-    protected static Result<OutgoingMessage> checkOutgoingMessageRecipients(OutgoingMessage msg1) {
-        Collection<Contactable> recipients = msg1.toRecipients()
-        if (recipients.size() > Constants.MAX_NUM_TEXT_RECIPIENTS) {
-            IOCUtils.resultFactory.failWithCodeAndStatus(
-                "recordUtils.checkOutgoingMessageRecipients.tooMany",
-                ResultStatus.UNPROCESSABLE_ENTITY)
-        }
-        else if (recipients.isEmpty()) {
-            IOCUtils.resultFactory.failWithCodeAndStatus("recordUtils.atLeastOneRecipient",
-                ResultStatus.BAD_REQUEST)
-        }
-        else { IOCUtils.resultFactory.success(msg1) }
+        Map<Long, Collection<RecordItem>> recordIdToItems = MapUtils
+                .<Long, RecordItem>buildManyUniqueObjectsMap(rItems) { RecordItem i1 -> i1.record.id }
+        ResultGroup
+            .collect(wrappers) { PhoneRecordWrapper w1 ->
+                w1.tryGetReadOnlyRecord()
+                    .then { ReadOnlyRecord rec1 ->
+                        // While overall the `RecordItemRequest` is for the mutable phone, show
+                        // `shareSource` phone for sharing relationships when in a single section
+                        w1.tryGetReadOnlyOriginalPhone().curry(rec1)
+                    }
+                    .then { ReadOnlyRecord rec1, ReadOnlyPhone p1 ->
+                        RecordItemRequestSection.tryCreate(p1.buildName(), p1.number,
+                            recordIdToItems[rec1.id], [w1])
+                    }
+            }
+            .logFail("buildSectionsByEntity")
+            .payload
     }
 }

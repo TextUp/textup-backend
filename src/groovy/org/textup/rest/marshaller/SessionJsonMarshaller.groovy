@@ -1,36 +1,36 @@
 package org.textup.rest.marshaller
 
 import grails.compiler.GrailsTypeChecked
-import org.codehaus.groovy.grails.commons.GrailsApplication
-import org.codehaus.groovy.grails.web.mapping.LinkGenerator
 import org.textup.*
 import org.textup.rest.*
-import org.textup.type.PhoneOwnershipType
+import org.textup.structure.*
+import org.textup.type.*
+import org.textup.util.*
+import org.textup.util.domain.*
+import org.textup.validator.*
 
 @GrailsTypeChecked
 class SessionJsonMarshaller extends JsonNamedMarshaller {
-    static final Closure marshalClosure = { String namespace, GrailsApplication grailsApplication,
-        LinkGenerator linkGenerator, IncomingSession sess ->
 
+    static final Closure marshalClosure = { IncomingSession is1 ->
         Map json = [:]
         json.with {
-            id = sess.id
-            isSubscribedToText = sess.isSubscribedToText
-            isSubscribedToCall = sess.isSubscribedToCall
-            number = sess.number.e164PhoneNumber
-            whenCreated = sess.whenCreated
-            lastSentInstructions = sess.lastSentInstructions
-            shouldSendInstructions = sess.shouldSendInstructions
-        }
-        if (sess.phone.owner.type == PhoneOwnershipType.INDIVIDUAL) {
-            json.staff = sess.phone.owner.ownerId
-        }
-        else {
-            json.team = sess.phone.owner.ownerId
-        }
+            id                     = is1.id
+            isSubscribedToCall     = is1.isSubscribedToCall
+            isSubscribedToText     = is1.isSubscribedToText
+            lastSentInstructions   = is1.lastSentInstructions
+            links                  = MarshallerUtils.buildLinks(RestUtils.RESOURCE_SESSION, is1.id)
+            number                 = is1.number
+            shouldSendInstructions = is1.shouldSendInstructions
+            whenCreated            = is1.whenCreated
 
-        json.links = [:] << [self:linkGenerator.link(namespace:namespace,
-            resource:"session", action:"show", id:sess.id, absolute:false)]
+            if (is1.phone.owner.type == PhoneOwnershipType.INDIVIDUAL) {
+                staff = is1.phone.owner.ownerId
+            }
+            else {
+                team = is1.phone.owner.ownerId
+            }
+        }
         json
     }
 

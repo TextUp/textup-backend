@@ -2,32 +2,43 @@ package org.textup.validator
 
 import grails.compiler.GrailsTypeChecked
 import grails.validation.Validateable
-import groovy.transform.EqualsAndHashCode
 import groovy.util.logging.Log4j
+import org.textup.*
+import org.textup.structure.*
+import org.textup.type.*
+import org.textup.util.*
+import org.textup.util.domain.*
+
+// Inherits `equals` and `hashCode` defined in superclass
 
 @GrailsTypeChecked
-@EqualsAndHashCode(callSuper=true)
-@Validateable
 @Log4j
+@Validateable
 class PhoneNumber extends BasePhoneNumber {
 
     static constraints = {
-        number nullable:false, validator:{ String val ->
-	        if (!(val?.toString() ==~ /^(\d){10}$/)) { ["format"] }
-	    }
+        number phoneNumber: true
     }
 
-    // Static creators
-    // ---------------
+    static PhoneNumber copy(BasePhoneNumber bNum) {
+        PhoneNumber.create(bNum?.number)
+    }
 
-    static PhoneNumber urlDecode(String number) {
-        String decodedNum = number
-        if (decodedNum) {
-            try {
-                decodedNum = URLDecoder.decode(number, "UTF-8")
-            }
-            catch (Throwable e) { log.debug("urlDecode: could not decode `${number}`") }
+    static Result<PhoneNumber> tryUrlDecode(String num) {
+        try {
+            String decodedNum = num ?
+                URLDecoder.decode(num, Constants.DEFAULT_CHAR_ENCODING) :
+                null
+            PhoneNumber.tryCreate(decodedNum)
         }
-        new PhoneNumber(number: decodedNum)
+        catch (Throwable e) { IOCUtils.resultFactory.failWithThrowable(e) }
+    }
+
+    static Result<PhoneNumber> tryCreate(String num) {
+        DomainUtils.tryValidate(PhoneNumber.create(num), ResultStatus.CREATED)
+    }
+
+    static PhoneNumber create(String num) {
+        new PhoneNumber(number: num)
     }
 }

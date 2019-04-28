@@ -1,23 +1,36 @@
 package org.textup
 
-import org.textup.test.*
-import grails.test.mixin.gorm.Domain
-import grails.test.mixin.hibernate.HibernateTestMixin
-import grails.test.mixin.TestMixin
+import grails.test.mixin.*
+import grails.test.mixin.gorm.*
+import grails.test.mixin.hibernate.*
+import grails.test.mixin.support.*
 import grails.test.runtime.*
-import org.joda.time.DateTime
+import grails.validation.*
+import java.awt.image.BufferedImage
+import org.joda.time.*
+import org.textup.structure.*
+import org.textup.test.*
 import org.textup.type.*
 import org.textup.util.*
+import org.textup.validator.*
 import spock.lang.*
 
 @Domain([CustomAccountDetails, MediaInfo, MediaElement, MediaElementVersion])
 @TestMixin(HibernateTestMixin)
 class MediaElementVersionSpec extends Specification {
 
+    static doWithSpring = {
+        resultFactory(ResultFactory)
+    }
+
+    def setup() {
+        TestUtils.standardMockSetup()
+    }
+
     void "test constraints + width and link custom getters"() {
         given: "storage service mock"
-        MockedMethod unsignedLink = TestUtils.mock(LinkUtils, 'unsignedLink')
-        MockedMethod signedLink = TestUtils.mock(LinkUtils, 'signedLink')
+        MockedMethod unsignedLink = MockedMethod.create(LinkUtils, 'unsignedLink')
+        MockedMethod signedLink = MockedMethod.create(LinkUtils, 'signedLink')
 
         when: "empty obj"
         MediaElementVersion mVers = new MediaElementVersion()
@@ -38,7 +51,7 @@ class MediaElementVersionSpec extends Specification {
         then: "valid, defaults to being private"
         unsignedLink.callCount == 0
         signedLink.callCount == 2
-        signedLink.callArguments[1][0] == mVers.versionId
+        signedLink.allArgs[1][0] == mVers.versionId
         mVers.validate() == true
 
         when: "is public"
@@ -47,7 +60,7 @@ class MediaElementVersionSpec extends Specification {
 
         then:
         unsignedLink.callCount == 1
-        unsignedLink.callArguments[0][0] == mVers.versionId
+        unsignedLink.allArgs[0][0] == mVers.versionId
         signedLink.callCount == 2
         mVers.validate() == true
     }
@@ -109,5 +122,33 @@ class MediaElementVersionSpec extends Specification {
         then:
         mVers.validate()
         mVers.errors.errorCount == 0
+    }
+
+    void "test creating from UploadItem"() {
+        given:
+        byte[] inputData1 = TestUtils.getJpegSampleData512()
+        BufferedImage image1 = Stub() {
+            getWidth() >> 888
+            getHeight() >> 1000
+        }
+        UploadItem uItem1 = UploadItem.tryCreate(MediaType.IMAGE_JPEG, inputData1, image1).payload
+
+        when:
+        MediaElementVersion mVers1 = MediaElementVersion.createIfPresent(null)
+
+        then:
+        mVers1 == null
+
+        when:
+        mVers1 = MediaElementVersion.createIfPresent(uItem1)
+
+        then:
+        mVers1.validate()
+        mVers1.type == uItem1.type
+        mVers1.versionId == uItem1.key
+        mVers1.sizeInBytes == inputData1.length
+        mVers1.widthInPixels == uItem1.widthInPixels
+        mVers1.heightInPixels == uItem1.heightInPixels
+        mVers1.isPublic == uItem1.isPublic
     }
 }

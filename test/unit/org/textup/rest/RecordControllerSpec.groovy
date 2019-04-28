@@ -1,373 +1,236 @@
 package org.textup.rest
 
-import grails.plugin.jodatime.converters.JodaConverters
-import grails.plugin.springsecurity.SpringSecurityService
-import grails.test.mixin.gorm.Domain
-import grails.test.mixin.hibernate.HibernateTestMixin
-import grails.test.mixin.TestFor
-import grails.test.mixin.TestMixin
-import grails.test.runtime.DirtiesRuntime
-import grails.validation.ValidationErrors
-import org.codehaus.groovy.grails.web.util.TypeConvertingMap
-import org.joda.time.DateTime
-import org.springframework.context.MessageSource
+import grails.gorm.DetachedCriteria
+import grails.test.mixin.*
+import grails.test.mixin.gorm.*
+import grails.test.mixin.hibernate.*
 import org.textup.*
+import org.textup.structure.*
 import org.textup.test.*
 import org.textup.type.*
 import org.textup.util.*
+import org.textup.util.domain.*
 import org.textup.validator.*
-import spock.lang.Shared
-import spock.lang.Specification
-import static javax.servlet.http.HttpServletResponse.*
+import spock.lang.*
 
+@Domain([AnnouncementReceipt, ContactNumber, CustomAccountDetails, FeaturedAnnouncement,
+    FutureMessage, GroupPhoneRecord, IncomingSession, IndividualPhoneRecord, Location, MediaElement,
+    MediaElementVersion, MediaInfo, Organization, OwnerPolicy, Phone, PhoneNumberHistory,
+    PhoneOwnership, PhoneRecord, PhoneRecordMembers, Record, RecordCall, RecordItem,
+    RecordItemReceipt, RecordNote, RecordNoteRevision, RecordText, Role, Schedule,
+    SimpleFutureMessage, Staff, StaffRole, Team, Token])
 @TestFor(RecordController)
-@Domain([CustomAccountDetails, Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
-    RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
-    Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole,
-    RecordNote, RecordNoteRevision, NotificationPolicy,
-    MediaInfo, MediaElement, MediaElementVersion])
 @TestMixin(HibernateTestMixin)
-class RecordControllerSpec extends CustomSpec {
+class RecordControllerSpec extends Specification {
 
     static doWithSpring = {
         resultFactory(ResultFactory)
     }
 
     def setup() {
-        setupData()
-        JodaConverters.registerJsonAndXmlMarshallers()
-        controller.recordService = [parseTypes:{ Collection<?> rawTypes -> [] }] as RecordService
-        controller.resultFactory = TestUtils.getResultFactory(grailsApplication)
+        TestUtils.standardMockSetup()
     }
 
-    def cleanup() {
-        cleanupData()
-    }
-
-    // List
-    // ----
-
-    @DirtiesRuntime
-    void "test listing error conditions"() {
+    void "test show"() {
         given:
-        controller.authService = Mock(AuthService)
-        String errorMsg = TestUtils.randString()
-        MockedMethod buildRecordItemRequest = TestUtils.mock(RecordUtils, "buildRecordItemRequest") {
-            Result.createError([errorMsg], ResultStatus.BAD_REQUEST)
-        }
-        Long teamId = TestUtils.randIntegerUpTo(88) + 1
+        Long id = TestUtils.randIntegerUpTo(88)
 
-        when: "validation error when building record item request"
-        controller.index()
+        MockedMethod doShow = MockedMethod.create(controller, "doShow")
+        MockedMethod isAllowed = MockedMethod.create(RecordItems, "isAllowed")
+        MockedMethod mustFindForId = MockedMethod.create(RecordItems, "mustFindForId")
 
-        then:
-        1 * controller.authService.loggedInAndActive
-        buildRecordItemRequest.callCount == 1
-        response.status == ResultStatus.BAD_REQUEST.intStatus
-
-        when: "passed in nonexistent team id"
-        params.clear()
-        response.reset()
-
-        params.teamId = teamId
-        controller.index()
+        when:
+        params.id = id
+        controller.show()
 
         then:
-        1 * controller.authService.loggedInAndActive
-        1 * controller.authService.exists(Team, teamId) >> false
-        buildRecordItemRequest.callCount == 1
-        response.status == ResultStatus.NOT_FOUND.intStatus
+        doShow.latestArgs[0] instanceof Closure
+        doShow.latestArgs[1] instanceof Closure
 
-        when: "forbidden to access team's phone"
-        params.clear()
-        response.reset()
-
-        params.teamId = teamId
-        controller.index()
+        when:
+        doShow.latestArgs[0].call()
+        doShow.latestArgs[1].call()
 
         then:
-        1 * controller.authService.loggedInAndActive
-        1 * controller.authService.exists(Team, teamId) >> true
-        1 * controller.authService.hasPermissionsForTeam(teamId) >> false
-        buildRecordItemRequest.callCount == 1
-        response.status == ResultStatus.FORBIDDEN.intStatus
+        isAllowed.latestArgs == [id]
+        mustFindForId.latestArgs == [id]
+
+        cleanup:
+        doShow?.restore()
+        isAllowed?.restore()
+        mustFindForId?.restore()
     }
 
-    @DirtiesRuntime
-    void "test passing pagination options and timezone when listing items"() {
+    void "test save"() {
         given:
-        controller.authService = Stub(AuthService)
-        RecordItemRequest stubItemRequest = Stub() {
-            countRecordItems() >> 100
-            getRecordItems(*_) >> []
-        }
-        MockedMethod buildRecordItemRequest = TestUtils.mock(RecordUtils, "buildRecordItemRequest") {
-            Result.createSuccess(stubItemRequest, ResultStatus.OK)
-        }
+        Long teamId = TestUtils.randIntegerUpTo(88)
+        Long pId = TestUtils.randIntegerUpTo(88)
         String tzId = TestUtils.randString()
+        TypeMap body = TypeMap.create()
+
+        controller.recordService = GroovyMock(RecordService)
+        MockedMethod doSave = MockedMethod.create(controller, "doSave")
+        MockedMethod tryGetPhoneId = MockedMethod.create(ControllerUtils, "tryGetPhoneId") {
+            Result.createSuccess(pId)
+        }
 
         when:
         params.timezone = tzId
-        controller.index()
-
-        then:
-        request[Constants.REQUEST_PAGINATION_OPTIONS] == params
-        request[Constants.REQUEST_TIMEZONE] == tzId
-    }
-
-    @DirtiesRuntime
-    void "test listing with json response"() {
-        given:
-        controller.authService = Mock(AuthService)
-        Phone mockPhone = Mock()
-        Staff staffStub = Stub { getPhone() >> mockPhone }
-        RecordItemRequest mockItemRequest = Mock()
-        MockedMethod buildRecordItemRequest = TestUtils.mock(RecordUtils, "buildRecordItemRequest") {
-            Result.createSuccess(mockItemRequest, ResultStatus.OK)
-        }
-
-        when:
-        controller.index()
-
-        then:
-        (1.._) * controller.authService.loggedInAndActive >> staffStub
-        1 * mockItemRequest.countRecordItems() >> 100
-        1 * mockItemRequest.getRecordItems(*_) >> []
-        buildRecordItemRequest.callCount == 1
-        buildRecordItemRequest.callArguments[0][0] == mockPhone
-        buildRecordItemRequest.callArguments[0][1] == params
-        buildRecordItemRequest.callArguments[0][2] == false
-        response.status == ResultStatus.OK.intStatus
-        response.getHeaderValue("Content-Type") == "application/json;charset=UTF-8"
-        response.json.records.size() == 0 // getRecordItems returns an empty list
-        response.json.meta.total == 100
-    }
-
-    @DirtiesRuntime
-    void "test listing with pdf response"() {
-        given:
-        controller.authService = Mock(AuthService)
-        controller.pdfService = Mock(PdfService)
-        Phone mockPhone = Mock()
-        Staff staffStub = Stub { getPhone() >> mockPhone }
-        RecordItemRequest mockItemRequest = Mock()
-        MockedMethod buildRecordItemRequest = TestUtils.mock(RecordUtils, "buildRecordItemRequest") {
-            Result.createSuccess(mockItemRequest, ResultStatus.OK)
-        }
-
-        when:
-        params.format = "pdf"
-        controller.index()
-
-        then:
-        (1.._) * controller.authService.loggedInAndActive >> staffStub
-        1 * controller.pdfService.buildRecordItems(mockItemRequest) >>
-            Result.createSuccess([] as byte[], ResultStatus.OK)
-        buildRecordItemRequest.callCount == 1
-        buildRecordItemRequest.callArguments[0][0] == mockPhone
-        buildRecordItemRequest.callArguments[0][1] == params
-        buildRecordItemRequest.callArguments[0][2] == false
-        response.status == ResultStatus.OK.intStatus
-        response.getHeaderValue("Content-Type") == "application/pdf;charset=utf-8"
-        response.getHeaderValue("Content-Disposition").contains("attachment;filename=")
-    }
-
-    // Show
-    // ----
-
-    void "test show nonexistent item"() {
-        when:
-        request.method = "GET"
-        params.id = -88L
-        controller.show()
-
-        then:
-        response.status == SC_NOT_FOUND
-    }
-
-    void "test show forbidden item"() {
-        given:
-        controller.authService = [
-            hasPermissionsForItem:{ Long id -> false },
-        ] as AuthService
-
-        when:
-        request.method = "GET"
-        params.id = rText1.id
-        controller.show()
-
-        then:
-        response.status == SC_FORBIDDEN
-    }
-
-    void "test show item"() {
-        given:
-        controller.authService = [
-            hasPermissionsForItem:{ Long id -> true },
-        ] as AuthService
-
-        when:
-        request.method = "GET"
-        params.id = rText1.id
-        controller.show()
-
-        then:
-        response.status == SC_OK
-        response.json.id == rText1.id
-    }
-
-    // Save
-    // ----
-
-    void "test validating recipients in request body for save"() {
-        expect: "no validation to happen for recipients for texts"
-        controller.validateCreateBody(RecordText, new TypeConvertingMap([:])) == true
-
-        and: "only one recipient allowed for calls"
-        controller.validateCreateBody(RecordCall, new TypeConvertingMap([:])) == false
-        controller.validateCreateBody(RecordCall, new TypeConvertingMap([callContact: 1])) == true
-        controller.validateCreateBody(RecordCall, new TypeConvertingMap([callSharedContact: 1])) == true
-        controller.validateCreateBody(RecordCall, new TypeConvertingMap([callContact: 1, callSharedContact: 1])) == false
-
-        and: "only one recipient allowed for notes"
-        controller.validateCreateBody(RecordNote, new TypeConvertingMap([:])) == false
-        controller.validateCreateBody(RecordNote, new TypeConvertingMap([forContact: 1])) == true
-        controller.validateCreateBody(RecordNote, new TypeConvertingMap([forSharedContact: 1])) == true
-        controller.validateCreateBody(RecordNote, new TypeConvertingMap([forTag: 1])) == true
-        controller.validateCreateBody(RecordNote, new TypeConvertingMap([forContact: 1, forSharedContact: 1])) == false
-        controller.validateCreateBody(RecordNote, new TypeConvertingMap([forContact: 1, forTag: 1])) == false
-        controller.validateCreateBody(RecordNote, new TypeConvertingMap([forSharedContact: 1, forTag: 1])) == false
-        controller.validateCreateBody(RecordNote, new TypeConvertingMap([forContact: 1, forSharedContact: 1, forTag: 1])) == false
-    }
-
-    protected void mockForSave(Class requestClass, boolean doesExist, boolean hasTeamPermissions, Staff authUser) {
-        RecordUtils.metaClass."static".determineClass = { Map body ->
-            new Result(status: ResultStatus.OK, payload:requestClass)
-        }
-        controller.recordService = [
-            create:{ Long id, Map body ->
-                ResultGroup resGroup = new ResultGroup()
-                resGroup << new Result(status:ResultStatus.CREATED, payload:rText1)
-                resGroup << new Result(status:ResultStatus.CREATED, payload:rText2)
-                resGroup
-            }
-        ] as RecordService
-        controller.authService = [
-            exists: { Class clazz, Long id -> doesExist },
-            hasPermissionsForTeam: { Long id -> hasTeamPermissions },
-            getLoggedInAndActive: { -> authUser }
-        ] as AuthService
-    }
-
-    void "test save for team"() {
-        given:
-        mockForSave(RecordCall, true, true, s1)
-
-        when:
-        request.json = "{'record':{'callContact': 1}}"
-        params.teamId = t1.id
-        request.method = "POST"
-        controller.save()
-
-        then: "see mock"
-        response.status == SC_CREATED
-        response.json.size() == 2
-        response.json*.id.every { (it as Long) in [rText1, rText2]*.id }
-    }
-
-    void "test save for staff"() {
-        given:
-        mockForSave(RecordText, false, false, s1)
-
-        when:
-        request.json = "{'record':{}}"
-        request.method = "POST"
+        params.teamId = teamId
         controller.save()
 
         then:
-        response.status == SC_CREATED
-        response.json.size() == 2
-        response.json*.id.every { (it as Long) in [rText1, rText2]*.id }
-    }
-
-    // Update
-    // ------
-
-    void "test update a nonexistent item"() {
-        given:
-        controller.authService = [
-            exists:{ Class clazz, Long id -> false }
-        ] as AuthService
+        doSave.latestArgs[0] == MarshallerUtils.KEY_RECORD_ITEM
+        doSave.latestArgs[1] == request
+        doSave.latestArgs[2] == controller.recordService
+        doSave.latestArgs[3] instanceof Closure
 
         when:
-        params.id = "nonexistent"
-        request.json = "{'record':{}}"
-        request.method = "PUT"
+        doSave.latestArgs[3].call(body)
+
+        then:
+        body.timezone == tzId
+        tryGetPhoneId.latestArgs == [teamId]
+        RequestUtils.tryGet(RequestUtils.PHONE_ID).payload == pId
+
+        cleanup:
+        doSave?.restore()
+        tryGetPhoneId?.restore()
+    }
+
+    void "test update"() {
+        given:
+        Long id = TestUtils.randIntegerUpTo(88)
+        String tzId = TestUtils.randString()
+        TypeMap body = TypeMap.create()
+
+        controller.recordService = GroovyMock(RecordService)
+        MockedMethod doUpdate = MockedMethod.create(controller, "doUpdate")
+        MockedMethod isAllowed = MockedMethod.create(RecordItems, "isAllowed")
+
+        when:
+        params.timezone = tzId
+        params.id = id
         controller.update()
 
         then:
-        response.status == SC_METHOD_NOT_ALLOWED
-    }
-    void "test update a item"() {
-        given: "a persisted item"
-        RecordItem item1 = new RecordItem(record:c1.record)
-        item1.save(flush:true, failOnError:true)
-
-        controller.recordService = [update:{ Long id, Map body ->
-            new Result(success:true, payload:item1)
-        }] as RecordService
-        controller.authService = [
-            exists:{ Class clazz, Long id -> true },
-            hasPermissionsForItem:{ Long cId -> true }
-        ] as AuthService
+        doUpdate.latestArgs[0] == MarshallerUtils.KEY_RECORD_ITEM
+        doUpdate.latestArgs[1] == request
+        doUpdate.latestArgs[2] == controller.recordService
+        doUpdate.latestArgs[3] instanceof Closure
 
         when:
-        params.id = item1.id
-        request.json = "{'record':{}}"
-        request.method = "PUT"
-        controller.update()
+        doUpdate.latestArgs[3].call(body)
 
         then:
-        response.status == SC_OK
-        response.json.id == item1.id
+        body.timezone == tzId
+        isAllowed.latestArgs == [id]
+
+        cleanup:
+        doUpdate?.restore()
+        isAllowed?.restore()
     }
 
-    // Delete
-    // ------
-
-    void "test delete for a non-note"() {
+    void "test delete"() {
         given:
-        controller.authService = [
-            exists:{ Class clazz, Long id -> false }
-        ] as AuthService
+        Long id = TestUtils.randIntegerUpTo(88)
+
+        controller.recordService = GroovyMock(RecordService)
+        MockedMethod doDelete = MockedMethod.create(controller, "doDelete")
+        MockedMethod isAllowed = MockedMethod.create(RecordItems, "isAllowed")
 
         when:
-        params.id = rText1.id
-        request.method = "DELETE"
+        params.id = id
         controller.delete()
 
         then:
-        response.status == SC_METHOD_NOT_ALLOWED
+        doDelete.latestArgs[0] == controller.recordService
+        doDelete.latestArgs[1] instanceof Closure
+
+        when:
+        doDelete.latestArgs[1].call()
+
+        then:
+        isAllowed.latestArgs == [id]
+
+        cleanup:
+        doDelete?.restore()
+        isAllowed?.restore()
     }
-    void "test delete for a note"() {
-        given: "a persisted note"
-        RecordNote note1 = new RecordNote(record:c1.record)
-        note1.save(flush:true, failOnError:true)
 
-        controller.recordService = [delete:{ Long id ->
-            new Result(status:ResultStatus.NO_CONTENT)
-        }] as RecordService
-        controller.authService = [
-            exists:{ Class clazz, Long id -> true },
-            hasPermissionsForItem:{ Long cId -> true }
-        ] as AuthService
+    void "test responding with pdf"() {
+        given:
+        String fileName = TestUtils.randString()
+        String err1 = TestUtils.randString()
+        byte[] randData = TestUtils.randString().bytes
+
+        Result failRes1 = Result.createError([err1], ResultStatus.FORBIDDEN)
+        Result res1 = Result.createSuccess(randData)
 
         when:
-        params.id = note1.id
-        request.method = "DELETE"
-        controller.delete()
+        controller.respondWithPdf(fileName, failRes1)
 
         then:
-        response.status == SC_NO_CONTENT
+        response.status == ResultStatus.FORBIDDEN.intStatus
+        response.text.contains(err1)
+
+        when:
+        response.reset()
+        controller.respondWithPdf(fileName, res1)
+
+        then:
+        response.status == ResultStatus.OK.intStatus
+        response.contentType.contains(ControllerUtils.CONTENT_TYPE_PDF)
+        response.contentAsByteArray == randData
+    }
+
+    void "test listing overall"() {
+        given:
+        Long teamId = TestUtils.randIntegerUpTo(88)
+        Long pId = TestUtils.randIntegerUpTo(88)
+        String tzId = TestUtils.randString()
+
+        DetachedCriteria crit1 = GroovyStub()
+        RecordItemRequest iReq = GroovyStub() { getCriteria() >> crit1 }
+        controller.pdfService = GroovyMock(PdfService)
+        MockedMethod tryGetPhoneId = MockedMethod.create(ControllerUtils, "tryGetPhoneId") {
+            Result.createSuccess(pId)
+        }
+        MockedMethod buildRecordItemRequest = MockedMethod.create(RecordUtils, "buildRecordItemRequest") {
+            Result.createSuccess(iReq)
+        }
+        MockedMethod respondWithPdf = MockedMethod.create(controller, "respondWithPdf")
+        MockedMethod respondWithCriteria = MockedMethod.create(controller, "respondWithCriteria")
+
+        when:
+        params.teamId = teamId
+        controller.index()
+
+        then:
+        tryGetPhoneId.latestArgs == [teamId]
+        buildRecordItemRequest.latestArgs == [pId, TypeMap.create(params)]
+        respondWithPdf.notCalled
+        respondWithCriteria.latestArgs[0] == crit1
+        respondWithCriteria.latestArgs[1] == TypeMap.create(params)
+        respondWithCriteria.latestArgs[2] instanceof Closure
+        respondWithCriteria.latestArgs[3] == MarshallerUtils.KEY_RECORD_ITEM
+
+        when:
+        response.reset()
+        params.format = ControllerUtils.FORMAT_PDF
+        controller.index()
+
+        then:
+        tryGetPhoneId.latestArgs == [teamId]
+        buildRecordItemRequest.latestArgs == [pId, TypeMap.create(params)]
+        1 * controller.pdfService.buildRecordItems(iReq) >> Result.void()
+        respondWithPdf.latestArgs[0].contains(".pdf")
+        respondWithPdf.latestArgs[1] == Result.void()
+
+        cleanup:
+        tryGetPhoneId?.restore()
+        buildRecordItemRequest?.restore()
+        respondWithPdf?.restore()
+        respondWithCriteria?.restore()
     }
 }

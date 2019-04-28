@@ -3,168 +3,179 @@ package org.textup
 import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
 import java.util.concurrent.Future
-import org.codehaus.groovy.grails.web.util.TypeConvertingMap
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
+import org.textup.annotation.*
 import org.textup.rest.*
+import org.textup.structure.*
 import org.textup.type.*
 import org.textup.util.*
+import org.textup.util.domain.*
 import org.textup.validator.*
-import org.textup.validator.action.*
 
 @GrailsTypeChecked
 @Transactional
-class RecordService {
+class RecordService implements ManagesDomain.Creater<List<? extends RecordItem>>, ManagesDomain.Updater<? extends RecordItem>, ManagesDomain.Deleter {
 
-    AuthService authService
     CallService callService
+    LocationService locationService
     MediaService mediaService
+    OutgoingCallService outgoingCallService
     OutgoingMessageService outgoingMessageService
-    ResultFactory resultFactory
 
-    // Create
-    // ------
-
-    ResultGroup<RecordItem> create(Long phoneId, TypeConvertingMap body) {
-        Phone p1 = Phone.get(phoneId)
-        if (!p1) {
-            return resultFactory.failWithCodeAndStatus("recordService.create.noPhone",
-                ResultStatus.UNPROCESSABLE_ENTITY).toGroup()
-        }
-        Staff authUser = authService.loggedInAndActive
-        if (!p1.owner.buildAllStaff().any { Staff s2 -> s2.id == authUser.id }) {
-            return resultFactory.failWithCodeAndStatus("phone.notOwner", ResultStatus.FORBIDDEN).toGroup()
-        }
-        Result<Class<RecordItem>> res = RecordUtils.determineClass(body)
-        if (!res.success) { return res.toGroup() }
-        switch(res.payload) {
-            case RecordText: createText(p1, body); break;
-            case RecordCall: createCall(p1, body).toGroup(); break;
-            default: createNote(p1, body).toGroup() // RecordNote
-        }
-    }
-
-    // Don't roll back because this creates a ResultGroup of many individual Results.
-    // We don't want to throw away the results that actually successfuly completed
-    protected ResultGroup<RecordItem> createText(Phone p1, TypeConvertingMap body) {
-        // step 1: if needed, build media with placeholder assets
-        Tuple<MediaInfo, Future<Result<MediaInfo>>> mediaTuple
-        if (mediaService.hasMediaActions(body)) {
-            Result<Tuple<MediaInfo, Future<Result<MediaInfo>>>> mediaRes = mediaService
-                .tryProcess(new MediaInfo(), body)
-            if (mediaRes.success) {
-                mediaTuple = mediaRes.payload
+    @RollbackOnResultFailure
+    Result<List<? extends RecordItem>> tryCreate(Long pId, TypeMap body) {
+        Future<?> future
+        Phones.mustFindActiveForId(pId)
+            .then { Phone p1 -> RecordUtils.tryDetermineClass(body).curry(p1) }
+            .then { Phone p1, Class<? extends RecordItem> clazz ->
+                mediaService.tryCreate(body).curry(p1, clazz)
             }
-            else { return mediaRes.toGroup() }
-        }
-        // step 2: validating receipients
-        Result<OutgoingMessage> msgRes = RecordUtils
-            .buildOutgoingMessageTarget(p1, body, mediaTuple?.first)
-        if (!msgRes.success) { return msgRes.toGroup() }
-        // step 3: return new domain objects and continue processing media separately
-        Staff authUser = authService.loggedInAndActive
-        outgoingMessageService
-            .processMessage(p1, msgRes.payload, authUser, mediaTuple?.second)
-            .first
-    }
-
-    @RollbackOnResultFailure
-    protected Result<RecordItem> createCall(Phone p1, TypeConvertingMap body) {
-        RecordUtils.buildOutgoingCallTarget(p1, body).then { Contactable cont1 ->
-            outgoingMessageService.startBridgeCall(p1, cont1, authService.loggedInAndActive)
-        }
-    }
-
-    @RollbackOnResultFailure
-    protected Result<RecordItem> createNote(Phone p1, TypeConvertingMap body) {
-        RecordUtils.buildNoteTarget(p1, body).then { Record rec1 ->
-            mergeNote(new RecordNote(record: rec1), body, ResultStatus.CREATED)
-        }
-    }
-    protected Result<RecordNote> mergeNote(RecordNote note1, TypeConvertingMap body,
-        ResultStatus status = ResultStatus.OK) {
-
-        Future <?> future
-        // need to add media object to note BEFORE we create the validator because we need
-        // the validator object to take the media object into account when determining if the
-        // note has complete information
-        Result<RecordNote> res = mediaService.tryProcess(note1, body)
-            .then { Tuple<WithMedia, Future<Result<MediaInfo>>> processed ->
-                RecordNote note2 = processed.first as RecordNote
-                future = processed.second
-                TempRecordNote tempNote = new TempRecordNote(info: body,
-                    note: note2,
-                    after: body.after ? DateTimeUtils.toDateTimeWithZone(body.after) : null)
-                tempNote.toNote(authService.loggedInAndActive.toAuthor())
+            .then { Phone p1, Class<? extends RecordItem> clazz,
+                Tuple<MediaInfo, Future<Result<?>>> processed ->
+                Tuple.split(processed) { MediaInfo mInfo, Future<Result<?>> fut1 ->
+                    future = fut1
+                    switch(clazz) {
+                        case RecordText:
+                            createText(p1, body, mInfo, fut1)
+                            break
+                        case RecordCall:
+                            createCall(p1, body)
+                            break
+                        default:
+                            createNote(p1, body, mInfo)
+                    }
+                }
             }
-            .then { RecordNote note2 -> note2.tryCreateRevision() }
-            .then { RecordNote note2 -> resultFactory.success(note2, status) }
-        if (!res.success && future) { future.cancel(true) }
-        res
+            .ifFailAndPreserveError { future?.cancel(true) }
     }
 
-    // Update note
-    // -----------
-
     @RollbackOnResultFailure
-    Result<? extends RecordItem> update(Long itemId, TypeConvertingMap body) {
-        RecordItem rItem1 = RecordItem.get(itemId)
-        Result<? extends RecordItem> res
-        if (rItem1) {
+    Result<? extends RecordItem> tryUpdate(Long itemId, TypeMap body) {
+        RecordItems.mustFindModifiableForId(itemId).then { RecordItem rItem1 ->
             if (rItem1.instanceOf(RecordNote)) {
                 tryUpdateNote(rItem1 as RecordNote, body)
             }
             else if (rItem1.instanceOf(RecordCall) && body.boolean("endOngoing")) {
                 tryEndOngoingCall(rItem1 as RecordCall)
             }
-            else { resultFactory.success(rItem1) }
-        }
-        else {
-            resultFactory.failWithCodeAndStatus("recordService.update.notFound",
-                ResultStatus.NOT_FOUND, [itemId])
+            else { IOCUtils.resultFactory.success(rItem1) }
         }
     }
 
-    protected Result<? extends RecordItem> tryUpdateNote(RecordNote rNote1, TypeConvertingMap body) {
-        if (rNote1.isReadOnly) {
-            resultFactory.failWithCodeAndStatus("recordService.update.readOnly",
-                ResultStatus.FORBIDDEN, [rNote1.id])
+    @RollbackOnResultFailure
+    Result<Void> tryDelete(Long itemId) {
+        RecordItems.mustFindModifiableForId(itemId)
+            .then { RecordItem rItem1 ->
+                rItem1.isDeleted = true
+                DomainUtils.trySave(rItem1)
+            }
+            .then { Result.void() }
+    }
+
+    // Helpers
+    // -------
+
+    protected Result<List<RecordText>> createText(Phone p1, TypeMap body, MediaInfo mInfo = null,
+        Future<Result<?>> future = null) {
+
+        int max = ValidationUtils.MAX_NUM_TEXT_RECIPIENTS
+        Recipients.tryCreate(p1, body.typedList(Long, "ids"), body.phoneNumberList("numbers"), max, true)
+            .then { Recipients r1 ->
+                TempRecordItem.tryCreate(body.trimmedString("contents"), mInfo, null).curry(r1)
+            }
+            .then { Recipients r1, TempRecordItem temp1 ->
+                AuthUtils.tryGetActiveAuthUser().curry(r1, temp1)
+            }
+            .then { Recipients r1, TempRecordItem temp1, Staff authUser ->
+                outgoingMessageService.tryStart(RecordItemType.TEXT, r1, temp1, Author.create(authUser), future)
+            }
+            .then { Tuple<List<? extends RecordItem>, Future<?>> processed ->
+                IOCUtils.resultFactory.success(processed.first, ResultStatus.CREATED)
+            }
+    }
+
+    protected Result<List<RecordCall>> createCall(Phone p1, TypeMap body) {
+        Recipients.tryCreate(p1, body.typedList(Long, "ids"), body.phoneNumberList("numbers"), 1)
+            .then { Recipients r1 -> r1.tryGetOneIndividual() }
+            .then { IndividualPhoneRecordWrapper w1 -> AuthUtils.tryGetActiveAuthUser().curry(w1) }
+            .then { IndividualPhoneRecordWrapper w1, Staff authUser ->
+                outgoingCallService.tryStart(authUser.personalNumber, w1, Author.create(authUser))
+            }
+            .then { RecordCall rCall1 ->
+                IOCUtils.resultFactory.success([rCall1], ResultStatus.CREATED)
+            }
+    }
+
+    protected Result<List<RecordNote>> createNote(Phone p1, TypeMap body, MediaInfo mInfo = null) {
+        Recipients.tryCreate(p1, body.typedList(Long, "ids"), body.phoneNumberList("numbers"), 1)
+            .then { Recipients r1 -> r1.tryGetOne() }
+            .then { PhoneRecordWrapper w1 ->
+                TypeMap lInfo = body.typeMapNoNull("location")
+                locationService.tryCreateOrUpdateIfPresent(null, lInfo).curry(w1)
+            }
+            .then { PhoneRecordWrapper w1, Location loc1 = null ->
+                TempRecordItem.tryCreate(body.trimmedString("noteContents"), mInfo, loc1).curry(w1)
+            }
+            .then { PhoneRecordWrapper w1, TempRecordItem temp1 -> w1.tryGetRecord().curry(temp1) }
+            .then { TempRecordItem temp1, Record rec1 -> RecordNote.tryCreate(rec1, temp1) }
+            .then { RecordNote rNote1 -> AuthUtils.tryGetActiveAuthUser().curry(rNote1) }
+            .then { RecordNote rNote1, Staff authUser ->
+                trySetNoteFields(rNote1, body, Author.create(authUser))
+            }
+            .then { RecordNote rNote1 -> DomainUtils.trySave(rNote1) }
+            .then { RecordNote rNote1 ->
+                IOCUtils.resultFactory.success([rNote1], ResultStatus.CREATED)
+            }
+    }
+
+    protected Result<? extends RecordItem> tryUpdateNote(RecordNote rNote1, TypeMap body) {
+        Future<?> future
+        AuthUtils.tryGetActiveAuthUser()
+            .then { RecordNote rNote1, Staff authUser ->
+                trySetNoteFields(rNote1, body, Author.create(authUser))
+            }
+            .then { RecordNote rNote1 -> mediaService.tryCreateOrUpdate(rNote1, body) }
+            .then { RecordNote rNote1, Future<Result<?>> fut1 ->
+                future = fut1
+                TypeMap lInfo = body.typeMapNoNull("location")
+                locationService.tryCreateOrUpdateIfPresent(rNote1.location, lInfo)
+            }
+            .then { RecordNote rNote1, Location loc1 = null ->
+                rNote1.location = loc1
+                DomainUtils.trySave(rNote1)
+            }
+            .then { RecordNote rNote1 -> rNote1.tryCreateRevision() }
+            .then { RecordNote rNote1 -> DomainUtils.trySave(rNote1) }
+            .ifFailAndPreserveError { future?.cancel(true) }
+    }
+
+    protected Result<RecordNote> trySetNoteFields(RecordNote rNote1, TypeMap body, Author author1) {
+        rNote1.with {
+            author = author1
+            if (body.noteContents != null) noteContents = body.trimmedString("noteContents")
+            if (body.boolean("isDeleted") != null) isDeleted = body.boolean("isDeleted")
+            if (body.after) {
+                whenCreated = RecordUtils.adjustPosition(rNote1.record.id, body.dateTime("after"))
+            }
         }
-        else { mergeNote(rNote1, body) }
+        DomainUtils.trySave(rNote1)
     }
 
     protected Result<? extends RecordItem> tryEndOngoingCall(RecordCall rCall1) {
         String parentCallId = rCall1.buildParentCallApiId()
         if (parentCallId && rCall1.isStillOngoing()) {
-            Phone p1 = Phone.getPhonesForRecords([rCall1.record], false)[0]
+            Phone p1 = PhoneRecords.buildNotExpiredForRecordIds([rCall1.record.id])
+                .build(PhoneRecords.forOwnedOnly())
+                .build(PhoneRecords.returnsPhone())
+                .list(max: 1)[0] as Phone
             callService
                 .hangUpImmediately(parentCallId, p1?.customAccountId)
-                .then { resultFactory.success(rCall1) }
+                .then { IOCUtils.resultFactory.success(rCall1) }
         }
         else {
-            resultFactory.failWithCodeAndStatus("recordService.tryEndOngoingCall.tooEarlyOrAlreadyEnded",
+            IOCUtils.resultFactory.failWithCodeAndStatus("recordService.tooEarlyOrAlreadyEnded",
                 ResultStatus.UNPROCESSABLE_ENTITY, [rCall1.id])
         }
-    }
-
-    // Delete note
-    // -----------
-
-    @RollbackOnResultFailure
-    Result<Void> delete(Long noteId) {
-        RecordNote note1 = RecordNote.get(noteId)
-        if (!note1) {
-            return resultFactory.failWithCodeAndStatus("recordService.delete.notFound",
-                ResultStatus.NOT_FOUND, [noteId])
-        }
-        if (note1.isReadOnly) {
-            return resultFactory.failWithCodeAndStatus("recordService.delete.readOnly",
-                ResultStatus.FORBIDDEN, [noteId])
-        }
-        note1.isDeleted = true
-        if (note1.save()) {
-            resultFactory.success()
-        }
-        else { resultFactory.failWithValidationErrors(note1.errors) }
     }
 }

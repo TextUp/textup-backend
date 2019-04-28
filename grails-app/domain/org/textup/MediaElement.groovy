@@ -4,63 +4,50 @@ import grails.compiler.GrailsTypeChecked
 import groovy.transform.EqualsAndHashCode
 import org.jadira.usertype.dateandtime.joda.PersistentDateTime
 import org.joda.time.*
-import org.restapidoc.annotation.*
+import org.textup.structure.*
 import org.textup.type.*
 import org.textup.util.*
-import org.textup.validator.UploadItem
+import org.textup.util.domain.*
+import org.textup.validator.*
 
-@GrailsTypeChecked
 @EqualsAndHashCode
-@RestApiObject(
-    name        = "MediaElement",
-    description = "A media element contained within a media info object contains various versions optimized for sending or display")
-class MediaElement implements ReadOnlyMediaElement, WithId {
+@GrailsTypeChecked
+class MediaElement implements ReadOnlyMediaElement, WithId, CanSave<MediaElement> {
 
-    @RestApiObjectField(
-        description    = "unique id for this media element, used for deletion",
-        allowedType    = "String",
-        useForCreation = false)
+    // Need to declare id for it to be considered in equality operator
+    // see: https://stokito.wordpress.com/2014/12/19/equalsandhashcode-on-grails-domains/
+    Long id
+
+    DateTime whenCreated = JodaUtils.utcNow()
+    MediaElementVersion sendVersion
     String uid = UUID.randomUUID().toString()
 
-    DateTime whenCreated = DateTime.now(DateTimeZone.UTC)
-    MediaElementVersion sendVersion
-
-    @RestApiObjectFields(params=[
-         @RestApiObjectField(
-            apiFieldName   = "versions",
-            description    = "various versions for display",
-            allowedType    = "MediaElementVersion",
-            useForCreation = false)
-    ])
     static hasMany = [alternateVersions: MediaElementVersion]
+    static mapping = {
+        whenCreated type: PersistentDateTime
+        sendVersion fetch: "join", cascade: "save-update"
+        // [NOTE] one-to-many relationships should not have `fetch: "join"` because of GORM using
+        // a left outer join to fetch the data runs into issues when a max is provided
+        // see: https://stackoverflow.com/a/25426734
+        alternateVersions cascade: "save-update"
+    }
     static constraints = { // all nullable:false by default
         sendVersion nullable: true, cascadeValidation: true, validator: { MediaElementVersion send1 ->
-            if (send1 && send1.sizeInBytes > Constants.MAX_MEDIA_SIZE_PER_MESSAGE_IN_BYTES) {
-                return ["sizeTooBig"]
+            if (send1 && send1.sizeInBytes > ValidationUtils.MAX_MEDIA_SIZE_PER_MESSAGE_IN_BYTES) {
+                return ["mediaElement.sendVersion.sizeTooBig"]
             }
         }
         alternateVersions nullable: true, cascadeValidation: true
     }
-    static mapping = {
-        whenCreated type: PersistentDateTime
-        sendVersion lazy: false, cascade: "save-update"
-        alternateVersions lazy: false, cascade: "save-update"
-    }
 
+    static Result<MediaElement> tryCreate(Collection<UploadItem> alternates,
+        UploadItem sVersion = null) {
 
-    // Static factory methods
-    // ----------------------
-
-    static Result<MediaElement> create(UploadItem sVersion, Collection<UploadItem> alternates) {
-        MediaElement e1 = new MediaElement(sendVersion: sVersion?.toMediaElementVersion())
+        MediaElement e1 = new MediaElement(sendVersion: MediaElementVersion.createIfPresent(sVersion))
         alternates?.each { UploadItem uItem ->
-            e1.addToAlternateVersions(uItem.toMediaElementVersion())
+            e1.addToAlternateVersions(MediaElementVersion.createIfPresent(uItem))
         }
-
-        if (e1.save()) {
-            IOCUtils.resultFactory.success(e1)
-        }
-        else { IOCUtils.resultFactory.failWithValidationErrors(e1.errors) }
+        DomainUtils.trySave(e1, ResultStatus.CREATED)
     }
 
     // Methods
@@ -71,8 +58,8 @@ class MediaElement implements ReadOnlyMediaElement, WithId {
         typesToCheckFor?.any { MediaType t1 -> allTypes.contains(t1) }
     }
 
-    // Property access
-    // ---------------
+    // Properties
+    // ----------
 
     HashSet<MediaType> getAllTypes() {
         HashSet<MediaType> allTypes = new HashSet<>()
@@ -82,7 +69,9 @@ class MediaElement implements ReadOnlyMediaElement, WithId {
 
     List<MediaElementVersion> getAllVersions() {
         List<MediaElementVersion> allVersions = []
-        if (sendVersion) { allVersions << sendVersion }
+        if (sendVersion) {
+            allVersions << sendVersion
+        }
         alternateVersions?.each { MediaElementVersion vers1 -> allVersions << vers1 }
         allVersions
     }

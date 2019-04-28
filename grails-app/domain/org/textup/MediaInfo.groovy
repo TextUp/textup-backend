@@ -2,43 +2,38 @@ package org.textup
 
 import grails.compiler.GrailsTypeChecked
 import groovy.transform.EqualsAndHashCode
-import org.restapidoc.annotation.*
+import org.textup.structure.*
 import org.textup.type.*
+import org.textup.util.*
+import org.textup.util.domain.*
+import org.textup.validator.*
 
-@GrailsTypeChecked
 @EqualsAndHashCode
-@RestApiObject(
-    name        = "MediaInfo",
-    description = "Contains all media elements for a message or batch of messages")
-class MediaInfo implements ReadOnlyMediaInfo, WithId {
+@GrailsTypeChecked
+class MediaInfo implements ReadOnlyMediaInfo, WithId, CanSave<MediaInfo> {
+
+    // Need to declare id for it to be considered in equality operator
+    // see: https://stokito.wordpress.com/2014/12/19/equalsandhashcode-on-grails-domains/
+    Long id
 
     private Set<MediaElement> _originalMediaElements = Collections.emptySet()
 
-    @RestApiObjectFields(params = [
-        @RestApiObjectField(
-            apiFieldName   = "audio",
-            description    = "Audio files",
-            allowedType    = "Set<MediaElement>",
-            useForCreation = false),
-        @RestApiObjectField(
-            apiFieldName   = "images",
-            description    = "Images",
-            allowedType    = "Set<MediaElement>",
-            useForCreation = false),
-        @RestApiObjectField(
-            apiFieldName      = "doMediaActions",
-            description       = "Actions for adding and removing elements from this media object",
-            allowedType       = "Collection<[mediaAction]>",
-            useForCreation    = true,
-            presentInResponse = false ),
-    ])
     static transients = ["_originalMediaElements"]
     static hasMany = [mediaElements: MediaElement]
+    static mapping = {
+        // [NOTE] one-to-many relationships should not have `fetch: "join"` because of GORM using
+        // a left outer join to fetch the data runs into issues when a max is provided
+        // see: https://stackoverflow.com/a/25426734
+        mediaElements cascade: "save-update"
+    }
     static constraints = { // all nullable:false by default
         mediaElements cascadeValidation: true
     }
-    static mapping = {
-        mediaElements lazy: false, cascade: "save-update"
+
+    static Result<MediaInfo> tryCreate(MediaInfo mInfo = null) {
+        mInfo ?
+            DomainUtils.trySave(mInfo) :
+            DomainUtils.trySave(new MediaInfo(), ResultStatus.CREATED)
     }
 
     // Events
@@ -47,6 +42,7 @@ class MediaInfo implements ReadOnlyMediaInfo, WithId {
     void afterLoad() { tryUpdateOriginalMediaElements() }
     void afterInsert() { tryUpdateOriginalMediaElements() }
     void afterUpdate() { tryUpdateOriginalMediaElements() }
+
     protected void tryUpdateOriginalMediaElements() {
         if (mediaElements) {
             _originalMediaElements = new HashSet<MediaElement>(mediaElements)
@@ -56,6 +52,11 @@ class MediaInfo implements ReadOnlyMediaInfo, WithId {
 
     // Methods
     // -------
+
+    Result<MediaInfo> tryAddAllElements(Collection<MediaElement> els) {
+        els?.each { MediaElement el1 -> addToMediaElements(el1) }
+        DomainUtils.trySave(this)
+    }
 
     // We want to refer to the persistent set of elements when creating a duplicate for the revision.
     // It is OK if two media info objects point to the same media elements so we don't have to
@@ -70,15 +71,15 @@ class MediaInfo implements ReadOnlyMediaInfo, WithId {
         }
     }
 
-    void forEachBatch(Closure<?> doAction, Collection<MediaType> typesToRetrieve = []) {
-        int maxFileCount = Constants.MAX_NUM_MEDIA_PER_MESSAGE
-        long maxFileSize = Constants.MAX_MEDIA_SIZE_PER_MESSAGE_IN_BYTES,
+    void eachBatchForTypes(Collection<MediaType> typesToRetrieve, Closure<?> doAction) {
+        int maxFileCount = ValidationUtils.MAX_NUM_MEDIA_PER_MESSAGE
+        long maxFileSize = ValidationUtils.MAX_MEDIA_SIZE_PER_MESSAGE_IN_BYTES,
             currentBatchSize = 0
         List<MediaElement> batchSoFar = []
         List<MediaElement> allElements = getMediaElementsByType(typesToRetrieve)
         for (MediaElement e1 in allElements) {
             if (!e1.sendVersion) {
-                log.error("MediaInfo.forEachBatch: tried sending media element with id `${e1.id}` \
+                log.error("eachBatchForTypes: tried sending media element with id `${e1.id}` \
                     that has not finished processing yet")
                 continue
             }
@@ -119,6 +120,10 @@ class MediaInfo implements ReadOnlyMediaInfo, WithId {
 
     MediaElement getMostRecentByType(Collection<MediaType> typesToFind = null) {
         getMediaElementsByType(typesToFind).max { MediaElement e1 -> e1.whenCreated }
+    }
+
+    ReadOnlyMediaElement getReadOnlyMostRecentByType(Collection<MediaType> typesToFind = null) {
+        getMostRecentByType(typesToFind)
     }
 
     MediaElement removeMediaElement(String uid) {

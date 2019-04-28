@@ -1,9 +1,18 @@
 package org.textup.validator
 
+import grails.test.mixin.*
+import grails.test.mixin.gorm.*
+import grails.test.mixin.hibernate.*
+import grails.test.mixin.support.*
+import grails.test.runtime.*
+import grails.validation.*
+import org.joda.time.*
+import org.textup.*
+import org.textup.structure.*
 import org.textup.test.*
-import org.joda.time.LocalTime
-import spock.lang.Specification
-import grails.test.mixin.support.GrailsUnitTestMixin
+import org.textup.type.*
+import org.textup.util.*
+import spock.lang.*
 
 @TestMixin(GrailsUnitTestMixin)
 class LocalIntervalSpec extends Specification {
@@ -75,5 +84,15 @@ class LocalIntervalSpec extends Specification {
     	!l3.abuts(l4) && !l4.abuts(l3) //these two overlap, not abut
     	l3.overlaps(l4) && l4.overlaps(l3)
     	[l1, l3, l4, l5].every { l2.overlaps(it) && !l2.abuts(it) }
+    }
+
+    void "test building string representation"() {
+        given:
+        LocalInterval lInt1 = new LocalInterval()
+        LocalInterval lInt2 = new LocalInterval(new LocalTime(5, 0), new LocalTime(7, 0))
+
+        expect:
+        lInt1.toString() == ""
+        lInt2.toString() == "0500:0700"
     }
 }

@@ -7,4 +7,6 @@ enum OrgStatus {
 	REJECTED,
 	PENDING,
 	APPROVED
+
+    static final List<OrgStatus> ACTIVE_STATUSES = Collections.unmodifiableList([APPROVED])
 }

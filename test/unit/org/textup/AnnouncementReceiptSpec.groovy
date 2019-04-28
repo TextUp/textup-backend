@@ -1,66 +1,63 @@
 package org.textup
 
+import grails.test.mixin.*
+import grails.test.mixin.gorm.*
+import grails.test.mixin.hibernate.*
+import grails.test.mixin.support.*
+import grails.test.runtime.*
+import grails.validation.*
+import org.joda.time.*
+import org.textup.structure.*
 import org.textup.test.*
-import grails.test.mixin.gorm.Domain
-import grails.test.mixin.hibernate.HibernateTestMixin
-import grails.test.mixin.TestMixin
-import grails.validation.ValidationErrors
-import org.joda.time.DateTime
-import org.textup.type.PhoneOwnershipType
-import org.textup.type.RecordItemType
-import org.textup.type.StaffStatus
-import spock.lang.Ignore
-import spock.lang.Shared
+import org.textup.type.*
+import org.textup.util.*
+import org.textup.validator.*
+import spock.lang.*
 
-@Domain([CustomAccountDetails, Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
-	RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization, Schedule,
-	Location, WeeklySchedule, PhoneOwnership, FeaturedAnnouncement, IncomingSession,
-	AnnouncementReceipt, Role, StaffRole, NotificationPolicy,
-    MediaInfo, MediaElement, MediaElementVersion])
+@Domain([AnnouncementReceipt, ContactNumber, CustomAccountDetails, FeaturedAnnouncement,
+    FutureMessage, GroupPhoneRecord, IncomingSession, IndividualPhoneRecord, Location, MediaElement,
+    MediaElementVersion, MediaInfo, Organization, OwnerPolicy, Phone, PhoneNumberHistory,
+    PhoneOwnership, PhoneRecord, PhoneRecordMembers, Record, RecordCall, RecordItem,
+    RecordItemReceipt, RecordNote, RecordNoteRevision, RecordText, Role, Schedule,
+    SimpleFutureMessage, Staff, StaffRole, Team, Token])
 @TestMixin(HibernateTestMixin)
-class AnnouncementReceiptSpec extends CustomSpec {
+class AnnouncementReceiptSpec extends Specification {
 
 	static doWithSpring = {
-		resultFactory(ResultFactory)
-	}
+        resultFactory(ResultFactory)
+    }
 
     def setup() {
-    	setupData()
+        TestUtils.standardMockSetup()
     }
 
-    def cleanup() {
-    	cleanupData()
-    }
-
-    void "test constraints"() {
+    void "test static creation + constraints"() {
     	given: "announcement and session"
-    	FeaturedAnnouncement announce = new FeaturedAnnouncement(owner:p1,
-    		message:"Hello!", expiresAt:DateTime.now().plusDays(2))
-    	IncomingSession session = new IncomingSession(phone:p1, numberAsString:"2223334444"),
-    		otherSess = new IncomingSession(phone:p2, numberAsString:"2223334444")
-    	[announce, session, otherSess]*.save(flush:true, failOnError:true)
+        Phone p1 = TestUtils.buildStaffPhone()
+    	FeaturedAnnouncement fa1 = TestUtils.buildAnnouncement(p1)
+        IncomingSession is1 = TestUtils.buildSession(p1)
+        IncomingSession is2 = TestUtils.buildSession()
 
-    	when: "we have an empty announcement receip"
-    	AnnouncementReceipt aRec = new AnnouncementReceipt()
+    	when: "we have an empty announcement receipt"
+        Result res = AnnouncementReceipt.tryCreate(null, null, null)
 
     	then: "invalid"
-    	aRec.validate() == false
-    	aRec.errors.errorCount == 3
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
 
     	when: "we fill out required fields from different phones"
-    	aRec = new AnnouncementReceipt(announcement:announce, session:otherSess,
-			type:RecordItemType.CALL)
+        res = AnnouncementReceipt.tryCreate(fa1, is2, RecordItemType.CALL)
 
     	then: "invalid"
-    	aRec.validate() == false
-    	aRec.errors.errorCount == 1
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
 
     	when: "we fill out required fields from same phone"
-    	aRec = new AnnouncementReceipt(announcement:announce, session:session,
-			type:RecordItemType.CALL)
+        res = AnnouncementReceipt.tryCreate(fa1, is1, RecordItemType.CALL)
 
     	then: "valid"
-    	aRec.validate() == true
-    	aRec.save(flush:true, failOnError:true)
+        res.status == ResultStatus.CREATED
+        res.payload instanceof AnnouncementReceipt
+        res.payload.type == RecordItemType.CALL
+        res.payload.session == is1
+        res.payload.announcement == fa1
     }
 }

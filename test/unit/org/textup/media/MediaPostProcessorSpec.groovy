@@ -1,9 +1,10 @@
 package org.textup.media
 
-import org.textup.test.*
 import grails.test.mixin.support.GrailsUnitTestMixin
 import grails.test.mixin.TestMixin
 import org.textup.*
+import org.textup.structure.*
+import org.textup.test.*
 import org.textup.type.*
 import org.textup.util.*
 import org.textup.validator.*
@@ -71,7 +72,7 @@ class MediaPostProcessorSpec extends Specification {
 
         then:
         TestUtils.numInTempDirectory == numTempFiles
-        res.status == ResultStatus.OK
+        res.status == ResultStatus.CREATED
         res.payload.type == type
         res.payload.data == data
 

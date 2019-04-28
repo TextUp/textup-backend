@@ -3,9 +3,11 @@ package org.textup
 import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
 import org.joda.time.DateTime
+import org.textup.annotation.*
 import org.textup.rest.*
 import org.textup.type.*
 import org.textup.util.*
+import org.textup.util.domain.*
 import org.textup.validator.*
 
 @GrailsTypeChecked
@@ -16,128 +18,103 @@ class OutgoingAnnouncementService {
     SocketService socketService
     TextService textService
 
-    Result<FeaturedAnnouncement> send(Phone p1, String message, DateTime expiresAt, Staff staff) {
-        // build announcements class
-        FeaturedAnnouncement announce = new FeaturedAnnouncement(owner:p1,
-            expiresAt:expiresAt, message:message)
-        //mark as to-be-saved to avoid TransientObjectExceptions
-        if (!announce.save()) {
-            return IOCUtils.resultFactory.failWithValidationErrors(announce.errors)
-        }
-        // collect relevant classes
-        List<IncomingSession> textSubs = IncomingSession.findAllByPhoneAndIsSubscribedToText(p1, true),
-            callSubs = IncomingSession.findAllByPhoneAndIsSubscribedToCall(p1, true)
-        String identifier = p1.name
-        // send announcements
-        Map<String, Result<TempRecordReceipt>> textRes = sendTextAnnouncement(p1, message, identifier, textSubs, staff)
-        Map<String, Result<TempRecordReceipt>> callRes = startCallAnnouncement(p1, message, identifier, callSubs, staff)
-        // collect sessions that we successfully reached
-        Collection<IncomingSession> successTexts =  textSubs
-            .findAll { textRes[it.numberAsString]?.success}
-        Collection<IncomingSession> successCalls = callSubs
-            .findAll { callRes[it.numberAsString]?.success }
-        // add sessions to announcement as receipts
-        ResultGroup<AnnouncementReceipt> textResGroup = announce.addToReceipts(RecordItemType.TEXT, successTexts),
-            callResGroup = announce.addToReceipts(RecordItemType.CALL, successCalls)
-        textResGroup.logFail("Phone.sendAnnouncement: add text announce receipts")
-        callResGroup.logFail("Phone.sendAnnouncement: add call announce receipts")
-        // don't use announce.numReceipts here because the dynamic finder
-        // will flush the session
-        boolean noSubscribers = (!textSubs && !callSubs),
-            anySuccessWithSubscribers = (textResGroup.anySuccesses || callResGroup.anySuccesses) && (textSubs || callSubs)
-        if (noSubscribers || anySuccessWithSubscribers) {
-            if (announce.save()) {
-                IOCUtils.resultFactory.success(announce, ResultStatus.CREATED)
-            }
-            else { IOCUtils.resultFactory.failWithValidationErrors(announce.errors) }
-        }
-        // return error if all subscribers failed to receive announcement
-        else {
-            IOCUtils.resultFactory.failWithResultsAndStatus(textRes.values() + callRes.values(),
-                ResultStatus.INTERNAL_SERVER_ERROR)
-        }
+    Result<FeaturedAnnouncement> send(FeaturedAnnouncement fa1, Author author1) {
+        sendTextAnnouncement(fa1, author1)
+            .then { sendCallAnnouncement(fa1, author1) }
+            .then { DomainUtils.trySave(fa1) }
     }
 
     // Helpers
     // -------
 
-    protected Map<String, Result<TempRecordReceipt>> sendTextAnnouncement(Phone phone, String message,
-        String identifier, List<IncomingSession> sessions, Staff staff) {
-
-        Author author1 = staff.toAuthor()
-        String announcement = TwilioUtils.formatAnnouncementForSend(identifier, message)
-        sendAnnouncementHelper(phone, sessions, { IncomingSession s1 ->
-            textService.send(phone.number, [s1.number], announcement, phone.customAccountId)
-        }, { Contact c1, TempRecordReceipt receipt ->
-            c1.record.storeOutgoingText(message, author1)
-                .then { RecordText rText1 ->
-                    rText1.addReceipt(receipt)
-                    IOCUtils.resultFactory.success(rText1)
-                }
-        })
-    }
-
-    protected Map<String, Result<TempRecordReceipt>> startCallAnnouncement(Phone phone, String message,
-        String identifier, List<IncomingSession> sessions, Staff staff) {
-
-        Author author1 = staff.toAuthor()
-        sendAnnouncementHelper(phone, sessions, { IncomingSession s1 ->
-            callService.start(phone.number, [s1.number],
-                CallTwiml.infoForAnnouncementAndDigits(identifier, message),
-                phone.customAccountId)
-        }, { Contact c1, TempRecordReceipt receipt ->
-            c1.record.storeOutgoingCall(author1, message)
-                .then { RecordCall rCall1 ->
-                    rCall1.addReceipt(receipt)
-                    IOCUtils.resultFactory.success(rCall1)
-                }
-        })
-    }
-
-    protected Map<String, Result<TempRecordReceipt>> sendAnnouncementHelper(Phone phone,
-        List<IncomingSession> sessions, Closure<Result<TempRecordReceipt>> receiptAction,
-        Closure<Result<? extends RecordItem>> addToRecordAction) {
-
-        Map<String, Result<TempRecordReceipt>> resMap = new HashMap<>()
-        Map<String,TempRecordReceipt> numberAsStringToReceipt = [:]
-        sessions.each { IncomingSession s1 ->
-            Result<TempRecordReceipt> res = receiptAction(s1)
-                .logFail("AnnouncementService.sendAnnouncementHelper: sending and returning receipt")
-            if (res.success) {
-                TempRecordReceipt receipt = res.payload
-                numberAsStringToReceipt[s1.numberAsString] = receipt
+    protected Result<?> sendTextAnnouncement(FeaturedAnnouncement fa1, Author author1) {
+        Phone p1 = fa1.phone
+        String msg = TwilioUtils.formatAnnouncementForSend(p1.owner.buildName(), fa1.message)
+        List<IncomingSession> sess1 = IncomingSession.findAllByPhoneAndIsSubscribedToText(p1, true)
+        ResultGroup
+            .collect(sess1) { IncomingSession is1 ->
+                textService.send(p1.number, [is1.number], msg, p1.customAccountId)
+                    .then { TempRecordReceipt rpt1 -> Tuple.tryCreate(is1, rpt1) }
             }
-            resMap[s1.numberAsString] = res
-        }
-        // find contacts that have the same number as this session, if any
-        // if no contacts share this number, we will create a new contact
-        List<Contact> newContacts = []
-        ContactNumber
-            .getContactsForPhoneAndNumbers(phone, numberAsStringToReceipt.keySet())
-            .each { String numAsString, List<Contact> contacts ->
-                TempRecordReceipt receipt = numberAsStringToReceipt[numAsString]
-                if (!contacts) { // create new contact if none found for session
-                    phone.createContact([:], [numAsString])
-                        .logFail("AnnouncementService.sendAnnouncementHelper: create contact")
-                        .thenEnd({ Contact newC ->
-                            newContacts << newC
-                            contacts << newC
-                        })
+            .logFail("sendTextAnnouncement: announcement `${fa1.id}`")
+            .toResult(true)
+            .then { List<Tuple<IncomingSession, TempRecordReceipt>> tup1 ->
+                Tuple.split(tup1) { List<IncomingSession> sess2, List<TempRecordReceipt> rpts ->
+                    tryStore(RecordItemType.TEXT, fa1, author1, msg, sess2, rpts)
                 }
-                if (receipt) {
-                    contacts.each { Contact c1 ->
-                        addToRecordAction(c1, receipt)
-                            .logFail("AnnouncementService.sendAnnouncementHelper: add to record")
-                            .thenEnd({ RecordItem item -> item.isAnnouncement = true })
+            }
+    }
+
+    protected Result<?> sendCallAnnouncement(FeaturedAnnouncement fa1, Author author1) {
+        Phone p1 = fa1.phone
+        Map<String, String> pickup = CallTwiml
+            .infoForAnnouncementAndDigits(p1.owner.buildName(), fa1.message)
+        List<IncomingSession> sess1 = IncomingSession.findAllByPhoneAndIsSubscribedToCall(p1, true)
+        ResultGroup
+            .collect(sess1) { IncomingSession is1 ->
+                callService.start(p1.number, [is1.number], pickup, p1.customAccountId)
+                    .then { TempRecordReceipt rpt1 -> Tuple.tryCreate(is1, rpt1) }
+            }
+            .logFail("sendCallAnnouncement: announcement `${fa1.id}`")
+            .toResult(true)
+            .then { List<Tuple<IncomingSession, TempRecordReceipt>> tup1 ->
+                Tuple.split(tup1) { List<IncomingSession> sess2, List<TempRecordReceipt> rpts ->
+                    tryStore(RecordItemType.CALL, fa1, author1, null, sess2, rpts)
+                }
+            }
+    }
+
+    protected Result<?> tryStore(RecordItemType type, FeaturedAnnouncement fa1, Author author1,
+        String msg, Collection<IncomingSession> sess, Collection<TempRecordReceipt> rpts) {
+
+        tryStoreForAnnouncement(type, fa1, sess)
+            .then {
+                Map<PhoneNumber, TempRecordReceipt> numToRpt = MapUtils
+                    .buildObjectMap(rpts) { TempRecordReceipt tempRpt1 -> tempRpt1.contactNumber }
+                tryStoreForRecords(type, fa1.phone, author1, msg, sess, numToRpt)
+            }
+            .then { List<IndividualPhoneRecord> iprList ->
+                socketService.sendIndividualWrappers(iprList*.toWrapper())
+                Result.void()
+            }
+    }
+
+    protected Result<List<AnnouncementReceipt>> tryStoreForAnnouncement(RecordItemType type,
+        FeaturedAnnouncement fa1, Collection<IncomingSession> sess) {
+
+        ResultGroup
+            .collect(sess) { IncomingSession is1 -> AnnouncementReceipt.tryCreate(fa1, is1, type) }
+            .logFail("tryStoreForAnnouncement: $type, $fa1")
+            .toResult(false)
+    }
+
+    protected Result<List<IndividualPhoneRecord>> tryStoreForRecords(RecordItemType type,
+        Phone p1, Author author1, String msg, Collection<IncomingSession> sess,
+        Map<PhoneNumber, TempRecordReceipt> numToRpt) {
+
+        IndividualPhoneRecords.tryFindOrCreateNumToObjByPhoneAndNumbers(p1, sess*.number, true, false)
+            .then { Map<PhoneNumber, Collection<IndividualPhoneRecord>> numToPhoneRecs ->
+                ResultGroup<RecordItem> resGroup = new ResultGroup<>()
+                numToPhoneRecs.each { PhoneNumber pNum, Collection<IndividualPhoneRecord> iprs ->
+                    iprs*.record.each { Record rec1 ->
+                        resGroup << tryStoreForRecordItem(rec1, type, author1, msg, numToRpt[pNum])
                     }
                 }
-                else {
-                    log.error("AnnouncementService.sendAnnouncementHelper: no receipt for $numAsString")
-                }
+                resGroup.logFail("tryStoreForRecords")
+                IOCUtils.resultFactory.success(CollectionUtils.mergeUnique(numToPhoneRecs.values()))
             }
-        // notify of new contacts
-        socketService.sendContacts(newContacts)
-        //return result map
-        resMap
+    }
+
+    protected Result<? extends RecordItem> tryStoreForRecordItem(Record rec1, RecordItemType type,
+        Author author1, String msg, TempRecordReceipt tempRpt1 = null) {
+
+        rec1.storeOutgoing(type, author1, msg)
+            .then { RecordItem rItem1 ->
+                if (tempRpt1) {
+                    rItem1.addReceipt(tempRpt1)
+                }
+                rItem1.isAnnouncement = true
+                DomainUtils.trySave(rItem1)
+            }
     }
 }

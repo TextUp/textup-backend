@@ -2,42 +2,48 @@ package org.textup.validator
 
 import grails.compiler.GrailsTypeChecked
 import grails.validation.Validateable
+import groovy.transform.EqualsAndHashCode
+import groovy.transform.TupleConstructor
 import org.textup.*
+import org.textup.structure.*
+import org.textup.type.*
+import org.textup.util.*
+import org.textup.util.domain.*
 
+@EqualsAndHashCode
 @GrailsTypeChecked
+@TupleConstructor(includeFields = true)
 @Validateable
-class MergeGroupItem {
+class MergeGroupItem implements CanValidate {
 
-	String numberAsString
-	Collection<Long> contactIds = [] // initialize to empty collection to set off minSize constraint
-
-	private Collection<Contact> mergeWith // dependent on setting contactIds
+	final PhoneNumber number
+	final Collection<Long> mergeIds = [] // initialize to empty collection to set off minSize constraint
 
 	static constraints = {
-		numberAsString validator:{ String val ->
-	        if (!(val?.toString() ==~ /^(\d){10}$/)) { ["format"] }
+		number cascadeValidation: true
+	    mergeIds minSize: 1, validator: { Collection<Long> val ->
+			Collection<Long> foundIds = Utils.<Collection<Long>>doWithoutFlush {
+				IndividualPhoneRecords
+					.buildForIds(val)
+					.build(CriteriaUtils.returnsId())
+					.list() as Collection<Long>
+			}
+			if (val.size() != foundIds.size()) {
+				HashSet<Long> existingIds = new HashSet<>(val)
+				return ["someDoNotExist", existingIds.removeAll(foundIds)]
+			}
 	    }
-	    contactIds minSize:1
 	}
 
-	// Property access
-	// ---------------
-
-	void setNumber(PhoneNumber pNum) {
-		this.numberAsString = pNum.number
-	}
-	PhoneNumber getNumber() {
-		new PhoneNumber(number:this.numberAsString)
+	static MergeGroupItem create(PhoneNumber pNum1, Collection<Long> thisMergeIds) {
+		Collection<Long> mergeIds = thisMergeIds ?: new ArrayList<Long>()
+		new MergeGroupItem(pNum1, Collections.unmodifiableCollection(mergeIds))
 	}
 
-	void setContactIds(Collection<Long> cIds) {
-		this.contactIds = cIds
-		this.mergeWith = Contact
-			.getAll(cIds as Iterable<Serializable>)
-			.findAll { Contact c1 -> c1 != null  }
-	}
+	// Methods
+	// -------
 
-	Collection<Contact> getMergeWith() {
-		this.mergeWith ?: []
+	Collection<IndividualPhoneRecord> buildMergeWith() {
+		CollectionUtils.ensureNoNull(AsyncUtils.getAllIds(IndividualPhoneRecord, mergeIds))
 	}
 }

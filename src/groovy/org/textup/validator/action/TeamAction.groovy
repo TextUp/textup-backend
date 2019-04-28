@@ -4,40 +4,38 @@ import grails.compiler.GrailsTypeChecked
 import grails.validation.Validateable
 import groovy.transform.EqualsAndHashCode
 import org.textup.*
+import org.textup.structure.*
+import org.textup.type.*
 import org.textup.util.*
+import org.textup.util.domain.*
+import org.textup.validator.*
 
-// documented as [teamAction] in CustomApiDocs.groovy
-
+@EqualsAndHashCode(callSuper = true)
 @GrailsTypeChecked
-@EqualsAndHashCode(callSuper=true)
 @Validateable
 class TeamAction extends BaseAction {
 
+	static final String ADD = "add"
+	static final String REMOVE = "remove"
+
 	Long id // id of the staff to modify
 
-	final Staff staff
-
 	static constraints = {
-		staff nullable: true
 		id validator: { Long staffId ->
-			if (!Utils.<Boolean>doWithoutFlush({ Staff.exists(staffId) })) {
+			if (!Utils.<Boolean>doWithoutFlush { Staff.exists(staffId) }) {
 				["doesNotExist"]
 			}
 		}
 	}
 
-	// Validation helpers
-	// ------------------
-
-	@Override
-	Collection<String> getAllowedActions() {
-		[Constants.TEAM_ACTION_ADD, Constants.TEAM_ACTION_REMOVE]
-	}
-
 	// Methods
 	// -------
 
-	Staff getStaff() {
-		this.id ? Staff.get(this.id) : null
-	}
+	Staff buildStaff() { id ? Staff.get(id) : null }
+
+	// Properties
+	// ----------
+
+	@Override
+	Collection<String> getAllowedActions() { [ADD, REMOVE] }
 }

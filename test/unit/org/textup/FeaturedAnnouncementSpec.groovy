@@ -1,95 +1,71 @@
 package org.textup
 
+import grails.test.mixin.*
+import grails.test.mixin.gorm.*
+import grails.test.mixin.hibernate.*
+import grails.test.mixin.support.*
+import grails.test.runtime.*
+import grails.validation.*
+import org.joda.time.*
+import org.textup.structure.*
 import org.textup.test.*
-import grails.test.mixin.gorm.Domain
-import grails.test.mixin.hibernate.HibernateTestMixin
-import grails.test.mixin.TestMixin
-import grails.validation.ValidationErrors
-import org.joda.time.DateTime
-import org.springframework.context.MessageSource
-import org.textup.type.PhoneOwnershipType
-import org.textup.type.RecordItemType
-import org.textup.type.StaffStatus
-import spock.lang.Ignore
-import spock.lang.Shared
+import org.textup.type.*
+import org.textup.util.*
+import org.textup.validator.*
+import spock.lang.*
 
-@Domain([CustomAccountDetails, Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
-    RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization, Schedule,
-    Location, WeeklySchedule, PhoneOwnership, FeaturedAnnouncement, IncomingSession,
-    AnnouncementReceipt, Role, StaffRole, NotificationPolicy,
-    MediaInfo, MediaElement, MediaElementVersion])
+@Domain([AnnouncementReceipt, ContactNumber, CustomAccountDetails, FeaturedAnnouncement,
+    FutureMessage, GroupPhoneRecord, IncomingSession, IndividualPhoneRecord, Location, MediaElement,
+    MediaElementVersion, MediaInfo, Organization, OwnerPolicy, Phone, PhoneNumberHistory,
+    PhoneOwnership, PhoneRecord, PhoneRecordMembers, Record, RecordCall, RecordItem,
+    RecordItemReceipt, RecordNote, RecordNoteRevision, RecordText, Role, Schedule,
+    SimpleFutureMessage, Staff, StaffRole, Team, Token])
 @TestMixin(HibernateTestMixin)
-class FeaturedAnnouncementSpec extends CustomSpec {
+class FeaturedAnnouncementSpec extends Specification {
 
 	static doWithSpring = {
-		resultFactory(ResultFactory)
-	}
+        resultFactory(ResultFactory)
+    }
 
     def setup() {
-    	setupData()
+        TestUtils.standardMockSetup()
     }
 
-    def cleanup() {
-    	cleanupData()
-    }
+    void "test creation + constraints"() {
+        given:
+        Phone p1 = TestUtils.buildStaffPhone()
+        String msg = TestUtils.randString()
+        DateTime dt = DateTime.now().plusDays(2)
 
-    void "test constraints"() {
     	when: "is empty"
-    	FeaturedAnnouncement announce = new FeaturedAnnouncement()
+        Result res = FeaturedAnnouncement.tryCreate(null, null, null)
 
     	then:
-    	announce.validate() == false
-    	announce.errors.errorCount == 3
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
 
-    	when: "all fields are filled out"
-    	announce = new FeaturedAnnouncement(owner:p1, message:"Hello!",
-			expiresAt:DateTime.now().plusDays(2))
+    	when: "expires in past"
+        res = FeaturedAnnouncement.tryCreate(p1, DateTime.now().minusDays(2), msg)
 
     	then:
-    	announce.validate() == true
-    }
+    	res.status == ResultStatus.UNPROCESSABLE_ENTITY
 
-    void "test adding receipts"() {
-    	given: "sessions"
-    	IncomingSession ses1 = new IncomingSession(phone:p1, numberAsString:"2223334444"),
-    		ses2 = new IncomingSession(phone:p1, numberAsString:"2223334445"),
-    		ses3 = new IncomingSession(phone:p1, numberAsString:"2223334446"),
-    		ses4 = new IncomingSession(phone:p1, numberAsString:"2223334447")
-    	[ses1, ses2, ses3, ses4]*.save(flush:true, failOnError:true)
+        when:
+        res = FeaturedAnnouncement.tryCreate(p1, dt, msg)
 
-    	when: "we have a valid announcement"
-    	FeaturedAnnouncement announce = new FeaturedAnnouncement(owner:p1,
-    		message:"Hello!", expiresAt:DateTime.now().plusDays(2))
-    	announce.save(flush:true, failOnError:true)
+        then:
+        res.status == ResultStatus.CREATED
+        res.payload.message == msg
+        res.payload.phone == p1
+        res.payload.expiresAt == dt
+        res.payload.isExpired == false
 
-    	then:
-    	FeaturedAnnouncement.listForPhone(p1).size() == 1
-        FeaturedAnnouncement.countForPhone(p1) == 1
-    	FeaturedAnnouncement.listForPhone(p1)[0] == announce
+        when: "expire"
+        res.payload.with {
+            whenCreated = DateTime.now().minusHours(1)
+            expiresAt = DateTime.now().minusMinutes(8)
+        }
 
-    	when: "we add calls"
-    	int callBaseline = RecordCall.count(),
-            aRecBaseline = AnnouncementReceipt.count()
-    	announce.addToReceipts(RecordItemType.CALL, [ses1, ses2, ses3])
-    	announce.save(flush:true, failOnError:true)
-
-    	then:
-    	RecordCall.count() == callBaseline //no calls added
-        AnnouncementReceipt.count() == aRecBaseline + 3
-    	announce.numReceipts == 3
-        announce.numCallReceipts == 3
-        announce.numTextReceipts == 0
-
-    	when: "we add texts"
-        int textBaseline = RecordText.count()
-        announce.addToReceipts(RecordItemType.TEXT, [ses4, ses2, ses3])
-        announce.save(flush:true, failOnError:true)
-
-    	then:
-        RecordText.count() == textBaseline //no texts added
-        AnnouncementReceipt.count() == aRecBaseline + 6
-        announce.numReceipts == 6
-        announce.numCallReceipts == 3
-        announce.numTextReceipts == 3
+        then:
+        res.payload.isExpired == true
     }
 }

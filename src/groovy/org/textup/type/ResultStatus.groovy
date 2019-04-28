@@ -85,11 +85,12 @@ enum ResultStatus {
 			rStat.springStatus == status
 		}
 		if (!foundStat) {
-			log.error("ResultStatus.could not find an appropriate wrapper for Spring Status $status")
+			log.error("convert: could not find an appropriate wrapper for Spring Status $status")
 			foundStat = ResultStatus.INTERNAL_SERVER_ERROR
 		}
 		foundStat
 	}
+
 	static ResultStatus convert(int status) {
 		ResultStatus foundStat = ResultStatus.values().find { ResultStatus rStat ->
 			rStat.intStatus == status

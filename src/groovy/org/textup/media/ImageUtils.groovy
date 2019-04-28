@@ -35,7 +35,7 @@ class ImageUtils {
             }
         }
         catch (Throwable e) {
-            log.error("ImageUtils.tryGetImageFromData: ${e}, ${e.message}")
+            log.error("tryGetImageFromData: ${e}, ${e.message}")
             null
         }
     }
@@ -57,10 +57,11 @@ class ImageUtils {
             IOCUtils.resultFactory.success(newData, newImage)
         }
         catch (Throwable e) {
-            log.error("ImageUtils.tryResizeToWidth: maxWidthInPixels: ${maxWidthInPixels}, ${e.message}")
-            IOCUtils.resultFactory.failWithThrowable(e)
+            IOCUtils.resultFactory.failWithThrowable(e, "tryResizeToWidth")
         }
-        finally { writer?.dispose() }
+        finally {
+            writer?.dispose()
+        }
     }
 
     static Result<Tuple<byte[], BufferedImage>> tryCompress(MediaType type, byte[] data,
@@ -89,10 +90,11 @@ class ImageUtils {
             return IOCUtils.resultFactory.success(currData, currImage)
         }
         catch (Throwable e) {
-            log.error("ImageUtils.tryCompress: maxSizeInBytes: ${maxSizeInBytes}: ${e.message}")
-            IOCUtils.resultFactory.failWithThrowable(e)
+            IOCUtils.resultFactory.failWithThrowable(e, "tryCompress")
         }
-        finally { writer?.dispose() }
+        finally {
+            writer?.dispose()
+        }
     }
 
     // Helpers

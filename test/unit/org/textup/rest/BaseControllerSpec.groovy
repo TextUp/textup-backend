@@ -1,413 +1,319 @@
 package org.textup.rest
 
-import org.textup.test.*
+import grails.gorm.DetachedCriteria
 import grails.plugin.jodatime.converters.JodaConverters
-import grails.test.mixin.gorm.Domain
-import grails.test.mixin.hibernate.HibernateTestMixin
-import grails.test.mixin.TestFor
-import grails.test.mixin.TestMixin
-import grails.validation.ValidationErrors
-import groovy.json.JsonBuilder
+import grails.test.mixin.*
+import grails.test.mixin.gorm.*
+import grails.test.mixin.hibernate.*
 import javax.servlet.http.HttpServletRequest
-import org.joda.time.DateTime
-import org.springframework.context.MessageSource
-import org.springframework.security.core.Authentication
-import org.springframework.security.core.userdetails.UserDetails
 import org.textup.*
+import org.textup.structure.*
+import org.textup.test.*
 import org.textup.type.*
 import org.textup.util.*
+import org.textup.util.domain.*
 import org.textup.validator.*
-import spock.lang.Shared
-import static javax.servlet.http.HttpServletResponse.*
+import spock.lang.*
 
+@Domain([AnnouncementReceipt, ContactNumber, CustomAccountDetails, FeaturedAnnouncement,
+    FutureMessage, GroupPhoneRecord, IncomingSession, IndividualPhoneRecord, Location, MediaElement,
+    MediaElementVersion, MediaInfo, Organization, OwnerPolicy, Phone, PhoneNumberHistory,
+    PhoneOwnership, PhoneRecord, PhoneRecordMembers, Record, RecordCall, RecordItem,
+    RecordItemReceipt, RecordNote, RecordNoteRevision, RecordText, Role, Schedule,
+    SimpleFutureMessage, Staff, StaffRole, Team, Token])
 @TestFor(BaseController)
-@Domain([CustomAccountDetails, Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
-    RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
-    Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole, NotificationPolicy,
-    MediaInfo, MediaElement, MediaElementVersion])
 @TestMixin(HibernateTestMixin)
-class BaseControllerSpec extends CustomSpec {
+class BaseControllerSpec extends Specification {
 
     static doWithSpring = {
         resultFactory(ResultFactory)
     }
 
     def setup() {
-        setupData()
+        TestUtils.standardMockSetup()
         JodaConverters.registerJsonAndXmlMarshallers()
-        // enables resolving of resource names from class
-        controller.grailsApplication.flatConfig = config.flatten()
-    }
-    def cleanup() {
-        cleanupData()
     }
 
-    void "test validating json requests"() {
-        when: "invalid json without specified class"
-        request.json = "{'invaild:{}}"
-        Map payload = controller.getJsonPayload(request)
-
-        then: "bad request"
-        payload == null
-        response.status == SC_BAD_REQUEST
-    }
-
-    void "test validating json requests"() {
-        when: "valid json without specified class"
-        request.json = "{'valid':{}}"
-        Map payload = controller.getJsonPayload(request)
+    void "test default endpoints"() {
+        when:
+        controller.index()
 
         then:
-        payload instanceof Map
-        payload.valid instanceof Map
-        response.status == SC_OK
-    }
+        response.status == ResultStatus.METHOD_NOT_ALLOWED.intStatus
 
-    void "test validating json requests"() {
-        when: "invalid json with class specified"
-        request.json = "{'contact':{'invalid:123}}"
-        Map payload = controller.getJsonPayload(Contact, request)
-
-        then: "bad request"
-        payload == null
-        response.status == SC_BAD_REQUEST
-    }
-
-    void "test validating json requests"() {
-        when: "valid json with class specified"
-        request.json = "{'contact':{'valid':123}}"
-        Map payload = controller.getJsonPayload(Contact, request)
-
-        then: "parses and returns the payload WITHOUT the root `contact`"
-        payload instanceof Map
-        payload.valid == 123
-        response.status == SC_OK
-    }
-
-    void "test building errors"() {
-        given: "error results"
-        ResultFactory fac = TestUtils.getResultFactory(grailsApplication)
-        String errorCode = "I am an a valid error code"
-        Collection<Result<?>> manyErrorRes = []
-        Location loc1 = new Location()
-        assert loc1.validate() == false
-        manyErrorRes << fac.failWithCodeAndStatus(errorCode, ResultStatus.BAD_REQUEST)
-        manyErrorRes << fac.failWithValidationErrors(loc1.errors)
-
-        expect:
-        controller.buildErrorObj(manyErrorRes).each { Map<String,Object> errorObj ->
-            assert errorObj.message instanceof String
-            assert errorObj.message != ""
-            assert errorObj.statusCode instanceof Number
-            assert errorObj.statusCode >= 400
-        }
-    }
-
-    void "test resolving class as string"() {
-        when: "we have classes that are resolvable"
-        Collection<Class> resolvableClasses = [AvailablePhoneNumber, Contactable, ContactTag,
-            FeaturedAnnouncement, FutureMessage, IncomingSession, Location, MediaElement, MediaInfo,
-            MergeGroup, Notification, NotificationStatus, Organization, Phone, RecordItem,
-            RecordItemStatus, RecordNoteRevision, Schedule, Staff, Team]
-
-        then:
-        resolvableClasses.each { Class clazz ->
-            assert controller.resolveClassToConfigKey(clazz) != "result"
-            assert controller.resolveClassToSingular(clazz) != Constants.FALLBACK_SINGULAR
-            assert controller.resolveClassToPlural(clazz) != Constants.FALLBACK_PLURAL
-        }
-
-        expect: "graceful fallback for classes that are not resolvable"
-        controller.resolveClassToConfigKey(Role) == "result"
-        controller.resolveClassToSingular(Role) == Constants.FALLBACK_SINGULAR
-        controller.resolveClassToPlural(Role) == Constants.FALLBACK_PLURAL
-    }
-
-    void "test resolving resource names"() {
-        when: "we have classes that have resource names"
-        Collection<Class> resolvableClasses = [AvailablePhoneNumber, Contactable, ContactTag,
-            FeaturedAnnouncement, FutureMessage, IncomingSession, Notification, Organization,
-            RecordItem, Staff, Team]
-
-        then:
-        resolvableClasses.each { Class clazz ->
-            assert controller.resolveClassToResourceName(clazz) != Constants.FALLBACK_RESOURCE_NAME
-        }
-
-        expect: "graceful fallback for classes that do not associated resource names"
-        controller.resolveClassToConfigKey(Role) == "result"
-    }
-
-    void "test building pagination options"() {
-        given:
-        Integer defaultMax = Constants.DEFAULT_PAGINATION_MAX
-        Integer largestMax = Constants.MAX_PAGINATION_MAX
-
-        expect:
-        controller.handlePagination([max: null, offset: null], null).meta ==
-            [max: defaultMax, offset: 0, total: defaultMax]
-        controller.handlePagination([max: 1, offset: null], null).meta ==
-            [max: 1, offset: 0, total: 1]
-        controller.handlePagination([max: -1, offset: null], null).meta ==
-            [max: defaultMax, offset: 0, total: defaultMax]
-        controller.handlePagination([max: null, offset: -1], null).meta ==
-            [max: defaultMax, offset: 0, total: defaultMax]
-        controller.handlePagination([max: null, offset: null], -1).meta ==
-            [max: defaultMax, offset: 0, total: defaultMax]
-        controller.handlePagination([max: 10, offset: 0], 10).meta ==
-            [max: 10, offset: 0, total: 10]
-        controller.handlePagination([max: 20, offset: 0], 10).meta ==
-            [max: 20, offset: 0, total: 10]
-        controller.handlePagination([max: 20, offset: 30], 10).meta ==
-            [max: 20, offset: 30, total: 10]
-        controller.handlePagination([max: largestMax + 1, offset: 0], 0).meta ==
-            [max: largestMax, offset: 0, total: 0]
-        controller.handlePagination([max: null, offset: -1], largestMax + 1).meta ==
-            [max: defaultMax, offset: 0, total: largestMax + 1]
-        controller.handlePagination([max: 0, offset: 100], 0).meta ==
-            [max: defaultMax, offset: 100, total: 0]
-    }
-
-    void "test pagination"() {
-        expect:
-        testPagination(10, 0, 10, [hasNext:false , hasPrev:false])
-        testPagination(10, 10, 0, [hasNext:false , hasPrev:true])
-        testPagination(10, 0, 11, [hasNext:true , hasPrev:false])
-        testPagination(10, 10, 21, [hasNext:true , hasPrev:true])
-    }
-    protected void testPagination(Integer optMax, Integer optOffset, Integer optTotal,
-        Map<String,Boolean> outcomes)  {
-
-        Map<String,? extends Object> paginationOutput = controller
-            .handlePagination([max: optMax, offset: optOffset], optTotal)
-        assert (paginationOutput.links?.next != null) == outcomes.hasNext
-        assert (paginationOutput.links?.prev != null) == outcomes.hasPrev
-        assert paginationOutput.meta != null
-    }
-
-    void "test responding with count and list closures"() {
-        when: "none found"
-        controller.respondWithMany(Contact, { 0 }, { [] })
-
-        then:
-        response.status == SC_OK
-        response.json.contacts instanceof List
-        response.json.contacts.isEmpty() == true
-
-        when: "none returned, but many total"
+        when:
         response.reset()
-        controller.respondWithMany(Contact, { 100 }, { [] })
+        controller.show()
 
-        then: "should have valid next link"
-        response.status == SC_OK
-        response.json.contacts instanceof List
-        response.json.contacts.isEmpty() == true
-        response.json.links instanceof Map
-        response.json.links.next.contains("/v1/contacts")
+        then:
+        response.status == ResultStatus.METHOD_NOT_ALLOWED.intStatus
+
+        when:
+        response.reset()
+        controller.save()
+
+        then:
+        response.status == ResultStatus.METHOD_NOT_ALLOWED.intStatus
+
+        when:
+        response.reset()
+        controller.update()
+
+        then:
+        response.status == ResultStatus.METHOD_NOT_ALLOWED.intStatus
+
+        when:
+        response.reset()
+        controller.delete()
+
+        then:
+        response.status == ResultStatus.METHOD_NOT_ALLOWED.intStatus
+    }
+
+    void "test returning in json format"() {
+        given:
+        Map data = [hello: "world"]
+
+        when:
+        controller.withJsonFormat { controller.respond(data) }
+
+        then:
+        response.text == '{"hello":"world"}'
+        response.json == data
+    }
+
+    void "test rendering status"() {
+        given:
+        ResultStatus stat1 = ResultStatus.values()[0]
+
+        when:
+        controller.renderStatus(stat1)
+
+        then:
+        response.status == stat1.intStatus
+    }
+
+    void "test responding with result"() {
+        given:
+        String err1 = TestUtils.randString()
+        Location loc1 = TestUtils.buildLocation()
+
+        Result failRes1 = Result.createError([err1], ResultStatus.BAD_REQUEST)
+        Result res1 = Result.createSuccess({ Hello { World() } })
+        Result res2 = Result.void()
+        Result res3 = Result.createSuccess(loc1)
+
+        when: "error"
+        controller.respondWithResult(failRes1)
+
+        then:
+        response.status == failRes1.status.intStatus
+        response.text.contains(err1)
+
+        when: "closure"
+        response.reset()
+        controller.respondWithResult(res1)
+
+        then:
+        response.status == res1.status.intStatus
+        response.text == "<Hello><World/></Hello>"
+
+        when: "no content"
+        response.reset()
+        controller.respondWithResult(res2)
+
+        then:
+        response.status == res2.status.intStatus
+        response.text == ""
+
+        when: "success"
+        response.reset()
+        controller.respondWithResult(res3)
+
+        then:
+        response.status == res3.status.intStatus
+        response.json.id == loc1.id
+    }
+
+    void "test default delete action"() {
+        given:
+        Long id = TestUtils.randIntegerUpTo(88)
+        String err1 = TestUtils.randString()
+        ResultStatus failStat1 = ResultStatus.BAD_REQUEST
+
+        ManagesDomain.Deleter service = GroovyMock()
+
+        when:
+        controller.doDelete(service) { Result.createSuccess(id) }
+
+        then:
+        1 * service.tryDelete(id) >> Result.createError([err1], failStat1)
+        response.text.contains(err1)
+        response.status == failStat1.intStatus
+
+        when:
+        response.reset()
+        controller.doDelete(service) { Result.createSuccess(id) }
+
+        then:
+        1 * service.tryDelete(id) >> Result.void()
+        response.status == ResultStatus.NO_CONTENT.intStatus
+    }
+
+    void "test default update action"() {
+        given:
+        Long id = TestUtils.randIntegerUpTo(88)
+        String key = TestUtils.randString()
+        TypeMap body = TestUtils.randTypeMap()
+
+        HttpServletRequest req = GroovyMock()
+        ManagesDomain.Updater service = GroovyMock()
+        MockedMethod tryGetJsonBody = MockedMethod.create(RequestUtils, "tryGetJsonBody") {
+            Result.createSuccess(body)
+        }
+
+        when:
+        controller.doUpdate(key, req, service) { Result.createSuccess(id) }
+
+        then:
+        tryGetJsonBody.latestArgs == [req, key]
+        1 * service.tryUpdate(id, body) >> Result.void()
+        response.status == ResultStatus.NO_CONTENT.intStatus
+
+        cleanup:
+        tryGetJsonBody?.restore()
+    }
+
+    void "test default save action"() {
+        given:
+        Long id = TestUtils.randIntegerUpTo(88)
+        String key = TestUtils.randString()
+        TypeMap body = TestUtils.randTypeMap()
+
+        HttpServletRequest req = GroovyMock()
+        ManagesDomain.Creater service = GroovyMock()
+        MockedMethod tryGetJsonBody = MockedMethod.create(RequestUtils, "tryGetJsonBody") {
+            Result.createSuccess(body)
+        }
+
+        when:
+        controller.doSave(key, req, service) { Result.createSuccess(id) }
+
+        then:
+        tryGetJsonBody.latestArgs == [req, key]
+        1 * service.tryCreate(id, body) >> Result.void()
+        response.status == ResultStatus.NO_CONTENT.intStatus
+
+        cleanup:
+        tryGetJsonBody?.restore()
+    }
+
+    void "test default show action"() {
+        given:
+        Location loc1 = TestUtils.buildLocation()
+
+        when:
+        controller.doShow({ Result.void() }, { Result.createSuccess(loc1) })
+
+        then:
+        response.status == ResultStatus.OK.intStatus
+        response.json.id == loc1.id
+    }
+
+    void "test responding with closures"() {
+        given:
+        int numTotal = TestUtils.randIntegerUpTo(88, true)
+        Location loc1 = TestUtils.buildLocation()
+        Map pg1 = [offset: TestUtils.randIntegerUpTo(88),
+            max: TestUtils.randIntegerUpTo(88),
+            total: TestUtils.randIntegerUpTo(88)]
+        Map links = [(TestUtils.randString()): TestUtils.randString()]
+        TypeMap params = TestUtils.randTypeMap()
+
+        MockedMethod buildPagination = MockedMethod.create(ControllerUtils, "buildPagination") {
+            pg1
+        }
+        MockedMethod buildLinks = MockedMethod.create(ControllerUtils, "buildLinks") {
+            links
+        }
+        int countTimes = 0
+        Closure doCount = { ++countTimes; numTotal; }
+        List listArgs1 = []
+        Closure doList1 = { arg1 -> listArgs1 << arg1; null; }
+        List listArgs2 = []
+        Closure doList2 = { arg1 -> listArgs2 << arg1; [loc1]; }
+
+        when: "none found"
+        controller.respondWithClosures(doCount, doList1, params, MarshallerUtils.KEY_LOCATION)
+
+        then:
+        countTimes == 1
+        buildPagination.latestArgs == [params, numTotal]
+        buildLinks.latestArgs[0].resource == controller.controllerName
+        buildLinks.latestArgs[0].action == RestUtils.ACTION_GET_LIST
+        buildLinks.latestArgs[0].absolute == false
+        buildLinks.latestArgs[1] == pg1.offset
+        buildLinks.latestArgs[2] == pg1.max
+        buildLinks.latestArgs[3] == pg1.total
+        listArgs1 == [pg1]
+        response.status == ResultStatus.OK.intStatus
+        response.json[MarshallerUtils.resolveCodeToPlural(MarshallerUtils.KEY_LOCATION)] == []
+        response.json[MarshallerUtils.PARAM_LINKS] == links
+        response.json[MarshallerUtils.PARAM_META] == pg1
 
         when: "some found"
         response.reset()
-        controller.respondWithMany(Contact, { 10 }, { [c1, c2] })
+        controller.respondWithClosures(doCount, doList2, params, MarshallerUtils.KEY_LOCATION)
 
         then:
-        response.status == SC_OK
-        response.json.contacts instanceof List
-        // array is not empty but marshallers are not provisioned in unit
-        // tests so the array contains nulls
-        response.json.contacts.isEmpty() == false
+        countTimes == 2
+        buildPagination.latestArgs == [params, numTotal]
+        buildLinks.latestArgs[0].resource == controller.controllerName
+        buildLinks.latestArgs[0].action == RestUtils.ACTION_GET_LIST
+        buildLinks.latestArgs[0].absolute == false
+        buildLinks.latestArgs[1] == pg1.offset
+        buildLinks.latestArgs[2] == pg1.max
+        buildLinks.latestArgs[3] == pg1.total
+        listArgs2 == [pg1]
+        response.status == ResultStatus.OK.intStatus
+
+        and: "custom marshallers not initialized in unit tests"
+        response.json instanceof Collection
+        response.json[0].id == loc1.id
+
+        cleanup:
+        buildPagination?.restore()
+        buildLinks?.restore()
     }
 
-    void "test responding with a result"() {
-        when: "result failure"
-        String errorMsg = "error message here"
-        controller.respondWithResult(Contact, Result.<Contact>createError([errorMsg],
-            ResultStatus.BAD_REQUEST))
-
-        then:
-        response.status == SC_BAD_REQUEST
-        response.json.errors instanceof Collection
-        response.json.errors.size() == 1
-        response.json.errors[0] instanceof Map
-        response.json.errors[0].message == errorMsg
-        response.json.errors[0].statusCode == SC_BAD_REQUEST
-
-        when: "payload is Void"
-        response.reset()
-        controller.respondWithResult(Void, Result.<Void>createSuccess(null, ResultStatus.OK))
-
-        then:
-        response.status == SC_OK
-        response.text == ""
-
-        when: "status is NO_CONTENT"
-        response.reset()
-        controller.respondWithResult(Contact, Result.<Contact>createSuccess(null,
-            ResultStatus.NO_CONTENT))
-
-        then:
-        response.status == SC_NO_CONTENT
-        response.text == ""
-
-        when: "payload is Closure"
-        response.reset()
-        controller.respondWithResult(Closure, Result.<Closure>createSuccess({ Response {} },
-            ResultStatus.OK))
-
-        then:
-        response.status == SC_OK
-        response.json.isEmpty()
-        response.xml != null
-
-        when: "success and not previously mentioned special condition"
-        response.reset()
-        controller.respondWithResult(Contact, Result.<Contact>createSuccess(c1, ResultStatus.CREATED))
-
-        then:
-        response.status == SC_CREATED
-        // marshaller not provisioned so we don't have the namespaced json
-        // instead using the built-in json marshaller
-        response.json?.id == c1.id
-    }
-
-    void "test responding with a result group"() {
-        given: "success and failure results"
-        String errStr1 = "I am an error"
-        String errStr2 = "something is wrong"
-        String errStr3 = "oops"
-        Result<Contact> succ1 = Result.<Contact>createSuccess(c1, ResultStatus.OK)
-        Result<Contact> succ2 = Result.<Contact>createSuccess(c2, ResultStatus.OK)
-        Result<Contact> fail1 = Result.<Contact>createError([errStr1], ResultStatus.BAD_REQUEST)
-        Result<Contact> fail2 = Result.<Contact>createError([errStr2], ResultStatus.UNPROCESSABLE_ENTITY)
-        Result<Contact> fail3 = Result.<Contact>createError([errStr3], ResultStatus.UNPROCESSABLE_ENTITY)
-
-        Collection<String> errMsgs = [errStr1, errStr2, errStr3]
-        Collection<Long> cIds = [c1, c2]*.id
-
-        when: "an empty group of results"
-        controller.respondWithResult(Contact, new ResultGroup<Contact>())
-
-        then:
-        response.status == SC_INTERNAL_SERVER_ERROR
-        response.text == ""
-
-        when: "group with only failures"
-        response.reset()
-        controller.respondWithResult(Contact, new ResultGroup<Contact>([fail1, fail2, fail3]))
-
-        then:
-        response.status == 422 // UNPROCESSABLE_ENTITY
-        response.json.errors.size() == 3
-        response.json.errors.each {
-            assert it.message in errMsgs
-            assert it.statusCode in [SC_BAD_REQUEST, 422]
-        }
-
-        when: "group with only successes"
-        response.reset()
-        controller.respondWithResult(Contact, new ResultGroup<Contact>([succ1, succ2]))
-
-        then:
-        response.status == SC_OK
-        response.json.size() == 2
-        response.json*.id.every { (it as Long) in cIds }
-
-        when: "group with both failures and successes"
-        response.reset()
-        controller.respondWithResult(Contact, new ResultGroup<Contact>([succ1, succ2, fail1, fail2, fail3]))
-
-        then:
-        response.status == SC_OK
-        response.json.size() == 2
-        // errors object not included because we using the standard rather
-        // than the custom marshallers
-        response.json*.id.every { (it as Long) in cIds }
-    }
-
-    void "test responding with pdf file"() {
+    void "test responding with criteria"() {
         given:
-        String fileName = TestUtils.randString()
-        byte[] validPdfData = TestUtils.getSampleDataForMimeType(MediaType.IMAGE_PNG)
+        String marshallerKey = TestUtils.randString()
+        TypeMap params = TestUtils.randTypeMap()
+        Closure sortOptions = { }
 
-        String errStr1 = TestUtils.randString()
-        Result failRes1 = Result.createError([errStr1], ResultStatus.BAD_REQUEST)
-        Result successRes1 = Result.createSuccess(validPdfData, ResultStatus.OK)
-
-        when: "result is a failure"
-        controller.respondWithPdf(fileName, failRes1)
-
-        then:
-        response.status == SC_BAD_REQUEST
-        response.getHeaderValue("Content-Type") == "application/json;charset=UTF-8"
-        response.text.contains("errors")
-        response.text.contains(errStr1)
-        response.json.errors.size() == 1
-        response.json.errors[0].message == errStr1
-        response.json.errors[0].statusCode == failRes1.status.intStatus
-
-        when: "result is a success"
-        response.reset()
-
-        controller.respondWithPdf(fileName, successRes1)
-
-        then:
-        response.status == SC_OK
-        response.getHeaderValue("Content-Type") == "application/pdf;charset=utf-8"
-        response.getHeaderValue("Content-Disposition") == "attachment;filename=${fileName}"
-    }
-
-    void "test status rendering helpers"() {
-        when:
-        controller.ok()
-
-        then:
-        response.status == SC_OK
+        DetachedCriteria criteria = GroovyMock() { asBoolean() >> true }
+        MockedMethod respondWithClosures = MockedMethod.create(controller, "respondWithClosures")
 
         when:
-        controller.notFound()
+        controller.respondWithCriteria(criteria, params, sortOptions, marshallerKey)
 
         then:
-        response.status == SC_NOT_FOUND
+        respondWithClosures.latestArgs[0] instanceof Closure
+        respondWithClosures.latestArgs[1] instanceof Closure
+        respondWithClosures.latestArgs[2] == params
+        respondWithClosures.latestArgs[3] == marshallerKey
 
         when:
-        controller.forbidden()
+        respondWithClosures.latestArgs[0].call()
+        respondWithClosures.latestArgs[1].call()
 
         then:
-        response.status == SC_FORBIDDEN
+        1 * criteria.count()
+        1 * criteria.build(sortOptions) >> criteria
+        1 * criteria.list(*_)
 
-        when:
-        controller.unauthorized()
-
-        then:
-        response.status == SC_UNAUTHORIZED
-
-        when:
-        controller.notAllowed()
-
-        then:
-        response.status == SC_METHOD_NOT_ALLOWED
-
-        when:
-        controller.failsValidation()
-
-        then:
-        response.status == 422 // UNPROCESSABLE_ENTITY (not included in static codes)
-
-        when:
-        controller.badRequest()
-
-        then:
-        response.status == SC_BAD_REQUEST
-
-        when:
-        controller.noContent()
-
-        then:
-        response.status == SC_NO_CONTENT
-
-        when:
-        controller.error()
-
-        then:
-        response.status == SC_INTERNAL_SERVER_ERROR
+        cleanup:
+        respondWithClosures?.restore()
     }
 }

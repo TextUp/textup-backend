@@ -965,4 +965,20 @@ databaseChangeLog = {
 	include file: 'phone-subaccount-credentials.groovy'
 
 	include file: 'receipt-api-id-index.groovy'
+
+	include file: 'normalize-column-names.groovy'
+
+	include file: 'phone-number-history.groovy'
+
+	include file: 'notification-policy-to-owner-policy.groovy'
+
+	include file: 'consolidate-availability-in-schedule-and-owner-policy.groovy'
+
+	include file: 'set-up-phone-records.groovy'
+
+	include file: 'migrate-data-to-phone-records.groovy'
+
+	include file: 'cleanup-tags-contacts-shared-contacts.groovy'
+
+	include file: 'future-message-notify-on-send.groovy'
 }

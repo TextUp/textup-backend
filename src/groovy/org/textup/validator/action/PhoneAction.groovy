@@ -5,16 +5,22 @@ import grails.util.Holders
 import grails.validation.Validateable
 import groovy.transform.EqualsAndHashCode
 import org.textup.*
-import org.textup.type.PhoneOwnershipType
+import org.textup.constraint.*
+import org.textup.structure.*
+import org.textup.type.*
 import org.textup.util.*
-import org.textup.validator.PhoneNumber
+import org.textup.util.domain.*
+import org.textup.validator.*
 
-// documented as [phoneAction] in CustomApiDocs.groovy
-
+@EqualsAndHashCode(callSuper = true)
 @GrailsTypeChecked
-@EqualsAndHashCode(callSuper=true)
 @Validateable
 class PhoneAction extends BaseAction {
+
+	static final String DEACTIVATE = "deactivate"
+	static final String TRANSFER = "transfer"
+	static final String NEW_NUM_BY_NUM  = "numbynum"
+	static final String NEW_NUM_BY_ID = "numbyid"
 
 	// required for transfer
 	Long id // id of the staff/team to transfer this phone to
@@ -23,20 +29,15 @@ class PhoneAction extends BaseAction {
 	String number // required when creating new phone with specified number
 	String numberId // required when creating new phone with existing number
 
-	final PhoneOwnershipType typeAsEnum
-	final PhoneNumber phoneNumber
-
 	static constraints = {
-		typeAsEnum nullable: true
-		phoneNumber nullable: true
-		id nullable:true, validator: { Long val, PhoneAction obj ->
+		id nullable: true, validator: { Long val, PhoneAction obj ->
 			// existence check for this id happens already in Phone.transferTo
-			if (obj.matches(Constants.PHONE_ACTION_TRANSFER) && !val) {
+			if (obj.matches(TRANSFER) && !val) {
 				["requiredForTransfer"]
 			}
 		}
-		type nullable:true, blank:true, validator: { String val, PhoneAction obj ->
-			if (obj.matches(Constants.PHONE_ACTION_TRANSFER)) {
+		type nullable: true, blank: true, validator: { String val, PhoneAction obj ->
+			if (obj.matches(TRANSFER)) {
 				if (!val) {
 					return ["requiredForTransfer"]
 				}
@@ -46,50 +47,35 @@ class PhoneAction extends BaseAction {
 				}
 			}
 		}
-		number nullable:true, blank:true, validator: { String val, PhoneAction obj ->
-			if (obj.matches(Constants.PHONE_ACTION_NEW_NUM_BY_NUM)) {
-				if (!val) {
-					return ["requiredForChangeToNewNumber"]
-				}
-				PhoneNumber pNum = new PhoneNumber(number:val)
-				if (!pNum.validate()) {
-					Result res = IOCUtils.resultFactory.failWithValidationErrors(pNum.errors)
-					return ["invalid", res.errorMessages]
+		number nullable: true, blank: true, phoneNumber: PhoneNumberConstraint.PARAM_ALLOW_BLANK,
+			validator: { String val, PhoneAction obj ->
+				if (obj.matches(NEW_NUM_BY_NUM)) {
+					if (!val) {
+						return ["requiredForChangeToNewNumber"]
+					}
 				}
 			}
-		}
-		numberId nullable:true, blank:true, validator: { String val, PhoneAction obj ->
-			if (obj.matches(Constants.PHONE_ACTION_NEW_NUM_BY_ID) && !val) {
+		numberId nullable: true, blank: true, validator: { String val, PhoneAction obj ->
+			if (obj.matches(NEW_NUM_BY_ID) && !val) {
 				["requiredForChangeToExistingNumber"]
 			}
 		}
 	}
 
-	// Validation helpers
-	// ------------------
-
-	@Override
-	Collection<String> getAllowedActions() {
-		[Constants.PHONE_ACTION_DEACTIVATE, Constants.PHONE_ACTION_TRANSFER,
-			Constants.PHONE_ACTION_NEW_NUM_BY_NUM, Constants.PHONE_ACTION_NEW_NUM_BY_ID]
-	}
-
 	// Methods
 	// -------
 
-	PhoneOwnershipType getTypeAsEnum() {
-		TypeConversionUtils.convertEnum(PhoneOwnershipType, this.type)
+	PhoneOwnershipType buildPhoneOwnershipType() {
+		TypeUtils.convertEnum(PhoneOwnershipType, type)
 	}
 
-	PhoneNumber getPhoneNumber() {
-		new PhoneNumber(number:this.number)
-	}
+	PhoneNumber buildPhoneNumber() { PhoneNumber.create(number) }
 
-	// Property access
-	// ---------------
+	// Properties
+	// ----------
 
-	void setNumber(String num) {
-		// clean number before validate
-		this.number = (new PhoneNumber(number:num)).number
-	}
+	@Override
+	Collection<String> getAllowedActions() { [DEACTIVATE, TRANSFER, NEW_NUM_BY_NUM, NEW_NUM_BY_ID] }
+
+	void setNumber(String num) { number = StringUtils.cleanPhoneNumber(num) }
 }

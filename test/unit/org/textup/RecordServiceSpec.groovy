@@ -1,314 +1,36 @@
 package org.textup
 
-import grails.test.mixin.gorm.Domain
-import grails.test.mixin.hibernate.HibernateTestMixin
-import grails.test.mixin.TestFor
-import grails.test.mixin.TestMixin
+import grails.test.mixin.*
+import grails.test.mixin.gorm.*
+import grails.test.mixin.hibernate.*
+import grails.test.mixin.support.*
 import grails.test.runtime.*
-import java.util.concurrent.Future
-import org.codehaus.groovy.grails.web.util.TypeConvertingMap
-import org.joda.time.DateTime
-import org.textup.rest.*
+import grails.validation.*
+import java.util.concurrent.*
+import org.joda.time.*
+import org.textup.structure.*
 import org.textup.test.*
 import org.textup.type.*
 import org.textup.util.*
 import org.textup.validator.*
 import spock.lang.*
 
+@Domain([AnnouncementReceipt, ContactNumber, CustomAccountDetails, FeaturedAnnouncement,
+    FutureMessage, GroupPhoneRecord, IncomingSession, IndividualPhoneRecord, Location, MediaElement,
+    MediaElementVersion, MediaInfo, Organization, OwnerPolicy, Phone, PhoneNumberHistory,
+    PhoneOwnership, PhoneRecord, PhoneRecordMembers, Record, RecordCall, RecordItem,
+    RecordItemReceipt, RecordNote, RecordNoteRevision, RecordText, Role, Schedule,
+    SimpleFutureMessage, Staff, StaffRole, Team, Token])
 @TestFor(RecordService)
-@Domain([CustomAccountDetails, Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
-    RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
-    Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole,
-    RecordNote, RecordNoteRevision, NotificationPolicy,
-    MediaInfo, MediaElement, MediaElementVersion])
 @TestMixin(HibernateTestMixin)
-class RecordServiceSpec extends CustomSpec {
+class RecordServiceSpec extends Specification {
 
     static doWithSpring = {
         resultFactory(ResultFactory)
     }
 
     def setup() {
-        setupData()
-        service.resultFactory = TestUtils.getResultFactory(grailsApplication)
-    }
-
-    def cleanup() {
-        cleanupData()
-    }
-
-    // Create
-    // ------
-
-    void "test create error"() {
-        given:
-        service.authService = Mock(AuthService)
-
-        when: "no phone"
-        TypeConvertingMap params = [:]
-        ResultGroup resGroup = service.create(null, params)
-
-        then:
-        0 * service.authService._
-        resGroup.anySuccesses == false
-        resGroup.failures.size() == 1
-        resGroup.failures[0].errorMessages[0] == "recordService.create.noPhone"
-        resGroup.failureStatus == ResultStatus.UNPROCESSABLE_ENTITY
-
-        when: "not owner"
-        resGroup = service.create(t1.phone.id, params)
-
-        then:
-        1 * service.authService.loggedInAndActive >> Mock(Staff)
-        resGroup.anySuccesses == false
-        resGroup.failures.size() == 1
-        resGroup.failures[0].errorMessages[0] == "phone.notOwner"
-        resGroup.failureStatus == ResultStatus.FORBIDDEN
-
-        when: "invalid entity"
-        resGroup = service.create(t1.phone.id, params)
-
-        then:
-        1 * service.authService.loggedInAndActive >> t1.phone.owner.buildAllStaff()[0]
-        resGroup.anySuccesses == false
-        resGroup.failures.size() == 1
-        resGroup.failures[0].errorMessages[0] == "recordUtils.determineClass.unknownType"
-        resGroup.failureStatus == ResultStatus.UNPROCESSABLE_ENTITY
-    }
-
-    @DirtiesRuntime
-    void "test create overall"() {
-        given:
-        Phone p1 = t1.phone
-        service.authService = Stub(AuthService) { getLoggedInAndActive() >> p1.owner.buildAllStaff()[0] }
-        MockedMethod createText = TestUtils.mock(service, "createText") { new ResultGroup() }
-        MockedMethod createCall = TestUtils.mock(service, "createCall") { new Result() }
-        MockedMethod createNote = TestUtils.mock(service, "createNote") { new Result() }
-
-        when: "text"
-        TypeConvertingMap itemInfo = new TypeConvertingMap(contents:"hi", sendToPhoneNumbers:["2223334444"],
-            sendToContacts:[tC1.id])
-        service.create(p1.id, itemInfo)
-
-        then:
-        createText.callCount == 1
-        createCall.callCount == 0
-        createNote.callCount == 0
-
-        when: "call"
-        itemInfo = new TypeConvertingMap(callContact:8L)
-        service.create(p1.id, itemInfo)
-
-        then:
-        createText.callCount == 1
-        createCall.callCount == 1
-        createNote.callCount == 0
-
-        when: "note"
-        itemInfo = new TypeConvertingMap(forContact:8L)
-        service.create(p1.id, itemInfo)
-
-        then:
-        createText.callCount == 1
-        createCall.callCount == 1
-        createNote.callCount == 1
-    }
-
-    @DirtiesRuntime
-    void "test creating text errors"() {
-        given:
-        service.authService = Stub(AuthService)
-        service.mediaService = Mock(MediaService)
-        service.outgoingMessageService = Mock(OutgoingMessageService)
-
-        when: "has media + errors during processing"
-        ResultGroup<RecordItem> resGroup = service.createText(null, null)
-
-        then:
-        1 * service.mediaService.hasMediaActions(*_) >> true
-        1 * service.mediaService.tryProcess(*_) >> new Result(status: ResultStatus.FORBIDDEN)
-        0 * service.outgoingMessageService._
-        resGroup.anySuccesses == false
-        resGroup.failures.size() == 1
-        resGroup.failureStatus == ResultStatus.FORBIDDEN
-
-        when: "error when building target"
-        TestUtils.mock(RecordUtils, "buildOutgoingMessageTarget")
-            { new Result(status: ResultStatus.UNPROCESSABLE_ENTITY) }
-        resGroup = service.createText(null, null)
-
-        then:
-        1 * service.mediaService.hasMediaActions(*_) >> false
-        0 * service.outgoingMessageService._
-        resGroup.anySuccesses == false
-        resGroup.failures.size() == 1
-        resGroup.failureStatus == ResultStatus.UNPROCESSABLE_ENTITY
-    }
-
-    @DirtiesRuntime
-    void "test creating text"() {
-        given:
-        service.authService = Stub(AuthService)
-        service.mediaService = Mock(MediaService)
-        service.outgoingMessageService = Mock(OutgoingMessageService)
-        MockedMethod buildOutgoingMessageTarget = TestUtils
-            .mock(RecordUtils, "buildOutgoingMessageTarget") { new Result() }
-
-        when: "no media"
-        ResultGroup<RecordItem> resGroup = service.createText(null, null)
-
-        then:
-        1 * service.mediaService.hasMediaActions(*_) >> false
-        0 * service.mediaService.tryProcess(*_)
-        1 * service.outgoingMessageService.processMessage(*_) >> Tuple.create(null, null)
-
-        when: "with media"
-        resGroup = service.createText(null, null)
-
-        then:
-        1 * service.mediaService.hasMediaActions(*_) >> true
-        1 * service.mediaService.tryProcess(*_) >> new Result()
-        1 * service.outgoingMessageService.processMessage(*_) >> Tuple.create(null, null)
-    }
-
-    @DirtiesRuntime
-    void "test creating call"() {
-        given:
-        service.authService = Stub(AuthService)
-        service.outgoingMessageService = Mock(OutgoingMessageService)
-        RecordCall rCall = Mock()
-        MockedMethod buildOutgoingCallTarget = TestUtils
-            .mock(RecordUtils, "buildOutgoingCallTarget") { new Result() }
-
-        when:
-        Result<RecordItem> res = service.createCall(null, null)
-
-        then:
-        1 * service.outgoingMessageService.startBridgeCall(*_) >> new Result(payload: rCall)
-        res.status == ResultStatus.OK
-        res.payload == rCall
-    }
-
-    void "test merging note for non-object fields"() {
-        given:
-        Record rec = new Record()
-        rec.save(flush: true, failOnError: true)
-        RecordNote note1 = new RecordNote(record: rec)
-        assert note1.validate()
-        service.mediaService = Mock(MediaService)
-        service.authService = Mock(AuthService)
-
-        when:
-        TypeConvertingMap body = new TypeConvertingMap(after:DateTime.now().minusDays(2),
-            noteContents: TestUtils.randString(), isDeleted: true)
-        Result<RecordNote> res = service.mergeNote(note1, body, ResultStatus.CREATED)
-
-        then:
-        1 * service.mediaService.tryProcess(*_) >> { args ->
-            new Result(payload: Tuple.create(args[0], null))
-        }
-        1 * service.authService.loggedInAndActive >> s1
-        res.status == ResultStatus.CREATED
-        res.payload == note1
-        res.payload.whenCreated.isBeforeNow()
-        res.payload.noteContents == body.noteContents
-        res.payload.isDeleted == body.isDeleted
-        res.payload.revisions == null // no revisions for new notes!
-    }
-
-    void "test merging note for object fields"() {
-        given:
-        Record rec = new Record()
-        assert rec.save(flush: true, failOnError: true)
-        RecordNote note1 = new RecordNote(record: rec)
-        assert note1.save(flush: true, failOnError: true)
-        service.mediaService = Mock(MediaService)
-        service.authService = Mock(AuthService)
-        int lBaseline = Location.count()
-        int mBaseline = MediaInfo.count()
-
-        when: "with location"
-        TypeConvertingMap body = new TypeConvertingMap(location: [address:"123 Main Street", lat:22G, lon:22G])
-        Result<RecordNote> res = service.mergeNote(note1, body)
-        RecordNote.withSession { it.flush() }
-
-        then:
-        1 * service.mediaService.tryProcess(*_) >> { args ->
-            new Result(payload: Tuple.create(args[0], null))
-        }
-        1 * service.authService.loggedInAndActive >> s1
-        res.status == ResultStatus.OK
-        res.payload == note1
-        res.payload.location instanceof Location
-        res.payload.revisions instanceof Collection // existing note creates revisions
-        res.payload.revisions.size() == 1
-        Location.count() == lBaseline + 1
-        MediaInfo.count() == mBaseline
-
-        when: "with media"
-        body = new TypeConvertingMap()
-        res = service.mergeNote(note1, body)
-        RecordNote.withSession { it.flush() }
-
-        then:
-        1 * service.mediaService.tryProcess(*_) >> { args ->
-            args[0].media = new MediaInfo()
-            assert args[0].media.save()
-            new Result(payload: Tuple.create(args[0], null))
-        }
-        1 * service.authService.loggedInAndActive >> s1
-        res.status == ResultStatus.OK
-        res.payload == note1
-        res.payload.location instanceof Location
-        res.payload.revisions instanceof Collection // existing note creates revisions
-        res.payload.revisions.size() == 2
-        Location.count() == lBaseline + 2 // each revision creates its own duplicate location
-        MediaInfo.count() == mBaseline + 1
-    }
-
-    void "test cancelling future processing if error during merging note"() {
-        given:
-        service.mediaService = Mock(MediaService)
-        service.authService = Mock(AuthService)
-        Future fut1 = Mock()
-
-        when:
-        TypeConvertingMap body = new TypeConvertingMap()
-        Result<RecordNote> res = service.mergeNote(null, body)
-
-        then:
-        1 * service.mediaService.tryProcess(*_) >> new Result(payload: Tuple.create(null, fut1))
-        1 * service.authService.loggedInAndActive >> s1
-        1 * fut1.cancel(true)
-        res.status == ResultStatus.UNPROCESSABLE_ENTITY
-    }
-
-    void "test creating note overall"() {
-        given:
-        service.mediaService   = Mock(MediaService)
-        service.authService    = Mock(AuthService)
-        int lBaseline          = Location.count()
-        int mBaseline          = MediaInfo.count()
-        int nBaseline          = RecordNote.count()
-        int revBaseline        = RecordNoteRevision.count()
-
-        when:
-        TypeConvertingMap body = new TypeConvertingMap(forContact: c1.id,
-            noteContents: TestUtils.randString(),
-            location: [address:"123 Main Street", lat:22G, lon:22G])
-        Result<RecordItem> res = service.createNote(p1, body)
-
-        then:
-        1 * service.mediaService.tryProcess(*_) >> { args ->
-            args[0].media = new MediaInfo()
-            assert args[0].media.save()
-            new Result(payload: Tuple.create(args[0], null))
-        }
-        1 * service.authService.loggedInAndActive >> s1
-        Location.count()           == lBaseline + 1
-        MediaInfo.count()          == mBaseline + 1
-        RecordNote.count()         == nBaseline + 1
-        RecordNoteRevision.count() == revBaseline
+        TestUtils.standardMockSetup()
     }
 
     void "test trying to end call"() {
@@ -323,7 +45,7 @@ class RecordServiceSpec extends CustomSpec {
         then:
         1 * rCall1.buildParentCallApiId() >> null
         res.status == ResultStatus.UNPROCESSABLE_ENTITY
-        res.errorMessages[0] == "recordService.tryEndOngoingCall.tooEarlyOrAlreadyEnded"
+        res.errorMessages[0] == "recordService.tooEarlyOrAlreadyEnded"
 
         when: "already ended"
         res = service.tryEndOngoingCall(rCall1)
@@ -332,7 +54,7 @@ class RecordServiceSpec extends CustomSpec {
         1 * rCall1.buildParentCallApiId() >> apiId
         1 * rCall1.isStillOngoing() >> false
         res.status == ResultStatus.UNPROCESSABLE_ENTITY
-        res.errorMessages[0] == "recordService.tryEndOngoingCall.tooEarlyOrAlreadyEnded"
+        res.errorMessages[0] == "recordService.tooEarlyOrAlreadyEnded"
 
         when: "can end"
         res = service.tryEndOngoingCall(rCall1)
@@ -345,136 +67,361 @@ class RecordServiceSpec extends CustomSpec {
         res.payload == rCall1
     }
 
-    void "test trying to update note"() {
+    void "test updating note fields"() {
         given:
-        RecordNote rNote1 = GroovyMock()
-        TypeConvertingMap body = new TypeConvertingMap()
-        MockedMethod mergeNote = TestUtils.mock(service, "mergeNote")
+        DateTime dt = DateTime.now().plusHours(1)
+        TypeMap body1 = TypeMap.create(noteContents: TestUtils.randString(),
+            isDeleted: true,
+            after: DateTime.now())
+        RecordNote rNote1 = TestUtils.buildRecordNote()
+        Author author1 = TestUtils.buildAuthor()
+        MockedMethod adjustPosition = MockedMethod.create(RecordUtils, "adjustPosition") { dt }
 
         when:
-        Result res = service.tryUpdateNote(rNote1, body)
+        Result res = service.trySetNoteFields(rNote1, body1, author1)
 
         then:
-        1 * rNote1.isReadOnly >> true
-        mergeNote.callCount == 0
-        res.status == ResultStatus.FORBIDDEN
-        res.errorMessages[0] == "recordService.update.readOnly"
+        res.status == ResultStatus.OK
+        res.payload == rNote1
+        rNote1.author == author1
+        rNote1.noteContents == body1.noteContents
+        rNote1.isDeleted == body1.isDeleted
+        adjustPosition.latestArgs == [rNote1.record.id, body1.after]
+        rNote1.whenCreated == dt
 
         when:
-        res = service.tryUpdateNote(rNote1, body)
+        res = service.trySetNoteFields(rNote1, TypeMap.create(noteContents: ""), author1)
 
-        then:
-        1 * rNote1.isReadOnly >> false
-        mergeNote.callCount == 1
-        mergeNote.callArguments[0] == [rNote1, body, null]
+        then: "empty string is okay"
+        res.status == ResultStatus.OK
+        res.payload == rNote1
+        rNote1.noteContents == null
+
+        when:
+        res = service.trySetNoteFields(rNote1, TypeMap.create(noteContents: "  hi "), author1)
+
+        then: "strings are trimmed"
+        res.status == ResultStatus.OK
+        res.payload == rNote1
+        rNote1.noteContents == "hi"
 
         cleanup:
-        mergeNote?.restore()
+        adjustPosition?.restore()
     }
 
-    @DirtiesRuntime
-    void "test updating note overall"() {
+    void "test creating note with only a message of only spaces fails validation"() {
         given:
-        Long itemId = TestUtils.randIntegerUpTo(88)
-        RecordItem rItem1 = GroovyMock()
-        TypeConvertingMap body1 = new TypeConvertingMap(endOngoing: false)
-        TypeConvertingMap body2 = new TypeConvertingMap(endOngoing: true)
-        MockedMethod tryUpdateNote = TestUtils.mock(service, "tryUpdateNote")
-        MockedMethod tryEndOngoingCall = TestUtils.mock(service, "tryEndOngoingCall")
+        PhoneNumber pNum1 = TestUtils.randPhoneNumber()
+        TypeMap body = TypeMap.create(numbers: [pNum1], noteContents: "   ")
 
-        when: "not found"
-        RecordItem.metaClass."static".get = { Long arg1 -> null }
-        Result res = service.update(itemId, body1)
+        Phone p1 = TestUtils.buildActiveStaffPhone()
 
-        then:
-        res.status == ResultStatus.NOT_FOUND
-        res.errorMessages[0] == "recordService.update.notFound"
-        tryUpdateNote.callCount == 0
-        tryEndOngoingCall.callCount == 0
+        service.locationService = GroovyMock(LocationService)
 
-        when: "is note"
-        RecordItem.metaClass."static".get = { Long arg1 -> rItem1 }
-        res = service.update(itemId, body1)
+        when:
+        Result res = service.createNote(p1, body)
 
         then:
-        1 * rItem1.asBoolean() >> true
-        1 * rItem1.instanceOf(RecordNote) >> true
-        tryUpdateNote.callCount == 1
-        tryEndOngoingCall.callCount == 0
-
-        when: "is call but do not end outgoing"
-        res = service.update(itemId, body1)
-
-        then:
-        1 * rItem1.asBoolean() >> true
-        1 * rItem1.instanceOf(RecordCall) >> true
-        tryUpdateNote.callCount == 1
-        tryEndOngoingCall.callCount == 0
-
-        when: "is call and end outgoing"
-        res = service.update(itemId, body2)
-
-        then:
-        1 * rItem1.asBoolean() >> true
-        1 * rItem1.instanceOf(RecordCall) >> true
-        tryUpdateNote.callCount == 1
-        tryEndOngoingCall.callCount == 1
-
-        when: "is neither note nor call"
-        res = service.update(itemId, body1)
-
-        then:
-        1 * rItem1.asBoolean() >> true
-        1 * rItem1.instanceOf(RecordNote) >> false
-        1 * rItem1.instanceOf(RecordCall) >> false
-        tryUpdateNote.callCount == 1
-        tryEndOngoingCall.callCount == 1
-
-        cleanup:
-        tryUpdateNote?.restore()
-        tryEndOngoingCall?.restore()
+        1 * service.locationService.tryCreateOrUpdateIfPresent(*_) >> Result.void()
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+        res.errorMessages.contains("atLeastOneRequired")
     }
 
-    void "test deleting note"() {
-        given: "baselines and an existing note"
-        RecordNote note1 = new RecordNote(record:c1.record)
-        note1.save(flush:true, failOnError:true)
-        int rBaseline = RecordNoteRevision.count()
-        int nBaseline = RecordNote.count()
+    void "test creating note"() {
+        given:
+        PhoneNumber pNum1 = TestUtils.randPhoneNumber()
 
-        when: "deleting a nonexistent note"
-        Result res = service.delete(-88L)
+        Staff s1 = TestUtils.buildStaff()
+        Phone p1 = TestUtils.buildActiveStaffPhone()
+        PhoneRecord spr1 = TestUtils.buildSharedPhoneRecord(null, p1)
+        Location loc1 = TestUtils.buildLocation()
+        MediaInfo mInfo1 = TestUtils.buildMediaInfo()
 
-        then:
-        res.success == false
-        res.status == ResultStatus.NOT_FOUND
-        res.errorMessages[0] == "recordService.delete.notFound"
-        RecordNoteRevision.count() == rBaseline
-        RecordNote.count() == nBaseline
+        TypeMap body1 = TypeMap.create("ids": [spr1.id], "numbers": [pNum1])
+        TypeMap body2 = TypeMap.create(location: TestUtils.randTypeMap(),
+            noteContents: TestUtils.randString(),
+            "numbers": [pNum1])
 
-        when: "deleting a readonly note"
-        note1.isReadOnly = true
-        note1.save(flush:true, failOnError:true)
-        res = service.delete(note1.id)
+        int prBaseline = PhoneRecord.count()
 
-        then: "forbidden"
-        res.success == false
-        res.status == ResultStatus.FORBIDDEN
-        res.errorMessages[0] == "recordService.delete.readOnly"
-        RecordNoteRevision.count() == rBaseline
-        RecordNote.count() == nBaseline
+        service.locationService = GroovyMock(LocationService)
+        MockedMethod tryGetActiveAuthUser = MockedMethod.create(AuthUtils, "tryGetActiveAuthUser") {
+            Result.createSuccess(s1)
+        }
+        MockedMethod trySetNoteFields = MockedMethod.create(service, "trySetNoteFields") { RecordNote arg1 ->
+            Result.createSuccess(arg1)
+        }
 
-        when: "deleting an existing note"
-        note1.isReadOnly = false
-        note1.save(flush:true, failOnError:true)
-        res = service.delete(note1.id)
+        when:
+        Result res = service.createNote(p1, body1, mInfo1)
 
         then:
-        res.success == true
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+        PhoneRecord.count() == prBaseline + 1
+
+        when:
+        res = service.createNote(p1, body2, mInfo1)
+
+        then:
+        1 * service.locationService.tryCreateOrUpdateIfPresent(null, body2.location) >> Result.createSuccess(loc1)
+        trySetNoteFields.latestArgs[0] instanceof RecordNote
+        trySetNoteFields.latestArgs[1] == body2
+        trySetNoteFields.latestArgs[2] == Author.create(s1)
+        res.status == ResultStatus.CREATED
+        res.payload instanceof Collection
+        res.payload[0] instanceof RecordNote
+        res.payload[0].noteContents == body2.noteContents
+        res.payload[0].media == mInfo1
+        res.payload[0].location == loc1
+        PhoneRecord.count() == prBaseline + 1
+
+        cleanup:
+        tryGetActiveAuthUser?.restore()
+        trySetNoteFields?.restore()
+    }
+
+    void "test creating call"() {
+        given:
+        PhoneNumber pNum1 = TestUtils.randPhoneNumber()
+
+        Staff s1 = TestUtils.buildStaff()
+        Phone p1 = TestUtils.buildActiveStaffPhone()
+        GroupPhoneRecord gpr1 = TestUtils.buildGroupPhoneRecord(p1)
+        PhoneRecord spr1 = TestUtils.buildSharedPhoneRecord(null, p1)
+
+        TypeMap body1 = TypeMap.create("ids": [spr1.id], "numbers": [pNum1])
+        TypeMap body2 = TypeMap.create("ids": [gpr1.id])
+        TypeMap body3 = TypeMap.create("numbers": [pNum1])
+
+        int prBaseline = PhoneRecord.count()
+
+        RecordCall rCall1 = GroovyMock()
+        service.outgoingCallService = GroovyMock(OutgoingCallService)
+        MockedMethod tryGetActiveAuthUser = MockedMethod.create(AuthUtils, "tryGetActiveAuthUser") {
+            Result.createSuccess(s1)
+        }
+
+        when: "too many"
+        Result res = service.createCall(p1, body1)
+
+        then:
+        tryGetActiveAuthUser.notCalled
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+        PhoneRecord.count() == prBaseline + 1
+
+        when: "not an individual"
+        res = service.createCall(p1, body2)
+
+        then:
+        tryGetActiveAuthUser.notCalled
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+        PhoneRecord.count() == prBaseline + 1
+
+        when:
+        res = service.createCall(p1, body3)
+
+        then:
+        tryGetActiveAuthUser.hasBeenCalled
+        1 * service.outgoingCallService.tryStart(s1.personalNumber, _, Author.create(s1)) >>
+            Result.createSuccess(rCall1)
+        res.status == ResultStatus.CREATED
+        res.payload == [rCall1]
+
+        cleanup:
+        tryGetActiveAuthUser?.restore()
+    }
+
+    void "test creating text with only a message of only spaces fails validation"() {
+        given:
+        PhoneNumber pNum1 = TestUtils.randPhoneNumber()
+        TypeMap body = TypeMap.create(numbers: [pNum1], contents: "   ")
+
+        Phone p1 = TestUtils.buildActiveStaffPhone()
+
+        when:
+        Result res = service.createText(p1, body)
+
+        then:
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+        res.errorMessages.contains("atLeastOneRequired")
+    }
+
+    void "test creating text"() {
+        given:
+        PhoneNumber pNum1 = TestUtils.randPhoneNumber()
+
+        Staff s1 = TestUtils.buildStaff()
+        Phone p1 = TestUtils.buildActiveStaffPhone()
+        IndividualPhoneRecord ipr1 = TestUtils.buildIndPhoneRecord(p1)
+        GroupPhoneRecord gpr1 = TestUtils.buildGroupPhoneRecord(p1)
+        PhoneRecord spr1 = TestUtils.buildSharedPhoneRecord(null, p1)
+        MediaInfo mInfo1 = TestUtils.buildMediaInfo()
+
+        TypeMap body = TypeMap.create("ids": [ipr1, gpr1, spr1]*.id,
+            "numbers": [pNum1],
+            contents: TestUtils.randString())
+
+        int prBaseline = PhoneRecord.count()
+
+        Future fut1 = GroovyMock()
+        RecordText rText1 = GroovyMock()
+        service.outgoingMessageService = GroovyMock(OutgoingMessageService)
+        MockedMethod tryGetActiveAuthUser = MockedMethod.create(AuthUtils, "tryGetActiveAuthUser") {
+            Result.createSuccess(s1)
+        }
+
+        when:
+        Result res = service.createText(p1, body, mInfo1, fut1)
+
+        then:
+        1 * service.outgoingMessageService.tryStart(RecordItemType.TEXT,
+            {  it.countAsRecords },
+            { it.text == body.contents && it.media == mInfo1 && it.location == null },
+            Author.create(s1),
+            fut1) >> Result.createSuccess(Tuple.create([rText1], null))
+        res.status == ResultStatus.CREATED
+        res.payload == [rText1]
+        PhoneRecord.count() == prBaseline + 1
+
+        cleanup:
+        tryGetActiveAuthUser?.restore()
+    }
+
+    void "test deleting"() {
+        given:
+        RecordNote rNote1 = TestUtils.buildRecordNote()
+
+        when:
+        Result res = service.tryDelete(rNote1.id)
+
+        then:
         res.status == ResultStatus.NO_CONTENT
-        res.payload == null
-        RecordNoteRevision.count() == rBaseline
-        RecordNote.count() == nBaseline
-        RecordNote.get(note1.id).isDeleted == true
+        rNote1.isDeleted == true
+    }
+
+    // TODO
+    void "test updating overall"() {
+        given:
+        String errMsg1 = TestUtils.randString()
+
+        Staff s1 = TestUtils.buildStaff()
+        RecordNote rNote1 = TestUtils.buildRecordNote()
+
+        TypeMap body = TypeMap.create(location: TestUtils.randTypeMap())
+
+        Future fut1 = GroovyMock()
+        service.mediaService = GroovyMock(MediaService)
+        service.locationService = GroovyMock(LocationService)
+        MockedMethod tryGetActiveAuthUser = MockedMethod.create(AuthUtils, "tryGetActiveAuthUser") {
+            Result.createSuccess(s1)
+        }
+        MockedMethod trySetNoteFields = MockedMethod.create(service, "trySetNoteFields") {
+            Result.createSuccess(rNote1)
+        }
+        MockedMethod tryCreateRevision = MockedMethod.create(rNote1, "tryCreateRevision") {
+            Result.createSuccess(rNote1)
+        }
+
+        when:
+        Result res = service.tryUpdate(rNote1.id, body)
+
+        then:
+        1 * service.mediaService.tryCreateOrUpdate(rNote1, body) >> Result.createSuccess(fut1)
+        1 * service.locationService.tryCreateOrUpdateIfPresent(rNote1.location, body.location) >>
+            Result.createError([errMsg1], ResultStatus.BAD_REQUEST)
+        tryCreateRevision.notCalled
+        1 * fut1.cancel(true)
+        res.status == ResultStatus.BAD_REQUEST
+        res.errorMessages == [errMsg1]
+
+        when:
+        res = service.tryUpdate(rNote1.id, body)
+
+        then:
+        trySetNoteFields.latestArgs == [rNote1, body, Author.create(s1)]
+        1 * service.mediaService.tryCreateOrUpdate(rNote1, body) >> Result.createSuccess(fut1)
+        1 * service.locationService.tryCreateOrUpdateIfPresent(rNote1.location, body.location) >>
+            Result.createSuccess(rNote1.location)
+        tryCreateRevision.callCount == 1
+        0 * fut1._
+        res.status == ResultStatus.OK
+        res.payload == rNote1
+        res.payload.location == rNote1.location // location is preserved
+
+        cleanup:
+        tryGetActiveAuthUser?.restore()
+        tryCreateRevision?.restore()
+    }
+
+    void "test creating overall"() {
+        given:
+        String errMsg1 = TestUtils.randString()
+        TypeMap body = TestUtils.randTypeMap()
+
+        Phone tp1 = TestUtils.buildActiveTeamPhone()
+        MediaInfo mInfo1 = TestUtils.buildMediaInfo()
+
+        Future fut1 = GroovyMock()
+        service.mediaService = GroovyMock(MediaService)
+        MockedMethod tryDetermineClass = MockedMethod.create(RecordUtils, "tryDetermineClass") {
+            Result.createSuccess(RecordText)
+        }
+        MockedMethod createText = MockedMethod.create(service, "createText") {
+            Result.createError([errMsg1], ResultStatus.BAD_REQUEST)
+        }
+        MockedMethod createCall = MockedMethod.create(service, "createCall") { Result.void() }
+        MockedMethod createNote = MockedMethod.create(service, "createNote") { Result.void() }
+
+        when:
+        Result res = service.tryCreate(tp1.id, body)
+
+        then:
+        1 * service.mediaService.tryCreate(body) >> Result.createSuccess(Tuple.create(mInfo1, fut1))
+        createText.hasBeenCalled
+        1 * fut1.cancel(true)
+        res.status == ResultStatus.BAD_REQUEST
+        res.errorMessages == [errMsg1]
+
+        when:
+        createText = MockedMethod.create(createText) { Result.void() }
+        res = service.tryCreate(tp1.id, body)
+
+        then:
+        tryDetermineClass.hasBeenCalled
+        1 * service.mediaService.tryCreate(body) >> Result.createSuccess(Tuple.create(mInfo1, fut1))
+        createText.latestArgs == [tp1, body, mInfo1, fut1]
+        createCall.callCount == 0
+        createNote.callCount == 0
+        res.status == ResultStatus.NO_CONTENT
+
+        when:
+        tryDetermineClass = MockedMethod.create(tryDetermineClass) { Result.createSuccess(RecordCall) }
+        res = service.tryCreate(tp1.id, body)
+
+        then:
+        tryDetermineClass.hasBeenCalled
+        1 * service.mediaService.tryCreate(body) >> Result.createSuccess(Tuple.create(mInfo1, fut1))
+        createText.hasBeenCalled
+        createCall.latestArgs == [tp1, body]
+        createNote.callCount == 0
+        res.status == ResultStatus.NO_CONTENT
+
+        when:
+        tryDetermineClass = MockedMethod.create(tryDetermineClass) { Result.createSuccess(RecordNote) }
+        res = service.tryCreate(tp1.id, body)
+
+        then:
+        tryDetermineClass.hasBeenCalled
+        1 * service.mediaService.tryCreate(body) >> Result.createSuccess(Tuple.create(mInfo1, fut1))
+        createText.hasBeenCalled
+        createCall.hasBeenCalled
+        createNote.latestArgs == [tp1, body, mInfo1]
+        res.status == ResultStatus.NO_CONTENT
+
+        cleanup:
+        tryDetermineClass?.restore()
+        createText?.restore()
+        createCall?.restore()
+        createNote?.restore()
     }
 }

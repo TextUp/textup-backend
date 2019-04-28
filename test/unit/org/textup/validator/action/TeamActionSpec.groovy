@@ -1,63 +1,60 @@
 package org.textup.validator.action
 
-import org.textup.test.*
 import grails.test.mixin.gorm.Domain
 import grails.test.mixin.hibernate.HibernateTestMixin
 import grails.test.mixin.TestMixin
 import org.textup.*
+import org.textup.test.*
+import spock.lang.*
 
-@Domain([CustomAccountDetails, Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
-	RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization, Schedule,
-	Location, WeeklySchedule, PhoneOwnership, FeaturedAnnouncement, IncomingSession,
-	AnnouncementReceipt, Role, StaffRole, NotificationPolicy,
-	MediaInfo, MediaElement, MediaElementVersion])
+@Domain([AnnouncementReceipt, ContactNumber, CustomAccountDetails, FeaturedAnnouncement,
+    FutureMessage, GroupPhoneRecord, IncomingSession, IndividualPhoneRecord, Location, MediaElement,
+    MediaElementVersion, MediaInfo, Organization, OwnerPolicy, Phone, PhoneNumberHistory,
+    PhoneOwnership, PhoneRecord, PhoneRecordMembers, Record, RecordCall, RecordItem,
+    RecordItemReceipt, RecordNote, RecordNoteRevision, RecordText, Role, Schedule,
+    SimpleFutureMessage, Staff, StaffRole, Team, Token])
 @TestMixin(HibernateTestMixin)
-class TeamActionSpec extends CustomSpec {
+@Unroll
+class TeamActionSpec extends Specification {
 
 	static doWithSpring = {
-		resultFactory(ResultFactory)
-	}
+        resultFactory(ResultFactory)
+    }
 
     def setup() {
-    	setupData()
+        TestUtils.standardMockSetup()
     }
 
-    def cleanup() {
-    	cleanupData()
-    }
+	void "test constraints for #action"() {
+        given:
+        Staff s1 = TestUtils.buildStaff()
 
-	void "test constraints"() {
 		when: "empty"
 		TeamAction act1 = new TeamAction()
 
 		then:
 		act1.validate() == false
-		act1.errors.errorCount == 2
-		act1.errors.getFieldError("action").code == "nullable"
 		act1.errors.getFieldError("id").code == "nullable"
 
 		when: "all valid"
-		act1.action = Constants.TEAM_ACTION_ADD
+		act1.action = action
 		act1.id = s1.id
 
 		then:
 		act1.validate() == true
-
-		when: "invalid action"
-		act1.action = "invalid action"
-
-		then:
-		act1.validate() == false
-		act1.errors.errorCount == 1
-		act1.errors.getFieldError("action").code == "invalid"
+        act1.buildStaff() == s1
 
 		when: "nonexistent staff id"
 		act1.id = -88L
 
 		then:
 		act1.validate() == false
-		act1.errors.errorCount == 2
-		act1.errors.getFieldError("action").code == "invalid"
 		act1.errors.getFieldError("id").code == "doesNotExist"
+        act1.buildStaff() == null
+
+        where:
+        action            | _
+        TeamAction.ADD    | _
+        TeamAction.REMOVE | _
 	}
 }

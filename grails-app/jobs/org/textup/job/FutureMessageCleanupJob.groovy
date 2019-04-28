@@ -7,7 +7,10 @@ import org.joda.time.DateTimeZone
 import org.quartz.Job
 import org.quartz.JobExecutionContext
 import org.quartz.utils.Key
-import org.textup.FutureMessage
+import org.textup.*
+import org.textup.type.*
+import org.textup.util.*
+import org.textup.util.domain.*
 
 class FutureMessageCleanupJob implements Job {
     static triggers = {
@@ -19,7 +22,7 @@ class FutureMessageCleanupJob implements Job {
 
     @GrailsTypeChecked
     void execute(JobExecutionContext context = null) {
-        DateTime now = DateTime.now(DateTimeZone.UTC)
+        DateTime now = JodaUtils.utcNow()
         // examine messages that are NOT done but have started either today or earlier
         DetachedCriteria query = FutureMessage.where {
             isDone == false && startDate <= DateTime.now()

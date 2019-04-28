@@ -1,6 +1,13 @@
 import org.codehaus.groovy.grails.validation.ConstrainedProperty
-import org.textup.Constants
-import org.textup.util.CascadeValidationConstraint
+import org.textup.*
+import org.textup.constraint.*
+import org.textup.rest.*
+import org.textup.structure.*
+import org.textup.test.*
+import org.textup.type.*
+import org.textup.util.*
+import org.textup.util.domain.*
+import org.textup.validator.*
 
 // locations to search for config files that get merged into the main config;
 // config files can be ConfigSlurper scripts, Java properties files, or classes
@@ -130,6 +137,14 @@ log4j.main = {
     //    console name:'stdout', layout:pattern(conversionPattern: '%c{2} %m%n')
     //}
 
+    // // For debugging access-restricted page issues
+    // // see http://alvarosanchez.github.io/grails-spring-security-rest/1.5.3/docs/guide/debugging.html
+    // debug  'grails.plugin.springsecurity',
+    //        'grails.app.controllers.grails.plugin.springsecurity',
+    //        'grails.app.services.grails.plugin.springsecurity',
+    //        'org.pac4j',
+    //        'org.springframework.security'
+
     // // For printing out the data values bound to the printed Hibernate SQL statements
     // // see https://therealdanvega.com/blog/2013/08/20/grails-hibernate-logging
     // trace  'org.hibernate.type.descriptor.sql.BasicBinder'
@@ -171,7 +186,7 @@ grails.plugin.springsecurity.controllerAnnotations.staticRules = [
     '/**/css/**':                     ['permitAll'],
     '/**/images/**':                  ['permitAll'],
     '/**/favicon.ico':                ['permitAll'],
-    '/grails-remote-control':         ['permitAll'], //needed for remote control in functional tests
+    '/grails-remote-control':         ['permitAll'], // needed for remote control in functional tests
     '/monitoring/**':                 ['ROLE_USER', 'ROLE_ADMIN'],
     '/dbconsole/**':                  ['ROLE_USER', 'ROLE_ADMIN'],
     "/console/**":                    ['ROLE_USER', 'ROLE_ADMIN'],
@@ -186,7 +201,6 @@ grails.plugin.springsecurity.controllerAnnotations.staticRules = [
 grails.plugin.springsecurity.filterChain.chainMap = [
     '/v1/public/**': 'anonymousAuthenticationFilter,restTokenValidationFilter,restExceptionTranslationFilter,filterInvocationInterceptor',
     '/v1/**': 'JOINED_FILTERS,-anonymousAuthenticationFilter,-exceptionTranslationFilter,-authenticationProcessingFilter,-securityContextPersistenceFilter,-rememberMeAuthenticationFilter',  // v1 rest api stateless
-    '/api/**': 'JOINED_FILTERS,-anonymousAuthenticationFilter,-exceptionTranslationFilter,-authenticationProcessingFilter,-securityContextPersistenceFilter,-rememberMeAuthenticationFilter',  // api utility methods stateless
     '/**': 'JOINED_FILTERS,-restTokenValidationFilter,-restExceptionTranslationFilter'
 ]
 grails {
@@ -219,6 +233,7 @@ grails.cache.enabled = true
 grails.cache.clearAtStartup = true
 grails.cache.config = {
    cache { name Constants.CACHE_RECEIPTS }
+   cache { name Constants.CACHE_PHONES }
 }
 
 // this property seems to only set CORS headers in response to the preflight request
@@ -227,21 +242,15 @@ cors.headers = ["Access-Control-Allow-Headers": "Content-Type, Authorization"]
 // see: https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS#Access-Control-Expose-Headers
 cors.expose.headers = "Content-Disposition"
 
-//REST API documentation
-grails.plugins.restapidoc.customClassName="org.textup.rest.CustomResponseDoc"
-grails.plugins.restapidoc.outputFileGeneration="web-app/restapidoc.json"
-grails.plugins.restapidoc.outputFileReading="restapidoc.json"
 //General developer documentation
 grails.doc.title    = "TextUp"
 grails.doc.subtitle = "A getting started guide to the backend and frontend codebases that make up the TextUp application"
 grails.doc.authors  = "Eric Bai"
-grails.doc.license  = "MIT"
+grails.doc.license  = "Apache 2.0"
 
 // Custom constraints
-ConstrainedProperty.registerNewConstraint(
-    CascadeValidationConstraint.NAME,
-    CascadeValidationConstraint.class
-)
+ConstrainedProperty.registerNewConstraint(CascadeValidationConstraint.NAME, CascadeValidationConstraint.class)
+ConstrainedProperty.registerNewConstraint(PhoneNumberConstraint.NAME, PhoneNumberConstraint.class)
 
 textup {
     tempDirectory = System.getenv("TEXTUP_BACKEND_TEMP_DIRECTORY") ?: System.getProperty("TEXTUP_BACKEND_TEMP_DIRECTORY")
@@ -272,16 +281,16 @@ textup {
         setupAccount   = System.getenv("TEXTUP_BACKEND_URL_SETUP_ACCOUNT") ?: System.getProperty("TEXTUP_BACKEND_URL_SETUP_ACCOUNT")
         superDashboard = System.getenv("TEXTUP_BACKEND_URL_SUPER_DASHBOARD") ?: System.getProperty("TEXTUP_BACKEND_URL_SUPER_DASHBOARD")
         passwordReset  = System.getenv("TEXTUP_BACKEND_URL_PASSWORD_RESET") ?: System.getProperty("TEXTUP_BACKEND_URL_PASSWORD_RESET")
-        notifyMessage  = System.getenv("TEXTUP_BACKEND_URL_NOTIFY_MESSAGE") ?: System.getProperty("TEXTUP_BACKEND_URL_NOTIFY_MESSAGE")
+        notification   = System.getenv("TEXTUP_BACKEND_URL_NOTIFY_MESSAGE") ?: System.getProperty("TEXTUP_BACKEND_URL_NOTIFY_MESSAGE")
     }
     apiKeys {
         twilio {
             appId              = System.getenv("TEXTUP_BACKEND_TWILIO_NUMBER_APP_ID") ?: System.getProperty("TEXTUP_BACKEND_TWILIO_NUMBER_APP_ID")
             authToken          = System.getenv("TEXTUP_BACKEND_TWILIO_AUTH") ?: System.getProperty("TEXTUP_BACKEND_TWILIO_AUTH")
-            available          ="unassigned"
+            available          = "unassigned"
             notificationNumber = System.getenv("TEXTUP_BACKEND_TWILIO_NOTIFICATIONS_NUMBER") ?: System.getProperty("TEXTUP_BACKEND_TWILIO_NOTIFICATIONS_NUMBER")
             sid                = System.getenv("TEXTUP_BACKEND_TWILIO_SID") ?: System.getProperty("TEXTUP_BACKEND_TWILIO_SID")
-            unavailable        ="assigned"
+            unavailable        = "assigned"
         }
         aws {
             accessKey = System.getenv("TEXTUP_BACKEND_AWS_ACCESS_KEY") ?: System.getProperty("TEXTUP_BACKEND_AWS_ACCESS_KEY")
@@ -290,12 +299,13 @@ textup {
         sendGrid {
             apiKey = System.getenv("TEXTUP_BACKEND_SENDGRID_API_KEY") ?: System.getProperty("TEXTUP_BACKEND_SENDGRID_API_KEY")
             templateIds {
-                invited       = "87c36daa-c4a8-4f33-8539-22005cd252a8"
-                approved      = "7346d586-4466-4982-abfe-7a891e51c0a1"
-                pendingOrg    = "0f13e96f-e673-481f-95a0-8d1044b5afe9"
-                pendingStaff  = "9bb56ba3-902f-4207-8e75-3b2ebf347a51"
-                passwordReset = "b4e228a7-2b1e-4f80-a4dc-42eb3205c538"
-                rejected      = "d3287be3-b427-4010-9591-71d7aaf5f040"
+                invited       = "d-f142b47a7b5049e49cca2871132f4485"
+                approved      = "d-6aa01fad5a6947a2b1c81743f1de3727"
+                pendingOrg    = "d-04a41952661142f7a53f22b1f41b7724"
+                pendingStaff  = "d-7c84d21d641841a1878516b3af446d1e"
+                passwordReset = "d-9c05ebecf05f4c3695d6287866881040"
+                rejected      = "d-f3db46277d3e4c45a7d9bf808250e269"
+                notification  = "d-2afe7b9cd5ae44fc82debdd165ceeb05"
             }
             groupIds {
                 account = 8717
@@ -306,37 +316,32 @@ textup {
             apiKey    = System.getenv("TEXTUP_BACKEND_PUSHER_API_KEY") ?: System.getProperty("TEXTUP_BACKEND_PUSHER_API_KEY")
             apiSecret = System.getenv("TEXTUP_BACKEND_PUSHER_API_SECRET") ?: System.getProperty("TEXTUP_BACKEND_PUSHER_API_SECRET")
         }
-        reCaptcha {
-            verifyEndpoint = "https://www.google.com/recaptcha/api/siteverify"
-            secret         = System.getenv("TEXTUP_BACKEND_RECAPTCHA_SECRET") ?: System.getProperty("TEXTUP_BACKEND_RECAPTCHA_SECRET")
-        }
     }
     rest {
-        defaultLabel = "default" //default is to link to relationships
-        v1 {
-            announcement            = [singular:"announcement", plural:"announcements"]
-            availableNumber         = [singular:"number", plural:"numbers"]
-            contact                 = [singular:"contact", plural:"contacts"]
-            futureMessage           = [singular:"future-message", plural:"future-messages"]
-            location                = [singular:"location", plural:"locations"]
-            mediaElement            = [singular:"mediaElement", plural: "mediaElements"]
-            mediaInfo               = [singular:"medium", plural: "media"]
-            mergeGroup              = [singular:"contact", plural: "contacts"]
-            notification            = [singular:"notification", plural:"notifications"]
-            notificationStatus      = [singular:"notification-status", plural:"notification-statuses"]
-            organization            = [singular:"organization", plural:"organizations"]
-            phone                   = [singular:"phone", plural:"phones"]
-            record                  = [singular:"record", plural:"records"]
-            recordItemRequest       = [singular:"record-request", plural:"record-requests"]
-            recordItemStatus        = [singular:"record-status", plural:"record-statuses"]
-            result                  = [singular:"result", plural:"results"]
-            revision                = [singular:"revision", plural:"revisions"]
-            schedule                = [singular:"schedule", plural:"schedules"]
-            session                 = [singular:"session", plural:"sessions"]
-            staff                   = [singular:"staff", plural:"staff"]
-            staffPolicyAvailability = [singular:"availability", plural:"availabilities"]
-            tag                     = [singular:"tag", plural:"tags"]
-            team                    = [singular:"team", plural:"teams"]
+        marshallers {
+            announcement        = [singular: "announcement", plural: "announcements"]
+            contact             = [singular: "contact", plural: "contacts"]
+            futureMessage       = [singular: "future-message", plural: "future-messages"]
+            location            = [singular: "location", plural: "locations"]
+            mediaElement        = [singular: "mediaElement", plural:  "mediaElements"]
+            mediaElementVersion = [singular: "version", plural:  "versions"]
+            mediaInfo           = [singular: "medium", plural:  "media"]
+            mergeGroup          = [singular: "merge-group", plural: "merge-groups"]
+            mergeGroupItem      = [singular: "mergeItem", plural: "mergeItems"]
+            notification        = [singular: "notification", plural: "notifications"]
+            notificationDetail  = [singular: "detail", plural: "details"]
+            organization        = [singular: "organization", plural: "organizations"]
+            ownerPolicy         = [singular: "ownerPolicy", plural: "ownerPolicies"]
+            phone               = [singular: "phone", plural: "phones"]
+            phoneNumber         = [singular: "number", plural: "numbers"]
+            recordItem          = [singular: "record", plural: "records"]
+            recordItemRequest   = [singular: "record-request", plural: "record-requests"]
+            revision            = [singular: "revision", plural: "revisions"]
+            schedule            = [singular: "schedule", plural: "schedules"]
+            session             = [singular: "session", plural: "sessions"]
+            staff               = [singular: "staff", plural: "staff"]
+            tag                 = [singular: "tag", plural: "tags"]
+            team                = [singular: "team", plural: "teams"]
         }
     }
 }

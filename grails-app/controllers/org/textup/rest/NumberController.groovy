@@ -3,77 +3,61 @@ package org.textup.rest
 import grails.compiler.GrailsTypeChecked
 import grails.converters.JSON
 import grails.transaction.Transactional
-import org.restapidoc.annotation.*
-import org.restapidoc.pojo.*
 import org.springframework.security.access.annotation.Secured
 import org.textup.*
-import org.textup.validator.PhoneNumber
-import org.textup.validator.AvailablePhoneNumber
+import org.textup.structure.*
+import org.textup.type.*
+import org.textup.util.*
+import org.textup.util.domain.*
+import org.textup.validator.*
 
 @GrailsTypeChecked
-@Secured(["ROLE_ADMIN", "ROLE_USER"])
+@Secured(["ROLE_USER", "ROLE_ADMIN"])
+@Transactional
 class NumberController extends BaseController {
 
-    static String namespace = "v1"
-
-    @Override
-    protected String getNamespaceAsString() { namespace }
-
-    //grailsApplication from superclass
-    AuthService authService
     NumberService numberService
-    ResultFactory resultFactory
 
     // requesting list of available twilio numbers
-    @Transactional(readOnly=true)
+    @Override
     def index() {
-        Staff s1 = authService.loggedInAndActive
-        if (!s1) {
-            return forbidden()
-        }
-        Result<Collection<AvailablePhoneNumber>> res = numberService
-            .listExistingNumbers()
-            .then({ Collection<AvailablePhoneNumber> iNums ->
-                numberService
-                    .listNewNumbers(params.search as String, s1.org.location)
-                    .then { Collection<AvailablePhoneNumber> lNums ->
-                        resultFactory.success(iNums + lNums)
-                    }
-            })
-        if (res.success) {
-            Collection<AvailablePhoneNumber> availableNums = res.payload
-            respondWithMany(AvailablePhoneNumber, { availableNums.size() }, { availableNums })
-        }
-        else { respondWithResult(Object, res) }
+        TypeMap qParams = TypeMap.create(params)
+        AuthUtils.tryGetActiveAuthUser()
+            .then { Staff authUser -> numberService.listExistingNumbers().curry(authUser) }
+            .then { Staff authUser, Collection<AvailablePhoneNumber> iNums ->
+                numberService.listNewNumbers(qParams.string("search"), authUser.org.location)
+                    .curry(iNums)
+            }
+            .ifFailAndPreserveError { Result<?> failRes -> respondWithResult(failRes) }
+            .thenEnd { Collection<AvailablePhoneNumber> iNums, Collection<AvailablePhoneNumber> lNums ->
+                Collection<AvailablePhoneNumber> allNums = iNums + lNums
+                respondWithClosures({ allNums.size() },
+                    { allNums },
+                    qParams,
+                    MarshallerUtils.KEY_PHONE_NUMBER)
+            }
     }
 
     // validating phone number against the twilio phone number validator
-    @Transactional(readOnly=true)
+    @Override
     def show() {
-        PhoneNumber pNum = new PhoneNumber(number:params.id as String)
-        if (!pNum.validate()) {
-            return respondWithResult(PhoneNumber, resultFactory.failWithValidationErrors(pNum.errors))
-        }
-        respondWithResult(AvailablePhoneNumber, numberService.validateNumber(pNum))
+        TypeMap qParams = TypeMap.create(params)
+        PhoneNumber.tryCreate(qParams.string("id"))
+            .then { PhoneNumber pNum -> numberService.validateNumber(pNum) }
+            .alwaysEnd { Result<?> res -> respondWithResult(res) }
     }
 
     // requesting and checking phone number validation tokens
+    @Override
     def save() {
-        Map vInfo = getJsonPayload(request)
-        if (vInfo == null) { return }
-        PhoneNumber pNum = new PhoneNumber(number:vInfo.phoneNumber as String)
-        String token = vInfo.token
-        if (pNum.validate()) {
-            Result<Void> res = token ?
-                numberService.finishVerifyOwnership(token, pNum) :
-                numberService.startVerifyOwnership(pNum)
-            respondWithResult(Void, res)
-        }
-        else {
-            respondWithResult(PhoneNumber, resultFactory.failWithValidationErrors(pNum.errors))
-        }
+        RequestUtils.tryGetJsonBody(request)
+            .then { TypeMap body -> PhoneNumber.tryCreate(body.string("phoneNumber")).curry(body) }
+            .then { TypeMap body, PhoneNumber pNum ->
+                String token = body.string("token")
+                token ?
+                    numberService.finishVerifyOwnership(token, pNum) :
+                    numberService.startVerifyOwnership(pNum)
+            }
+            .alwaysEnd { Result<?> res -> respondWithResult(res) }
     }
-
-    def update() { notAllowed() }
-    def delete() { notAllowed() }
 }

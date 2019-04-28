@@ -4,121 +4,42 @@ import grails.compiler.GrailsTypeChecked
 import grails.converters.JSON
 import grails.transaction.Transactional
 import org.codehaus.groovy.grails.web.servlet.HttpHeaders
-import org.restapidoc.annotation.*
-import org.restapidoc.pojo.*
 import org.springframework.security.access.annotation.Secured
 import org.textup.*
+import org.textup.structure.*
 import org.textup.type.*
 import org.textup.util.*
+import org.textup.util.domain.*
+import org.textup.validator.*
 
 @GrailsTypeChecked
-@RestApi(name="Organization", description = "Operations on organizations after logging in.")
-@Secured(["ROLE_ADMIN", "ROLE_USER"])
+@Secured(["ROLE_USER", "ROLE_ADMIN"])
+@Transactional
 class OrganizationController extends BaseController {
 
-	static String namespace = "v1"
-
-    AuthService authService
     OrganizationService organizationService
 
+    @Secured("permitAll")
     @Override
-    protected String getNamespaceAsString() { namespace }
-
-    // List
-    // ----
-
-    @RestApiMethod(description="List organizations", listing=true)
-    @RestApiResponseObject(objectIdentifier = "Organization")
-    @RestApiParams(params=[
-        @RestApiParam(name="max", type="Number", required=false,
-            paramType=RestApiParamType.QUERY, description="Max number of results"),
-        @RestApiParam(name="offset", type="Number", required=false,
-            paramType=RestApiParamType.QUERY, description="Offset of results"),
-        @RestApiParam(name="search", type="String", required=false,
-            paramType=RestApiParamType.QUERY, description='''String to search for in
-            organization\'s name and address'''),
-        @RestApiParam(name="status[]", type="List", paramType=RestApiParamType.QUERY,
-            allowedvalues=["rejected", "pending", "approved"],
-            required=false, description='''List of organization statuses to restrict to.
-            Default showing approved. Ignored if search query param specified'''),
-    ])
-    @Transactional(readOnly=true)
     def index() {
-        Closure<Integer> count = { Organization.count() }
-        Closure<List<Organization>> list = { Map params -> Organization.list(params) }
-        if (params.search) {
-            String query = StringUtils.toQuery(params.search)
-            count = { Organization.countSearch(query) }
-            list = { Map params -> Organization.search(query, params) }
-        }
-        else {
-            List<OrgStatus> statusEnums = TypeConversionUtils.toEnumList(OrgStatus, params.list("status[]"))
-            if (statusEnums) {
-                count = { Organization.countByStatusInList(statusEnums) }
-                list = { Map params -> Organization.findAllByStatusInList(statusEnums, params) }
-            }
-        }
-        respondWithMany(Organization, count, list, params, !authService.isActive)
+        TypeMap qParams = TypeMap.create(params)
+        respondWithCriteria(Organizations.buildForOptions(qParams.string("search")),
+            qParams,
+            null,
+            MarshallerUtils.KEY_ORGANIZATION)
     }
 
-    // Show
-    // ----
-
-    @RestApiMethod(description="Show specifics about an organization")
-    @RestApiResponseObject(objectIdentifier = "Organization")
-    @RestApiParams(params=[
-        @RestApiParam(name="id", type="Number",
-            paramType=RestApiParamType.PATH, description="Id of the organization")
-    ])
-    @RestApiErrors(apierrors=[
-        @RestApiError(code="404", description="The organization was not found.")
-    ])
-    @Transactional(readOnly=true)
+    @Secured("permitAll")
+    @Override
     def show() {
-        Organization org1 = Organization.get(params.long("id"))
-        if (org1) {
-            respond(org1, [status:ResultStatus.OK.apiStatus])
-        }
-        else { notFound() }
-    }
-
-    // Save
-    // ----
-
-    def save() {
-        notAllowed()
-    }
-
-    // Update
-    // ------
-
-    @RestApiMethod(description="Update an existing organization")
-    @RestApiParams(params=[
-        @RestApiParam(name="id", type="Number", paramType=RestApiParamType.PATH,
-            description="Id of the organization")
-    ])
-    @RestApiErrors(apierrors=[
-        @RestApiError(code="400", description="Malformed JSON in request."),
-        @RestApiError(code="403", description='''The logged in staff member is not an admin at this
-            organization and so cannot make any changes.'''),
-        @RestApiError(code="404", description="The organization was not found."),
-        @RestApiError(code="422", description="The updated fields created an invalid organization.")
-    ])
-    def update() {
-        Map oInfo = getJsonPayload(Organization, request)
-        if (oInfo == null) { return }
         Long id = params.long("id")
-        if (authService.exists(Organization, id)) {
-            if (!authService.isAdminAt(id)) {
-                return forbidden()
-            }
-            respondWithResult(Organization, organizationService.update(id, oInfo))
-        }
-        else { notFound() }
+        doShow({ Result.void() }, { Organizations.mustFindForId(id) })
     }
 
-    // Delete
-    // ------
-
-    def delete() { notAllowed() }
+    @Override
+    def update() {
+        doUpdate(MarshallerUtils.KEY_ORGANIZATION, request, organizationService) {
+            Organizations.isAllowed(params.long("id"))
+        }
+    }
 }

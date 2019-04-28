@@ -2,71 +2,98 @@ package org.textup.validator
 
 import grails.compiler.GrailsTypeChecked
 import grails.validation.Validateable
-import groovy.transform.ToString
+import groovy.transform.EqualsAndHashCode
+import groovy.transform.TupleConstructor
 import org.textup.*
-import org.textup.type.PhoneOwnershipType
+import org.textup.structure.*
+import org.textup.type.*
 import org.textup.util.*
+import org.textup.util.domain.*
 
-// See [notification] in CustomApiDocs.groovy for documentation
-
+@EqualsAndHashCode(includeFields = true)
 @GrailsTypeChecked
+@TupleConstructor(includeFields = true, includes = ["mutablePhone", "wrapperToDetails"])
 @Validateable
-@ToString
-class Notification extends BasicNotification {
+class Notification implements CanValidate {
 
-	Long tokenId // id of associated token
-	String contents
-	Boolean outgoing
+	final Phone mutablePhone
+	final Map<PhoneRecordWrapper, NotificationDetail> wrapperToDetails
 
-	// must have either contact or tag, can set indirectly via record
-	Contact contact
-	ContactTag tag
+    final Collection<NotificationDetail> details
 
- 	static constraints = { // default nullable: false
-		contact nullable:true, validator:{ Contact c1, Notification notif ->
-			if (!c1 && !notif.tag) { ['noContactOrTag'] }
-		}
-		tag nullable:true, validator:{ ContactTag tag1, Notification notif ->
-			if (!tag1 && !notif.contact) { ['noContactOrTag'] }
-		}
-	}
-
-	// Property access
-	// ---------------
-
-	@Override
-	void setRecord(Record rec) {
-		super.setRecord(rec)
-		ContactTag ct1 = ContactTag.findByRecord(rec)
-		if (ct1) { this.tag = ct1 }
-		else {
-			Contact c1 = Contact.findByRecord(rec)
-			if (c1) { this.contact = c1 }
+	static constraints = {
+		details cascadeValidation: true
+		wrapperToDetails validator: { Map<PhoneRecordWrapper, NotificationDetail> val, Notification obj ->
+			if (val && obj.mutablePhone) {
+				Collection<Long> pIds = WrapperUtils.mutablePhoneIdsIgnoreFails(val.keySet())
+				if (pIds.any { Long pId -> pId != obj.mutablePhone.id }) {
+					["mismatched", obj.mutablePhone.id]
+				}
+			}
 		}
 	}
-	String getOtherId() {
-		this.contact?.id ?: this.tag?.name
-	}
-	String getOtherType() {
-		this.contact ? "contact" : "tag"
-	}
-	@Override
-	String getOtherName() {
-		this.contact?.getNameOrNumber() ?: this.tag?.name
-	}
-	// alias tokenId to id so that the `getId` method in BaseController can find an ID when
-	// generating a link to return with the JSON payload
-	Long getId() {
-		this.tokenId
+
+	static Result<Notification> tryCreate(Phone mutPhone1) {
+		DomainUtils.tryValidate(new Notification(mutPhone1, [:]), ResultStatus.CREATED)
 	}
 
 	// Methods
 	// -------
 
-	// override toString handler to avoid leaking message contents when this Notification
-	// is logged
-	@Override
-	String toString() {
-		"Notification: tokenId: $tokenId, contact: $contact, tag: $tag"
+	void addDetail(NotificationDetail nd1) {
+		NotificationDetail existing1 = wrapperToDetails[nd1.wrapper]
+		if (existing1) {
+			existing1.items.addAll(nd1.items)
+		}
+		else { wrapperToDetails[nd1.wrapper] = nd1 }
 	}
+
+	boolean canNotifyAny(NotificationFrequency freq1) {
+		buildCanNotifyReadOnlyPolicies(freq1).isEmpty() == false
+	}
+
+	Collection<? extends ReadOnlyOwnerPolicy> buildCanNotifyReadOnlyPolicies(NotificationFrequency freq1) {
+		Collection<Long> itemIds = getItemIds()
+		mutablePhone?.owner
+			?.buildActiveReadOnlyPolicies(freq1)
+			?.findAll { ReadOnlyOwnerPolicy op1 -> op1.canNotifyForAny(itemIds) }
+			?: new ArrayList<ReadOnlyOwnerPolicy>()
+	}
+
+	int countItems(boolean isOut, ReadOnlyOwnerPolicy rop1, Class<? extends RecordItem> clazz) {
+		getDetails().inject(0) { int sum, NotificationDetail nd1 ->
+    		sum + nd1.countItemsForOutgoingAndOptions(isOut, rop1, clazz)
+    	} as Integer
+    }
+
+    int countVoicemails(ReadOnlyOwnerPolicy rop1) {
+        getDetails().inject(0) { int sum, NotificationDetail nd1 ->
+        	sum + nd1.countVoicemails(rop1)
+        } as Integer
+    }
+
+    Collection<NotificationDetail> buildDetailsWithAllowedItemsForOwnerPolicy(ReadOnlyOwnerPolicy rop1) {
+        getDetails().findAll { NotificationDetail nd1 -> nd1.anyAllowedItemsForOwnerPolicy(rop1) }
+    }
+
+	// Properties
+	// ----------
+
+	Collection<NotificationDetail> getDetails() { wrapperToDetails.values() }
+
+    Collection<? extends RecordItem> getItems() { CollectionUtils.mergeUnique(getDetails()*.items) }
+
+    Collection<Long> getItemIds() { getItems()*.id }
+
+	int getNumNotifiedForItem(RecordItem item, NotificationFrequency freq1 = null) {
+        getDetails().any { NotificationDetail nd1 -> nd1.items.contains(item) } ?
+        	buildCanNotifyReadOnlyPolicies(freq1).size() :
+        	0
+    }
+
+    Collection<PhoneRecordWrapper> getWrappersForOutgoing(boolean isOut) {
+    	getDetails()
+    		.findAll { NotificationDetail nd1 -> nd1.countItemsForOutgoingAndOptions(isOut) > 0 }
+            *.wrapper
+    }
 }

@@ -35,6 +35,8 @@ class MockedMethodSpec extends Specification {
         then:
         notThrown IllegalArgumentException
         meow.callCount == 0
+        meow.notCalled
+        meow.hasBeenCalled == false
 
         when: "call the mocked method"
         def meowValue = cat.meow()
@@ -43,7 +45,9 @@ class MockedMethodSpec extends Specification {
         meowValue == overrideVal
         meowValue != originalVal
         meow.callCount == 1
-        meow.callArguments == [[null]]
+        meow.notCalled == false
+        meow.hasBeenCalled
+        meow.allArgs == [[null]]
 
         when: "try to mock again without restoring"
         meow = new MockedMethod(cat, "meow", action)
@@ -59,7 +63,9 @@ class MockedMethodSpec extends Specification {
         meowValue != overrideVal
         meowValue == originalVal
         meow.callCount == 0
-        meow.callArguments == []
+        meow.notCalled
+        meow.hasBeenCalled == false
+        meow.allArgs == []
 
         when: "mock again"
         meow = new MockedMethod(cat, "meow", action)
@@ -67,6 +73,34 @@ class MockedMethodSpec extends Specification {
         then:
         notThrown IllegalArgumentException
         meow.callCount == 0
+    }
+
+    void "test call argument methods"() {
+        given:
+        Cat cat = new Cat()
+
+        when:
+        MockedMethod meow = new MockedMethod(cat, "meow")
+
+        then:
+        meow.callCount == 0
+        meow.allArgs == []
+        meow.latestArgs == []
+        meow.argsForCount(2) == []
+        meow.argsForCount(-8) == []
+
+        when:
+        cat.meow(2)
+        cat.meow()
+
+        then:
+        meow.callCount == 2
+        meow.allArgs == [[2], [null]]
+        meow.latestArgs == [null]
+        meow.argsForCount(1) == [2]
+        meow.argsForCount(2) == [null]
+        meow.argsForCount(0) == []
+        meow.argsForCount(-8) == []
     }
 
     @DirtiesRuntime
@@ -90,7 +124,7 @@ class MockedMethodSpec extends Specification {
         createValue == overrideVal
         createValue != originalVal
         create.callCount == 1
-        create.callArguments == [[]]
+        create.allArgs == [[]]
 
         when: "try to mock again without restoring"
         create = new MockedMethod(Cat, "create")
@@ -111,7 +145,7 @@ class MockedMethodSpec extends Specification {
         then:
         createValue == null // because no closure specified, default value for instance types is null
         create.callCount == 1
-        create.callArguments == [[]]
+        create.allArgs == [[]]
 
         when: "finally restore"
         create.restore()
@@ -121,7 +155,7 @@ class MockedMethodSpec extends Specification {
         createValue != overrideVal
         createValue == originalVal
         create.callCount == 0
-        create.callArguments == []
+        create.allArgs == []
     }
 
     // Test support classes

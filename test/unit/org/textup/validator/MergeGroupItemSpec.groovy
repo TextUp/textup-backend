@@ -1,81 +1,86 @@
 package org.textup.validator
 
-import org.textup.test.*
-import grails.test.mixin.gorm.Domain
-import grails.test.mixin.hibernate.HibernateTestMixin
-import grails.test.mixin.TestMixin
+import grails.test.mixin.*
+import grails.test.mixin.gorm.*
+import grails.test.mixin.hibernate.*
+import grails.test.mixin.support.*
+import grails.test.runtime.*
+import grails.validation.*
+import org.joda.time.*
 import org.textup.*
+import org.textup.structure.*
+import org.textup.test.*
+import org.textup.type.*
+import org.textup.util.*
+import spock.lang.*
 
-@Domain([CustomAccountDetails, Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
-	RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization, Schedule,
-	Location, WeeklySchedule, PhoneOwnership, FeaturedAnnouncement, IncomingSession,
-	AnnouncementReceipt, Role, StaffRole, NotificationPolicy,
-	MediaInfo, MediaElement, MediaElementVersion])
+@Domain([AnnouncementReceipt, ContactNumber, CustomAccountDetails, FeaturedAnnouncement,
+    FutureMessage, GroupPhoneRecord, IncomingSession, IndividualPhoneRecord, Location, MediaElement,
+    MediaElementVersion, MediaInfo, Organization, OwnerPolicy, Phone, PhoneNumberHistory,
+    PhoneOwnership, PhoneRecord, PhoneRecordMembers, Record, RecordCall, RecordItem,
+    RecordItemReceipt, RecordNote, RecordNoteRevision, RecordText, Role, Schedule,
+    SimpleFutureMessage, Staff, StaffRole, Team, Token])
 @TestMixin(HibernateTestMixin)
-class MergeGroupItemSpec extends CustomSpec {
+class MergeGroupItemSpec extends Specification {
 
 	static doWithSpring = {
-		resultFactory(ResultFactory)
-	}
-
-    def setup() {
-    	setupData()
+        resultFactory(ResultFactory)
     }
 
-    def cleanup() {
-    	cleanupData()
+    def setup() {
+        TestUtils.standardMockSetup()
     }
 
 	void "test constraints"() {
+		given:
+		PhoneNumber invalidNum = PhoneNumber.create("invalid")
+		PhoneNumber pNum1 = TestUtils.randPhoneNumber()
+		IndividualPhoneRecord ipr1 = TestUtils.buildIndPhoneRecord()
+
 		when: "empty"
-		MergeGroupItem mItem = new MergeGroupItem()
+		MergeGroupItem mItem1 = MergeGroupItem.create(null, null)
 
 		then:
-		mItem.validate() == false
-		mItem.errors.errorCount == 2
-		mItem.errors.getFieldError("numberAsString").code == "nullable"
-		mItem.errors.getFieldError("contactIds").code == "minSize.notmet"
-		mItem.number.number == null
-		mItem.mergeWith.isEmpty() == true
+		mItem1.validate() == false
+		mItem1.errors.getFieldError("number").code == "nullable"
+		mItem1.errors.getFieldError("mergeIds").code == "minSize.notmet"
+		mItem1.number == null
+		mItem1.buildMergeWith().isEmpty()
 
 		when: "empty contact ids"
-		mItem.contactIds = []
+		mItem1 = MergeGroupItem.create(null, [])
 
 		then:
-		mItem.validate() == false
-		mItem.errors.errorCount == 2
-		mItem.errors.getFieldError("numberAsString").code == "nullable"
-		mItem.errors.getFieldError("contactIds").code == "minSize.notmet"
-		mItem.number.number == null
-		mItem.mergeWith.isEmpty() == true
-
-		when: "invalid phone number"
-		mItem.number = new PhoneNumber(number:"I am not a valid phone number")
-
-		then:
-		mItem.validate() == false
-		mItem.errors.errorCount == 2
-		mItem.errors.getFieldError("numberAsString").code == "format"
-		mItem.errors.getFieldError("contactIds").code == "minSize.notmet"
-		mItem.number.number == ""
-		mItem.mergeWith.isEmpty() == true
+		mItem1.validate() == false
+		mItem1.errors.getFieldError("number").code == "nullable"
+		mItem1.errors.getFieldError("mergeIds").code == "minSize.notmet"
+		mItem1.number == null
+		mItem1.buildMergeWith().isEmpty()
 
 		when: "valid with a nonexistent"
-		PhoneNumber pNum = new PhoneNumber(number:"111 adfasfasdfads222 3333")
-		mItem.number = pNum
-		mItem.contactIds = [-88L] // existence check happens in MergeGroup
+		mItem1 = MergeGroupItem.create(pNum1, [-88L])
 
 		then:
-		mItem.validate() == true
-		mItem.number.number == pNum.number
-		mItem.mergeWith.isEmpty() == true // existence check happens in MergeGroup
+		mItem1.validate() == false
+		mItem1.errors.getFieldError("mergeIds").code == "someDoNotExist"
+		mItem1.number.number == pNum1.number
+		mItem1.buildMergeWith().isEmpty() // existence check happens in MergeGroup
+
+		when: "invalid phone number"
+		mItem1 = MergeGroupItem.create(invalidNum, [ipr1.id])
+
+		then:
+		mItem1.validate() == false
+		mItem1.errors.getFieldErrorCount("number.number") > 0
+		mItem1.number.number == ""
+		mItem1.buildMergeWith().every { it.id == ipr1.id }
 
 		when: "valid with an existent contact"
-		mItem.contactIds = [c1.id]
+		mItem1 = MergeGroupItem.create(pNum1, [ipr1.id])
 
 		then:
-		mItem.validate() == true
-		mItem.number.number == pNum.number
-		mItem.mergeWith.every { it.id == c1.id }
+		mItem1.validate()
+		mItem1.number.number == pNum1.number
+		mItem1.buildMergeWith().every { it.id == ipr1.id }
 	}
 }

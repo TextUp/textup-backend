@@ -1,209 +1,113 @@
 package org.textup.rest
 
-import grails.plugin.jodatime.converters.JodaConverters
-import grails.plugin.springsecurity.SpringSecurityService
-import grails.test.mixin.gorm.Domain
-import grails.test.mixin.hibernate.HibernateTestMixin
-import grails.test.mixin.TestFor
-import grails.test.mixin.TestMixin
-import grails.validation.ValidationErrors
-import org.springframework.context.MessageSource
+import grails.gorm.DetachedCriteria
+import grails.test.mixin.*
+import grails.test.mixin.gorm.*
+import grails.test.mixin.hibernate.*
 import org.textup.*
+import org.textup.structure.*
 import org.textup.test.*
 import org.textup.type.*
 import org.textup.util.*
-import spock.lang.Shared
-import spock.lang.Specification
-import static javax.servlet.http.HttpServletResponse.*
+import org.textup.util.domain.*
+import org.textup.validator.*
+import spock.lang.*
 
+@Domain([AnnouncementReceipt, ContactNumber, CustomAccountDetails, FeaturedAnnouncement,
+    FutureMessage, GroupPhoneRecord, IncomingSession, IndividualPhoneRecord, Location, MediaElement,
+    MediaElementVersion, MediaInfo, Organization, OwnerPolicy, Phone, PhoneNumberHistory,
+    PhoneOwnership, PhoneRecord, PhoneRecordMembers, Record, RecordCall, RecordItem,
+    RecordItemReceipt, RecordNote, RecordNoteRevision, RecordText, Role, Schedule,
+    SimpleFutureMessage, Staff, StaffRole, Team, Token])
 @TestFor(OrganizationController)
-@Domain([CustomAccountDetails, Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
-    RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization, Schedule,
-    Location, WeeklySchedule, PhoneOwnership, FeaturedAnnouncement, IncomingSession,
-    AnnouncementReceipt, Role, StaffRole, NotificationPolicy,
-    MediaInfo, MediaElement, MediaElementVersion])
 @TestMixin(HibernateTestMixin)
-class OrganizationControllerSpec extends CustomSpec {
+class OrganizationControllerSpec extends Specification {
 
     static doWithSpring = {
         resultFactory(ResultFactory)
     }
 
     def setup() {
-        setupData()
-        JodaConverters.registerJsonAndXmlMarshallers()
-
-        controller.authService = [getIsActive:{ -> true }] as AuthService
+        TestUtils.standardMockSetup()
     }
 
-    def cleanup() {
-        cleanupData()
-    }
+    void "test index"() {
+        given:
+        String search = TestUtils.randString()
 
-    // List
-    // ----
+        DetachedCriteria crit1 = GroovyMock()
+        MockedMethod buildForOptions = MockedMethod.create(Organizations, "buildForOptions") {
+            crit1
+        }
+        MockedMethod respondWithCriteria = MockedMethod.create(controller, "respondWithCriteria")
 
-    void "test list"() {
         when:
-        request.method = "GET"
+        params.search = search
         controller.index()
 
         then:
-        response.status == SC_OK
-        response.json.size() == Organization.count()
-    }
+        buildForOptions.latestArgs == [search, null]
+        respondWithCriteria.latestArgs == [crit1, TypeMap.create(params), null, MarshallerUtils.KEY_ORGANIZATION]
 
-    void "test list with successful search"() {
-        when:
-        request.method = "GET"
-        params.search = "organ"
-        controller.index()
-
-        then:
-        response.status == SC_OK
-        response.json.organizations.size() ==
-            Organization.countSearch(StringUtils.toQuery(params.search))
-    }
-
-    void "test list with unsuccessful search"() {
-        when:
-        request.method = "GET"
-        params.search = "sdfjksljsdf"
-        controller.index()
-
-        then:
-        response.status == SC_OK
-        response.json.organizations != null //when empty, we manually add in the root
-        response.json.organizations?.size() == 0
-    }
-
-    void "test list for invalid status"() {
-        when:
-        request.method = "GET"
-        params["status[]"] = ["invalid"]
-        controller.index()
-
-        then: "returns empty set"
-        response.status == SC_OK
-        response.json.organizations.size() == 0
-    }
-
-    void "test list for valid statuses"() {
-        when:
-        request.method = "GET"
-        params["status[]"] = [OrgStatus.APPROVED.toString()]
-        controller.index()
-
-        then: "returns empty set"
-        response.status == SC_OK
-        response.json.organizations.size() ==
-            Organization.countByStatusInList([OrgStatus.APPROVED])
-    }
-
-    // Show
-    // ----
-
-    void "test show nonexistent"() {
-        when:
-        request.method = "GET"
-        params.id = -88L
-        controller.show()
-
-        then:
-        response.status == SC_NOT_FOUND
+        cleanup:
+        buildForOptions?.restore()
+        respondWithCriteria?.restore()
     }
 
     void "test show"() {
+        given:
+        Long id = TestUtils.randIntegerUpTo(88)
+
+        MockedMethod doShow = MockedMethod.create(controller, "doShow")
+        MockedMethod mustFindForId = MockedMethod.create(Organizations, "mustFindForId")
+
         when:
-        request.method = "GET"
-        params.id = org.id
+        params.id = id
         controller.show()
 
         then:
-        response.status == SC_OK
-        response.json.id == org.id
-    }
-
-    // Save
-    // ----
-
-    void "test save"() {
-        when:
-        request.json = "{'organization':{}}"
-        request.method = "POST"
-        controller.save()
-
-        then:
-        response.status == SC_METHOD_NOT_ALLOWED
-    }
-
-    // Update
-    // ------
-
-    void "test update a nonexistent org"() {
-        given:
-        controller.authService = [
-            exists:{ Class clazz, Long id -> false }
-        ] as AuthService
+        doShow.latestArgs[0] instanceof Closure
+        doShow.latestArgs[1] instanceof Closure
 
         when:
-        request.json = "{'organization':{}}"
-        params.id = -88L
-        request.method = "PUT"
-        controller.update()
+        def retVal = doShow.latestArgs[0].call()
+        doShow.latestArgs[1].call()
 
         then:
-        response.status == SC_NOT_FOUND
-    }
+        retVal == Result.void()
+        mustFindForId.latestArgs == [id]
 
-    void "test update a forbidden org"() {
-        given:
-        controller.authService = [
-            exists:{ Class clazz, Long id -> true },
-            isAdminAt:{ Long id -> false }
-        ] as AuthService
-
-        when:
-        request.json = "{'organization':{}}"
-        params.id = c1.id
-        request.method = "PUT"
-        controller.update()
-
-        then:
-        response.status == SC_FORBIDDEN
+        cleanup:
+        doShow?.restore()
+        mustFindForId?.restore()
     }
 
     void "test update"() {
         given:
-        controller.organizationService = [update:{ Long cId, Map body ->
-            new Result(payload:org, status:ResultStatus.OK)
-        }] as OrganizationService
-        controller.authService = [
-            exists:{ Class clazz, Long id -> true },
-            isAdminAt:{ Long id -> true }
-        ] as AuthService
+        Long id = TestUtils.randIntegerUpTo(88)
+
+        controller.organizationService = GroovyMock(OrganizationService)
+        MockedMethod doUpdate = MockedMethod.create(controller, "doUpdate")
+        MockedMethod isAllowed = MockedMethod.create(Organizations, "isAllowed")
 
         when:
-        request.json = "{'organization':{}}"
-        params.id = org.id
-        request.method = "PUT"
+        params.id = id
         controller.update()
 
         then:
-        response.status == SC_OK
-        response.json.id == org.id
-    }
+        doUpdate.latestArgs[0] == MarshallerUtils.KEY_ORGANIZATION
+        doUpdate.latestArgs[1] == request
+        doUpdate.latestArgs[2] == controller.organizationService
+        doUpdate.latestArgs[3] instanceof Closure
 
-    // Delete
-    // ------
-
-    void "test delete"() {
         when:
-        params.id = org.id
-        request.method = "DELETE"
-        controller.delete()
+        doUpdate.latestArgs[3].call()
 
         then:
-        response.status == SC_METHOD_NOT_ALLOWED
+        isAllowed.latestArgs == [id]
+
+        cleanup:
+        doUpdate?.restore()
+        isAllowed?.restore()
     }
 }

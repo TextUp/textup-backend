@@ -7,223 +7,58 @@ import groovy.transform.TypeCheckingMode
 import org.jadira.usertype.dateandtime.joda.PersistentDateTime
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
-import org.restapidoc.annotation.*
-import org.textup.type.AuthorType
-import org.textup.type.ReceiptStatus
-import org.textup.validator.Author
-import org.textup.validator.TempRecordReceipt
+import org.textup.structure.*
+import org.textup.type.*
+import org.textup.util.*
+import org.textup.util.domain.*
+import org.textup.validator.*
 
+// [NOTE] Only the generated `hashCode` is used. The generated `equals` is superceded by the
+// overriden `compareTo` method. Therefore, ensure the fields in the annotation match the ones
+// used in the compareTo implementation exactly
+
+@EqualsAndHashCode(includes = ["whenCreated", "id"])
 @GrailsTypeChecked
-@EqualsAndHashCode
-class RecordItem implements ReadOnlyRecordItem, WithId {
+class RecordItem implements ReadOnlyRecordItem, WithId, CanSave<RecordItem>, Comparable<RecordItem> {
 
-    @RestApiObjectField(
-        description    = "Date this item was added to the record",
-        allowedType    = "DateTime",
-        useForCreation = false)
-    DateTime whenCreated = DateTime.now(DateTimeZone.UTC)
-    Record record //record this item belongs to
+    // If we want to include id in the equality comparator, we need to explicitly declare it
+    // This was an issue when using `CollectionUtils.mergeUnique` on several record items as
+    // record items with unique ids but same fields would be eliminated as non-unique
+    // see: https://stokito.wordpress.com/2014/12/19/equalsandhashcode-on-grails-domains/
+    Long id
 
-    @RestApiObjectField(
-        description    = "The direction of communication. Outgoing is from staff to client.",
-        allowedType    = "Boolean",
-        useForCreation = false)
-	boolean outgoing = true //true is CM->client, false is CM<-client
-
-    @RestApiObjectField(
-        description    = "Author of this entry.",
-        useForCreation = false)
-	String authorName
-
-    @RestApiObjectField(
-        description    = "Id of the author of this entry.",
-        allowedType    = "Number",
-        useForCreation = false)
-	Long authorId
-
-    @RestApiObjectField(
-        description    = "Type of author for this item",
-        allowedType    = "AuthorType",
-        useForCreation = false)
     AuthorType authorType
-
-    @RestApiObjectField(
-        description    = "If we auto-responded with the away message",
-        allowedType    = "Boolean",
-        useForCreation = false)
     boolean hasAwayMessage = false
-
-    @RestApiObjectField(
-        description    = "If this was originally a scheduled message",
-        allowedType    = "Boolean",
-        useForCreation = false)
-    boolean wasScheduled = false
-
-    // Outgoing texts: # staff members who received notifications for this message
-    // Outgoing future message: # staff who received "notify-me" notifications
-    Integer numNotified = 0
-
-    @RestApiObjectField(
-        description    = "If this was part of an announcement",
-        allowedType    = "Boolean",
-        useForCreation = false)
     boolean isAnnouncement = false
-
-    @RestApiObjectField(
-        description    = "Internal notes added by staff for this record item",
-        allowedType    = "String",
-        useForCreation = true)
+    boolean isDeleted = false
+    boolean outgoing = true // true is CM->client, false is CM<-client
+    boolean wasScheduled = false
+    DateTime whenCreated = JodaUtils.utcNow()
+    Integer numNotified = 0 // texts = # staff notified, future messages = # "notify-me"
+    Long authorId
+    MediaInfo media
+    Record record // record this item belongs to
+    String authorName
     String noteContents
 
-    @RestApiObjectField(
-        apiFieldName   = "media",
-        description    = "Media associated with this item in the record",
-        allowedType    = "MediaInfo",
-        useForCreation = false)
-    MediaInfo media
-
-    @RestApiObjectField(
-        description    = "Whether this item is deleted",
-        allowedType    = "Boolean",
-        useForCreation = false)
-    boolean isDeleted = false
-
-    @RestApiObjectFields(params=[
-        @RestApiObjectField(
-            apiFieldName   = "type",
-            description    = "Type of record item. One of: TEXT, or CALL",
-            allowedType    =  "String",
-            useForCreation = false),
-        @RestApiObjectField(
-            apiFieldName      = "doMediaActions",
-            description       = "List of actions to perform related to media assets",
-            allowedType       = "List<[mediaAction]>",
-            useForCreation    = false,
-            presentInResponse = false)
-    ])
 	static transients = ["author"]
-    @RestApiObjectField(
-        apiFieldName   = "receipts",
-        description    = "Statuses of all phone numbers who were sent this response",
-        allowedType    = "List<Receipt>",
-        useForCreation = false)
-    static hasMany = [receipts:RecordItemReceipt]
-    static constraints = {
-    	authorName blank:true, nullable:true
-    	authorId nullable:true
-        authorType nullable:true
-        media nullable:true, cascadeValidation: true // can be null for backwards compatibility for RecordItems that predate this
-        noteContents blank:true, nullable:true, maxSize: Constants.MAX_TEXT_COLUMN_SIZE
-        numNotified min: 0
-    }
+    static hasMany = [receipts: RecordItemReceipt]
     static mapping = {
-        receipts lazy: false, cascade: "all-delete-orphan"
-        media lazy: false, cascade: "save-update"
+        // [NOTE] one-to-many relationships should not have `fetch: "join"` because of GORM using
+        // a left outer join to fetch the data runs into issues when a max is provided
+        // see: https://stackoverflow.com/a/25426734
+        receipts cascade: "all-delete-orphan"
+        media fetch: "join", cascade: "save-update"
         whenCreated type: PersistentDateTime
         noteContents type: "text"
     }
-
-    // Static Finders
-    // --------------
-
-    static List<RecordItem> findEveryByApiId(String apiId) {
-        List<RecordItem> results = []
-        HashSet<Long> itemIds = new HashSet<>()
-        List<RecordItemReceipt> receipts = RecordItemReceipt.findAllByApiId(apiId)
-        receipts.each { RecordItemReceipt receipt ->
-            if (!itemIds.contains(receipt.item.id)) {
-                results << receipt.item
-                itemIds << receipt.item.id
-            }
-        }
-        results
-    }
-
-    @GrailsTypeChecked(TypeCheckingMode.SKIP)
-    static DetachedCriteria<RecordItem> forRecords(Collection<Record> records) {
-        new DetachedCriteria(RecordItem)
-            .build {
-                if (records) { "in"("record", records) }
-                else { eq("record", null) }
-            }
-    }
-
-    @GrailsTypeChecked(TypeCheckingMode.SKIP)
-    static DetachedCriteria<RecordItem> forPhoneIdWithOptions(Long phoneId,
-        DateTime start = null, DateTime end = null,
-        Collection<Class<? extends RecordItem>> types = null) {
-
-        new DetachedCriteria(RecordItem)
-            .build {
-                or {
-                    "in"("record.id", RecordItem.forRecordOwnerPhone(Contact, phoneId))
-                    "in"("record.id", RecordItem.forRecordOwnerPhone(ContactTag, phoneId))
-                }
-            }
-            .build(RecordItem.buildForOptionalDates(start, end))
-            .build(RecordItem.buildForOptionalTypes(types))
-    }
-
-    @GrailsTypeChecked(TypeCheckingMode.SKIP)
-    static DetachedCriteria<RecordItem> forRecordIdsWithOptions(Collection<Long> recIds,
-        DateTime start = null, DateTime end = null,
-        Collection<Class<? extends RecordItem>> types = null) {
-
-        new DetachedCriteria(RecordItem)
-            .build {
-                if (recIds) {
-                    "in"("record.id", recIds)
-                }
-                else { eq("record.id", null) }
-            }
-            .build(RecordItem.buildForOptionalDates(start, end))
-            .build(RecordItem.buildForOptionalTypes(types))
-    }
-
-    // Specify sort order separately because when we call `count()` on a DetachedCriteria
-    // we are grouping fields and, according to the SQL spec, we need to specify a GROUP BY
-    // if we also have an ORDER BY clause. Therefore, to avoid GROUP BY errors when calling `count()`
-    // we don't include the sort order by default and we have to separately add it in
-    // before calling `list()`. See https://stackoverflow.com/a/19602031
-    @GrailsTypeChecked(TypeCheckingMode.SKIP)
-    protected static Closure buildForSort(boolean recentFirst = true) {
-        return {
-            if (recentFirst) {
-                // from newer (larger # millis) to older (smaller $ millis)
-                order("whenCreated", "desc")
-            }
-            else { order("whenCreated", "asc") }
-        }
-    }
-
-
-    @GrailsTypeChecked(TypeCheckingMode.SKIP)
-    protected static DetachedCriteria<Long> forRecordOwnerPhone(Class<? extends WithRecord> ownerClass,
-        Long phoneId) {
-
-        return new DetachedCriteria(ownerClass).build {
-            projections { property("record.id") }
-            eq("phone.id", phoneId)
-        }
-    }
-    @GrailsTypeChecked(TypeCheckingMode.SKIP)
-    protected static Closure buildForOptionalDates(DateTime s = null, DateTime e = null) {
-        return {
-            if (s && e) {
-                between("whenCreated", s, e)
-            }
-            else if (s) {
-                ge("whenCreated", s)
-            }
-        }
-    }
-    @GrailsTypeChecked(TypeCheckingMode.SKIP)
-    protected static Closure buildForOptionalTypes(Collection<Class<? extends RecordItem>> types = null) {
-        return {
-            if (types) {
-                "in"("class", types*.canonicalName)
-            }
-        }
+    static constraints = {
+    	authorName blank: true, nullable: true
+    	authorId nullable: true
+        authorType nullable: true
+        media nullable: true, cascadeValidation: true // can be null for backwards compatibility for RecordItems that predate this
+        noteContents blank: true, nullable: true, maxSize: ValidationUtils.MAX_TEXT_COLUMN_SIZE
+        numNotified min: 0
     }
 
     // Methods
@@ -235,37 +70,38 @@ class RecordItem implements ReadOnlyRecordItem, WithId {
     }
 
     RecordItem addReceipt(TempRecordReceipt r1) {
-        RecordItemReceipt receipt = new RecordItemReceipt(status: r1.status, apiId: r1.apiId,
-            contactNumberAsString: r1.contactNumberAsString, numBillable: r1.numSegments)
-        addToReceipts(receipt)
+        RecordItemReceipt rpt1 = RecordItemReceipt.create(this, r1.apiId, r1.status, r1.contactNumber)
+        rpt1.numBillable = r1.numBillable
         this
     }
 
-    // Property Access
-    // ---------------
+    RecordItemReceiptInfo groupReceiptsByStatus() { new RecordItemReceiptInfo(receipts) }
 
-    List<RecordItemReceipt> getReceiptsByStatus(ReceiptStatus stat) {
-        RecordItemReceipt.findAllByItemAndStatus(this, stat)
-    }
+    // Properties
+    // ----------
 
-    RecordItemStatus groupReceiptsByStatus() {
-        new RecordItemStatus(this.receipts)
-    }
-
+    @Override
     ReadOnlyMediaInfo getReadOnlyMedia() { media }
 
+    @Override
     ReadOnlyRecord getReadOnlyRecord() { record }
+
+    // Domain classes with @GrailsTypeChecked seem to be unable to use @Sortable without
+    // triggering a canonicalization error during type checking.
+    // [NOTE] the `==` operator in Groovy calls `compareTo` INSTEAD OF `equals` if present
+    // see https://stackoverflow.com/a/9682512
+    @Override
+    int compareTo(RecordItem rItem) {
+        whenCreated <=> rItem?.whenCreated ?: id <=> rItem?.id
+    }
 
     void setAuthor(Author author) {
         if (author?.validate()) {
-            this.with {
-                authorName = author.name
-                authorId = author.id
-                authorType = author.type
-            }
+            authorName = author.name
+            authorId = author.id
+            authorType = author.type
         }
     }
-    Author getAuthor() {
-        new Author(name:this.authorName, id:this.authorId, type:this.authorType)
-    }
+
+    Author getAuthor() { Author.create(authorId, authorName, authorType) }
 }

@@ -1,82 +1,48 @@
 package org.textup.rest.marshaller
 
-import org.textup.test.*
-import org.textup.util.*
-import grails.converters.JSON
 import org.textup.*
+import org.textup.structure.*
+import org.textup.test.*
+import org.textup.type.*
+import org.textup.util.*
+import org.textup.util.domain.*
+import org.textup.validator.*
+import spock.lang.*
 
-class TeamJsonMarshallerIntegrationSpec extends CustomSpec {
+class TeamJsonMarshallerIntegrationSpec extends Specification {
 
-    def grailsApplication
+    void "test marshalling"() {
+        given:
+        Team t1 = TestUtils.buildTeam()
+        Phone tp1 = TestUtils.buildActiveTeamPhone(t1)
 
-    def setup() {
-    	setupIntegrationData()
-    }
+        when:
+        Map json = TestUtils.objToJsonMap(t1)
 
-    def cleanup() {
-    	cleanupIntegrationData()
-    }
-
-    void "test marshalling team"() {
-    	when:
-    	Map json
-    	JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-    		json = TestUtils.jsonToMap(t1 as JSON)
-    	}
-
-    	then:
-    	json.id == t1.id
-    	json.name == t1.name
-    	json.hexColor == t1.hexColor
+        then:
+        json.hexColor == t1.hexColor
+        json.id == t1.id
+        json.location instanceof Map
+        json.location.id == t1.location.id
+        json.name == t1.name
+        json.numMembers == t1.activeMembers.size()
         json.org == t1.org.id
         json.phone instanceof Map
-        json.hasInactivePhone == t1.hasInactivePhone
-    	json.location instanceof Map
-    	json.numMembers == t1.activeMembers.size()
+        json.phone.id == tp1.id
     }
 
     void "test marshalling team with inactive phone"() {
         given:
-        t1.phone.deactivate()
-        t1.phone.save(flush:true, failOnError:true)
+        Team t1 = TestUtils.buildTeam()
+        Phone tp1 = TestUtils.buildTeamPhone(t1)
 
         when:
-        Map json
-        JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-            json = TestUtils.jsonToMap(t1 as JSON)
-        }
+        Map json = TestUtils.objToJsonMap(t1)
 
-        then:
-        json.id == t1.id
-        json.name == t1.name
-        json.hexColor == t1.hexColor
-        json.org == t1.org.id
-        json.phone == null
-        json.hasInactivePhone == t1.hasInactivePhone
-        json.location instanceof Map
-        json.numMembers == t1.activeMembers.size()
+        then: "still show"
+        tp1.isActive() == false
+        json.phone instanceof Map
+        json.phone.id == tp1.id
     }
 
-    void "test marshalling team without phone"() {
-        given: "team without phone"
-        Team team1 = new Team(name:"UniqueTeam1", org:org)
-        team1.location = new Location(address:"Testing Address", lat:0G, lon:1G)
-        team1.save(flush:true, failOnError:true)
-
-        when:
-        Map json
-        JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-            json = TestUtils.jsonToMap(team1 as JSON)
-        }
-
-        then:
-        json.id == team1.id
-        json.name == team1.name
-        json.hexColor == team1.hexColor
-        json.org == team1.org.id
-        json.phone == null
-        json.hasInactivePhone == t1.hasInactivePhone
-        json.location instanceof Map
-        json.numMembers == team1.activeMembers.size()
-    }
 }

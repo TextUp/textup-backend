@@ -1,54 +1,34 @@
 package org.textup.rest.marshaller
 
-import grails.converters.JSON
-import org.textup.test.*
 import org.textup.*
+import org.textup.structure.*
+import org.textup.test.*
+import org.textup.type.*
 import org.textup.util.*
-import org.textup.validator.MergeGroup
-import org.textup.validator.MergeGroupItem
+import org.textup.util.domain.*
+import org.textup.validator.*
+import spock.lang.*
 
-class MergeGroupJsonMarshallerIntegrationSpec extends CustomSpec {
+class MergeGroupJsonMarshallerIntegrationSpec extends Specification {
 
-    def grailsApplication
-
-    def setup() {
-        setupIntegrationData()
-    }
-
-    def cleanup() {
-        cleanupIntegrationData()
-    }
-
-    void "test marshal merge group"() {
+    void "test marshalling"() {
         given:
-        MergeGroupItem mItem1 = new MergeGroupItem(contactIds:[c1_1.id], numberAsString:"1112223333")
-        MergeGroupItem mItem2 = new MergeGroupItem(contactIds:[c1_2.id], numberAsString:"1112223333")
-        MergeGroup mGroup = new MergeGroup(targetContactId:c1.id, possibleMerges:[mItem1, mItem2])
-        assert mGroup.deepValidate() == true
+        IndividualPhoneRecord ipr1 = TestUtils.buildIndPhoneRecord()
+        IndividualPhoneRecord ipr2 = TestUtils.buildIndPhoneRecord()
+        MergeGroupItem mItem1 = MergeGroupItem.create(TestUtils.randPhoneNumber(), [ipr1.id])
+        MergeGroup mGroup1 = MergeGroup.tryCreate(ipr2.id, [mItem1]).payload
 
         when:
-        Map json
-        JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-            json = TestUtils.jsonToMap(mGroup as JSON)
-        }
+        Map json = TestUtils.objToJsonMap(mGroup1)
 
         then:
-        json.id == c1.id
-        json.name == c1.name
-        json.note == c1.note
-        json.numbers.every { c1.numbers.find { ContactNumber num -> num.prettyPhoneNumber == it.number } }
-        [mItem1, mItem2].every { MergeGroupItem item1 ->
-            json.merges.find { merge1 ->
-                merge1.mergeBy == item1.getNumber().prettyPhoneNumber &&
-                    merge1.mergeWith.every { mergeWithMap ->
-                        item1.getMergeWith().find { Contact c3 -> c3.id == mergeWithMap.id }
-                    }
-            }
-        }
-        // assert json.merges format
-        json.merges.every { merge1 ->
-            merge1.mergeBy instanceof String && merge1.mergeWith instanceof Collection &&
-                merge1.mergeWith.every { it.id instanceof Number && it.numbers instanceof Collection }
-        }
+        json.id == ipr2.id
+        json.name == ipr2.name
+        json.note == ipr2.note
+        json.numbers instanceof Collection
+        json.numbers.size() == ipr2.numbers.size()
+        json.merges instanceof Collection
+        json.merges.size() == mGroup1.possibleMerges.size()
+        json.merges[0].mergeBy == mItem1.number.prettyPhoneNumber
     }
 }

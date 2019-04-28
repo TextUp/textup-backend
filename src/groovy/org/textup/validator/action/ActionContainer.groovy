@@ -4,23 +4,32 @@ import grails.compiler.GrailsTypeChecked
 import grails.validation.Validateable
 import groovy.transform.EqualsAndHashCode
 import org.textup.*
+import org.textup.structure.*
+import org.textup.type.*
 import org.textup.util.*
+import org.textup.util.domain.*
+import org.textup.validator.*
 
-@GrailsTypeChecked
 @EqualsAndHashCode
+@GrailsTypeChecked
 @Validateable
-class ActionContainer {
+class ActionContainer<T extends BaseAction> implements CanValidate {
 
-	Object data
+	final Object data
+	final Class<T> clazz
+	final List<? extends T> actions
 
-	ActionContainer(Object data) {
-		this.data = data
+	ActionContainer(Class<T> c1, Object d1) {
+		clazz = c1
+		data = d1
+		// try building actions after setting data
+		actions = Collections.<T>unmodifiableList(tryBuildActions())
 	}
 
 	static constraints = {
 		data validator: { Object data ->
 			if (data instanceof Collection) {
-				Collection dataCollection = TypeConversionUtils.to(Collection, data)
+				Collection dataCollection = TypeUtils.to(Collection, data)
 				for (Object dataObj in dataCollection) {
 					if (!(dataObj instanceof Map)) {
 						return ["emptyOrNotAMap"]
@@ -29,47 +38,30 @@ class ActionContainer {
 			}
 			else { ["emptyOrNotACollection"] }
 		}
+		actions cascadeValidation: true
 	}
 
-	// Methods
+	static <T extends BaseAction> Result<List<T>> tryProcess(Class<T> clazz, Object data) {
+		if (!data) {
+			return IOCUtils.resultFactory.success([])
+		}
+		ActionContainer ac1 = new ActionContainer<>(clazz, data)
+		ac1.validate() ?
+			IOCUtils.resultFactory.success(ac1.actions) :
+			IOCUtils.resultFactory.failWithValidationErrors(ac1.errors)
+	}
+
+	// Helpers
 	// -------
 
-	public <T extends BaseAction> List<T> validateAndBuildActions(Class<T> clazz) {
-		List<T> actions = []
-		if (!validate()) {
-			return actions
-		}
-		if (!clazz) { // even if clazz is null, we still want to validate
-			return actions
-		}
-		Collection dataCollection = TypeConversionUtils.to(Collection, data)
-		List<String> errorMessages = []
-		if (dataCollection) {
-			for (Object dataObj in dataCollection) {
-				Map dataMap = TypeConversionUtils.to(Map, dataObj)
-				if (dataMap) {
-					T action = (clazz.newInstance() as T)
-					// set properties from map, ignoring the nonexistent properties
-					// which will throw a MissingPropertyException if we directly
-					// pass the data map into the newInstance constructor
-					dataMap.each { Object k, Object v ->
-						String kStr = k?.toString()
-						MetaProperty propertyInfo = action.hasProperty(kStr)
-						if (propertyInfo) {
-							action[kStr] = TypeConversionUtils.to(propertyInfo.type, v)
-						}
-					}
-					if (action.validate()) { actions << action }
-					else {
-						Result res = IOCUtils.resultFactory.failWithValidationErrors(action.errors)
-						errorMessages += res.errorMessages
-					}
-				}
+	protected List<? extends T> tryBuildActions() {
+		List<? extends T> actions = []
+		if (clazz && validate(["data"])) {
+			TypeUtils.to(Collection, data)?.each { Object obj ->
+				T action = (clazz.newInstance() as T)
+				action.update(TypeUtils.to(Map, obj))
+				actions << action
 			}
-		}
-		if (errorMessages) {
-			this.errors.reject("actionContainer.invalidActions", [errorMessages] as Object[],
-				"Invalid action items")
 		}
 		actions
 	}

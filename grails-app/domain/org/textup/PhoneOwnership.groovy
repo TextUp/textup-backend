@@ -2,111 +2,86 @@ package org.textup
 
 import grails.compiler.GrailsTypeChecked
 import groovy.transform.EqualsAndHashCode
-import org.textup.rest.NotificationStatus
-import org.textup.type.PhoneOwnershipType
+import org.textup.structure.*
+import org.textup.type.*
 import org.textup.util.*
+import org.textup.util.domain.*
+import org.textup.validator.*
 
-@GrailsTypeChecked
 @EqualsAndHashCode
-class PhoneOwnership implements WithId {
+@GrailsTypeChecked
+class PhoneOwnership implements WithId, CanSave<PhoneOwnership> {
 
-	Phone phone
-	Long ownerId
-	PhoneOwnershipType type
+    // Need to declare id for it to be considered in equality operator
+    // see: https://stokito.wordpress.com/2014/12/19/equalsandhashcode-on-grails-domains/
+    Long id
 
-    static constraints = {
-    	ownerId validator: { Long val, PhoneOwnership obj ->
-            Closure<Boolean> doesOwnerExist = {
-                (obj.type == PhoneOwnershipType.INDIVIDUAL) ? Staff.exists(val) : Team.exists(val)
-            }
-            if (obj.type && val && !Utils.<Boolean>doWithoutFlush(doesOwnerExist)) {
-                ["invalidId"]
-            }
-    	}
-    }
-    static hasMany = [policies:NotificationPolicy]
+    boolean allowSharingWithOtherTeams = false
+    Long ownerId
+    Phone phone
+    PhoneOwnershipType type
+
+    static hasMany = [policies: OwnerPolicy]
     static mapping = {
-        policies lazy:false, cascade:"all-delete-orphan"
+        // [NOTE] one-to-many relationships should not have `fetch: "join"` because of GORM using
+        // a left outer join to fetch the data runs into issues when a max is provided
+        // see: https://stackoverflow.com/a/25426734
+        policies cascade: "all-delete-orphan"
     }
 
-    // Property access
-    // ---------------
-
-    // Staff member can be notified if they (1) are available, (2) have a permissive notification policy,
-    // and (3) have a personal phone number linked to receive notifications at
-    List<Staff> getCanNotifyAndAvailable(Collection<Long> recordIds) {
-        List<Staff> canNotify = []
-        getNotificationStatusesForRecords(recordIds).each { NotificationStatus status ->
-            if (status.validate()) {
-                if (status.canNotify && status.isAvailableNow &&
-                    status.staff?.personalPhoneAsString) {
-
-                    canNotify << status.staff
-                }
-            }
-            else {
-                log.error("PhoneOwnership.getCanNotifyAndAvailable: invalid notification: ${status.errors}")
-            }
-        }
-        canNotify
+    static Result<PhoneOwnership> tryCreate(Phone p1, Long ownerId, PhoneOwnershipType type) {
+        PhoneOwnership own1 = new PhoneOwnership(ownerId: ownerId, type: type, phone: p1)
+        DomainUtils.trySave(own1, ResultStatus.CREATED)
     }
-    List<NotificationStatus> getNotificationStatusesForRecords(Collection<Long> recordIds) {
-        getNotificationStatusesForStaffsAndRecords(buildAllStaff(), recordIds)
-    }
-    List<NotificationStatus> getNotificationStatusesForStaffsAndRecords(Collection<Staff> staffs,
-        Collection<Long> recordIds) {
-        List<NotificationStatus> statuses = []
 
-        staffs.each { Staff s1 ->
-            NotificationPolicy np1 = findPolicyForStaff(s1.id)
-            // if no notification policy, then can notify and default to staff availability
-            if (!np1) {
-                statuses << new NotificationStatus(staff: s1,
-                    isAvailableNow: s1.isAvailableNow(),
-                    canNotify: true)
-            }
-            else {
-                statuses << new NotificationStatus(staff: s1,
-                    isAvailableNow: np1.isAvailableNow(),
-                    canNotify: np1.canNotifyForAny(recordIds))
-            }
-        }
-        statuses
-    }
-    List<Staff> buildAllStaff() {
-        if (this.type == PhoneOwnershipType.INDIVIDUAL) {
-            Staff s1 = Staff.get(this.ownerId)
+    // Methods
+    // -------
+
+    Collection<Staff> buildAllStaff() {
+        if (type == PhoneOwnershipType.INDIVIDUAL) {
+            Staff s1 = Staff.get(ownerId)
             s1 ? [s1] : []
         }
-        else { // group
-            Team.get(this.ownerId)?.getActiveMembers() ?: []
-        }
+        else { Team.get(ownerId)?.getActiveMembers() ?: [] }
     }
+
+    // [NOTE] If passed-in frequency is null, we find active read-only policies for ALL FREQUENCIES
+    Collection<? extends ReadOnlyOwnerPolicy> buildActiveReadOnlyPolicies(NotificationFrequency freq1 = null) {
+        HashSet<Staff> allCurrentStaffs = new HashSet<>(buildAllStaff())
+        Collection<Staff> staffsWithDifferentFrequency = []
+        Collection<? extends ReadOnlyOwnerPolicy> foundPolicies = []
+        policies?.each { OwnerPolicy op1 ->
+            if (allCurrentStaffs.contains(op1.staff)) {
+                if (!freq1 || op1.frequency == freq1) {
+                    foundPolicies << op1
+                }
+                else { staffsWithDifferentFrequency << op1.staff }
+            }
+        }
+        // should only fill in missing when we are trying to build for the default frequency
+        // and ONLY FOR STAFFS that don't have a policy at all. Staffs with non-default frequencies
+        // should not show up if we are requesting only the staff that have the default frequency
+        if (!freq1 || freq1 == DefaultOwnerPolicy.DEFAULT_FREQUENCY) {
+            Collection<Staff> staffsThatShouldHavePolicy = CollectionUtils.difference(allCurrentStaffs,
+                staffsWithDifferentFrequency)
+            Collection<Staff> missing = CollectionUtils.difference(staffsThatShouldHavePolicy,
+                foundPolicies*.readOnlyStaff)
+            foundPolicies.addAll(DefaultOwnerPolicy.createAll(missing))
+        }
+        foundPolicies.findAll { ReadOnlyOwnerPolicy rop1 -> rop1.isActive() }
+    }
+
     Organization buildOrganization() {
-        if (this.type == PhoneOwnershipType.INDIVIDUAL) {
-            Staff.get(this.ownerId)?.org
+        if (type == PhoneOwnershipType.INDIVIDUAL) {
+            Staff.get(ownerId)?.org
         }
-        else { Team.get(this.ownerId)?.org }
+        else { Team.get(ownerId)?.org }
     }
+
     String buildName() {
-        if (this.type == PhoneOwnershipType.INDIVIDUAL) {
-            Staff.get(this.ownerId)?.name ?: ''
+        if (type == PhoneOwnershipType.INDIVIDUAL) {
+            Staff.get(ownerId)?.name ?: ""
         }
-        else { Team.get(this.ownerId)?.name ?: '' }
-    }
-    // Notification Policies might not all correspond to staff members that are owners on this phone
-    // because we also include staff members that can access one of this phone's contacts
-    // through a sharing arrangement. Also, if we transfer phones, then the new owners will not
-    // correspond with the staff ids in this list of policies
-    NotificationPolicy getOrCreatePolicyForStaff(Long staffId) {
-        NotificationPolicy np1 = findPolicyForStaff(staffId)
-        if (!np1) { // create a new notification policy if none currently exists for this staff id
-            np1 = new NotificationPolicy(staffId:staffId)
-            this.addToPolicies(np1)
-        }
-        np1
-    }
-    NotificationPolicy findPolicyForStaff(Long staffId) {
-        this.policies?.find { NotificationPolicy np1 -> np1.staffId == staffId }
+        else { Team.get(ownerId)?.name ?: "" }
     }
 }

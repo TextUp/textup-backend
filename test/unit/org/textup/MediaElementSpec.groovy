@@ -1,13 +1,17 @@
 package org.textup
 
-import grails.test.mixin.gorm.Domain
-import grails.test.mixin.hibernate.HibernateTestMixin
-import grails.test.mixin.TestMixin
-import org.joda.time.DateTime
-import org.springframework.validation.Errors
+import grails.test.mixin.*
+import grails.test.mixin.gorm.*
+import grails.test.mixin.hibernate.*
+import grails.test.mixin.support.*
+import grails.test.runtime.*
+import grails.validation.*
+import org.joda.time.*
+import org.textup.structure.*
 import org.textup.test.*
 import org.textup.type.*
-import org.textup.validator.UploadItem
+import org.textup.util.*
+import org.textup.validator.*
 import spock.lang.*
 
 @Domain([CustomAccountDetails, MediaInfo, MediaElement, MediaElementVersion])
@@ -16,6 +20,10 @@ class MediaElementSpec extends Specification {
 
     static doWithSpring = {
         resultFactory(ResultFactory)
+    }
+
+    def setup() {
+        TestUtils.standardMockSetup()
     }
 
     void "test constraints"() {
@@ -28,7 +36,7 @@ class MediaElementSpec extends Specification {
         when: "filled in"
         e1.sendVersion = new MediaElementVersion(type: MediaType.IMAGE_JPEG,
             versionId: UUID.randomUUID().toString(),
-            sizeInBytes: Constants.MAX_MEDIA_SIZE_PER_MESSAGE_IN_BYTES / 2,
+            sizeInBytes: ValidationUtils.MAX_MEDIA_SIZE_PER_MESSAGE_IN_BYTES / 2,
             widthInPixels: 888)
         assert e1.sendVersion.validate()
 
@@ -36,7 +44,7 @@ class MediaElementSpec extends Specification {
         e1.validate() == true
 
         when: "size of the send version is too large"
-        e1.sendVersion.sizeInBytes = Constants.MAX_MEDIA_SIZE_PER_MESSAGE_IN_BYTES * 2
+        e1.sendVersion.sizeInBytes = ValidationUtils.MAX_MEDIA_SIZE_PER_MESSAGE_IN_BYTES * 2
 
         then: "invalid"
         e1.validate() == false
@@ -47,7 +55,8 @@ class MediaElementSpec extends Specification {
     void "test getting types and versions"() {
         given:
         byte[] inputData1 = TestUtils.getJpegSampleData512()
-        UploadItem uItem1 = new UploadItem(type: MediaType.IMAGE_JPEG, data: inputData1)
+        UploadItem uItem1 = UploadItem.tryCreate(MediaType.IMAGE_JPEG, inputData1).payload
+        UploadItem uItem2 = UploadItem.tryCreate(MediaType.IMAGE_PNG, inputData1).payload
 
         when: "empty obj"
         MediaElement e1 = new MediaElement()
@@ -57,7 +66,7 @@ class MediaElementSpec extends Specification {
         e1.allVersions == []
 
         when: "adding send version"
-        e1.sendVersion = uItem1.toMediaElementVersion()
+        e1.sendVersion = MediaElementVersion.createIfPresent(uItem1)
 
         then: "obj's send version is set + versions for alternate falls back to send version"
         e1.sendVersion != null
@@ -72,9 +81,8 @@ class MediaElementSpec extends Specification {
         e1.hasType(null) == false
 
         when: "adding alternate version"
-        e1.addToAlternateVersions(uItem1.toMediaElementVersion())
-        uItem1.type = MediaType.IMAGE_PNG
-        e1.addToAlternateVersions(uItem1.toMediaElementVersion())
+        e1.addToAlternateVersions(MediaElementVersion.createIfPresent(uItem1))
+        e1.addToAlternateVersions(MediaElementVersion.createIfPresent(uItem2))
 
         then: "added to alternate version relationship versions for alternate includes newly added"
         e1.alternateVersions.size() == 2
@@ -144,24 +152,22 @@ class MediaElementSpec extends Specification {
 
     void "test static creation method"() {
         given:
-        UploadItem mockSendItem = Mock(UploadItem)
-        UploadItem mockAltItem = Mock(UploadItem)
+        UploadItem sendItem = TestUtils.buildUploadItem()
+        UploadItem altItem = TestUtils.buildUploadItem()
 
         when: "create with no items"
-        Result<MediaElement> res = MediaElement.create(null, null)
+        Result res = MediaElement.tryCreate(null)
 
         then: "valid with no items"
-        res.status == ResultStatus.OK
+        res.status == ResultStatus.CREATED
         res.payload instanceof MediaElement
         res.payload.allVersions.isEmpty()
 
         when: "create with valid content type and a send version"
-        res = MediaElement.create(mockSendItem, [mockAltItem])
+        res = MediaElement.tryCreate([altItem], sendItem)
 
         then: "valid -- see mocks"
-        1 * mockSendItem.toMediaElementVersion() >> TestUtils.buildMediaElementVersion()
-        1 * mockAltItem.toMediaElementVersion() >> TestUtils.buildMediaElementVersion()
-        res.success == true
+        res.status == ResultStatus.CREATED
         res.payload instanceof MediaElement
         res.payload.validate()
         res.payload.allVersions.size() == 2

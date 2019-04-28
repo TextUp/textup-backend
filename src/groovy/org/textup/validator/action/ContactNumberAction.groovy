@@ -3,42 +3,41 @@ package org.textup.validator.action
 import grails.compiler.GrailsTypeChecked
 import grails.validation.Validateable
 import groovy.transform.EqualsAndHashCode
-import org.textup.Constants
-import org.textup.validator.PhoneNumber
+import org.textup.*
+import org.textup.structure.*
+import org.textup.type.*
+import org.textup.util.*
+import org.textup.util.domain.*
+import org.textup.validator.*
 
-// documented as [numberAction] in CustomApiDocs.groovy
+@EqualsAndHashCode(callSuper = true)
 @GrailsTypeChecked
-@EqualsAndHashCode(callSuper=true)
 @Validateable
 class ContactNumberAction extends BaseAction {
+
+	static final String MERGE = "merge"
+	static final String DELETE = "delete"
 
 	int preference = 0
 	String number
 
 	static constraints =  {
-		preference min:0
-		number validator:{ String val, ContactNumberAction obj  ->
-	        if (!obj.matches(Constants.NUMBER_ACTION_DELETE) &&
-	        	!(val?.toString() ==~ /^(\d){10}$/)) {
-
-	        	["format"]
-	        }
-	    }
+		preference min: 0
+		number phoneNumber: true
 	}
 
-	// Validation helpers
-	// ------------------
+	// Methods
+	// -------
+
+	PhoneNumber buildPhoneNumber() { PhoneNumber.create(number) }
+
+	// Properties
+	// ----------
 
 	@Override
-	Collection<String> getAllowedActions() {
-		[Constants.NUMBER_ACTION_MERGE, Constants.NUMBER_ACTION_DELETE]
-	}
-
-	// Property access
-	// ---------------
+	Collection<String> getAllowedActions() { [MERGE, DELETE] }
 
 	void setNumber(String num) {
-		// clean number before validate
-		this.number = (new PhoneNumber(number:num)).number
+		number = StringUtils.cleanPhoneNumber(num)
 	}
 }

@@ -1,41 +1,48 @@
 package org.textup.validator
 
-import grails.compiler.GrailsTypeChecked
 import com.twilio.type.PhoneNumber as TwilioPhoneNumber
+import grails.compiler.GrailsTypeChecked
+import groovy.transform.EqualsAndHashCode
+import org.textup.*
+import org.textup.structure.*
+import org.textup.type.*
+import org.textup.util.*
+import org.textup.util.domain.*
 
+@EqualsAndHashCode
 @GrailsTypeChecked
-abstract class BasePhoneNumber {
+abstract class BasePhoneNumber implements CanValidate {
 
     String number
 
-    // Property Access
-    // ---------------
+    // Methods
+    // -------
 
-    String getPrettyPhoneNumber() {
-        String n = this.number
-        (n && n.size() > 6) ? "${n[0..2]} ${n[3..5]} ${n[6..-1]}" : ""
-    }
-    String getE164PhoneNumber() {
-        String n = this.number
-        n ? "+1${n}" : ""
-    }
-    void setNumber(String n) {
-        this.number = cleanPhoneNumber(n)
-    }
-    private String cleanPhoneNumber(String n) {
-        if (n) {
-            String cleaned = n.replaceAll(/\D+/, "")
-            (cleaned.size() == 11 && cleaned[0] == "1") ? cleaned.substring(1) : cleaned
-        }
-        else { n }
-    }
+    @Override
+    String toString() { prettyPhoneNumber }
 
-    TwilioPhoneNumber toApiPhoneNumber() {
-        new TwilioPhoneNumber(this.number)
+    @Override
+    boolean equals(Object obj) {
+        obj instanceof BasePhoneNumber ? number?.equals(obj.number) : false
     }
 
     @Override
-    String toString() {
-        this.prettyPhoneNumber
+    int hashCode() { number?.hashCode() ?: 0 }
+
+    // Properties
+    // ----------
+
+    String getPrettyPhoneNumber() {
+        (number && number.size() > 6) ? "(${number[0..2]}) ${number[3..5]}-${number[6..-1]}" : ""
     }
+
+    String getAreaCode() {
+        (number && number.size() > 3) ? "${number[0..2]}" : ""
+    }
+
+    String getE164PhoneNumber() { number ? "+1${number}" : "" }
+
+    void setNumber(String num) { number = StringUtils.cleanPhoneNumber(num) }
+
+    TwilioPhoneNumber toApiPhoneNumber() { new TwilioPhoneNumber(number) }
 }

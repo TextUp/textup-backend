@@ -1,44 +1,25 @@
 package org.textup.rest
 
 import grails.compiler.GrailsTypeChecked
-import org.restapidoc.annotation.*
-import org.restapidoc.pojo.*
+import grails.transaction.Transactional
 import org.springframework.security.access.annotation.Secured
 import org.textup.*
-import org.textup.validator.Notification
+import org.textup.structure.*
+import org.textup.type.*
+import org.textup.util.*
+import org.textup.util.domain.*
+import org.textup.validator.*
 
 @GrailsTypeChecked
-@RestApi(name="Notification", description="Claim notifications")
 @Secured("permitAll")
+@Transactional
 class NotifyController extends BaseController {
-
-	static String namespace = "v1"
 
 	NotificationService notificationService
 
     @Override
-    protected String getNamespaceAsString() { namespace }
-
-    // Showing contents of token
-    // -------------------------
-
-    @RestApiMethod(description="Show contents of the notification")
-    @RestApiResponseObject(objectIdentifier = "[notification]")
-    @RestApiParams(params=[
-        @RestApiParam(name="token", type="String",
-        	paramType=RestApiParamType.PATH, description="Value of the notification token")
-    ])
-    @RestApiErrors(apierrors=[
-        @RestApiError(code="400", description="Token has expired."),
-        @RestApiError(code="404", description="Token could not be found."),
-    ])
     def show() {
-    	String token = params.id
-        respondWithResult(Notification, notificationService.show(token))
+        TypeMap qParams = TypeMap.create(params)
+        respondWithResult(notificationService.redeem(qParams.string("id")))
     }
-
-    def index() { notAllowed() }
-    def save() { notAllowed() }
-    def update() { notAllowed() }
-    def delete() { notAllowed() }
 }

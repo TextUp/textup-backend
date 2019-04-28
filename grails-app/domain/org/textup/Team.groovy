@@ -5,146 +5,71 @@ import groovy.transform.EqualsAndHashCode
 import org.jadira.usertype.dateandtime.joda.PersistentDateTime
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
-import org.restapidoc.annotation.*
-import org.textup.type.PhoneOwnershipType
-import org.textup.type.StaffStatus
+import org.textup.structure.*
+import org.textup.type.*
 import org.textup.util.*
+import org.textup.util.domain.*
+import org.textup.validator.*
 
 @EqualsAndHashCode
-@RestApiObject(name="Team", description="A team at an organization.")
-class Team implements WithId {
+@GrailsTypeChecked
+class Team implements WithId, CanSave<Team> {
+
+    // Need to declare id for it to be considered in equality operator
+    // see: https://stokito.wordpress.com/2014/12/19/equalsandhashcode-on-grails-domains/
+    Long id
 
     boolean isDeleted = false
+    DateTime whenCreated = JodaUtils.utcNow()
+    Location location
+    Organization org
+    String hexColor = Constants.DEFAULT_BRAND_COLOR
+    String name
 
-    DateTime whenCreated = DateTime.now(DateTimeZone.UTC)
-
-    @RestApiObjectField(description="Name of the team")
-	String name
-
-    @RestApiObjectField(description="Location this team is based at. \
-        Default same as organization.")
-	Location location
-
-    @RestApiObjectField(
-        description = "Id of the organization this team belongs to",
-        allowedType = "Number")
-	Organization org
-
-    @RestApiObjectField(
-        description  = "Hex color code for this team",
-        defaultValue = "#1BA5E0",
-        mandatory    = false)
-    String hexColor = "#1BA5E0"
-
-    @RestApiObjectFields(params=[
-        @RestApiObjectField(
-            apiFieldName      = "doTeamActions",
-            description       = "List of some actions to perform on staff with \
-                relation to this team",
-            allowedType       = "List<[teamAction]>",
-            useForCreation    = false,
-            presentInResponse = false),
-        @RestApiObjectField(
-            apiFieldName  = "phone",
-            description   = "TextUp phone",
-            allowedType   = "Phone"),
-        @RestApiObjectField(
-            apiFieldName = "hasInactivePhone",
-            description  = "Whether this staff has an inactive TextUp phone",
-            allowedType  = "Boolean",
-            mandatory    = false)
-    ])
-    static transients = ["phone"]
-    static hasMany = [members:Staff]
+    static hasMany = [members: Staff]
     static mapping = {
-        whenCreated type:PersistentDateTime
-        members lazy:false, cascade:"save-update"
+        cache usage: "read-write", include: "non-lazy"
+        whenCreated type: PersistentDateTime
+        // [NOTE] one-to-many relationships should not have `fetch: "join"` because of GORM using
+        // a left outer join to fetch the data runs into issues when a max is provided
+        // see: https://stackoverflow.com/a/25426734
+        members cascade: "save-update"
+        location fetch: "join", cascade: "save-update"
     }
     static constraints = {
-    	name blank:false, validator: { String val, Team obj ->
-            Closure<Boolean> hasExistingTeamName = {
-                // uniqueness check should ignore deleted teams
-                Team t1 = Team.findByOrgAndNameAndIsDeleted(obj.org, val, false)
-                // HAS DUPLICATE IF (1) there is a team `t1` that belonging to this organization
-                // that has name and is not deleted, and (2) this team `t1` is NOT the same as
-                // the team we are validating
-                t1 != null && t1.id != obj.id
-            }
-            //within an Org, team name must be unique
-            if (val && Utils.<Boolean>doWithoutFlush(hasExistingTeamName)) {
-                ["duplicate", obj.org?.name]
+    	name validator: { String val, Team obj ->
+            //within an org, team name must be unique
+            if (val && Utils.<Boolean>doWithoutFlush {
+                    Teams.buildActiveForOrgIdAndName(obj.org?.id, val)
+                        .build(CriteriaUtils.forNotIdIfPresent(obj.id))
+                        .count() > 0
+                }) {
+                ["team.name.duplicate", obj.org?.name]
             }
         }
-        hexColor blank:false, nullable:false, validator:{ String val, Team obj ->
-            //String must be a valid hex color
-            if (!(val ==~ /^#(\d|\w){3}/ || val ==~ /^#(\d|\w){6}/)) { ["invalidHex"] }
+        hexColor validator: { String val ->
+            if (!ValidationUtils.isValidHexCode(val)) { ["team.hexColor.invalidHex"] }
         }
-    }
-    static namedQueries = {
-        forStaffs { Collection<Staff> staffs ->
-            eq("isDeleted", false)
-            members {
-                if (staffs) {
-                    "in"("id", staffs*.id)
-                }
-                else { eq("id", null) }
-            }
-        }
+        location cascadeValidation: true
     }
 
-    // Static finders
-    // --------------
-
-    static List<Team> listForStaffs(Collection<Staff> staffs, Map params=[:]) {
-        forStaffs(staffs).list(params)
+    static Result<Team> tryCreate(Organization org1, String name, Location loc1) {
+        DomainUtils.trySave(new Team(org: org1, name: name, location: loc1), ResultStatus.CREATED)
     }
 
-    // Members
-    // -------
+    // Properties
+    // ----------
 
-    @GrailsTypeChecked
-    List<Staff> getActiveMembers() {
-        (this.members?.findAll { Staff s1 ->
-            s1.status == StaffStatus.STAFF || s1.status == StaffStatus.ADMIN
-        } ?: []) as List<Staff>
+    Collection<Staff> getActiveMembers() {
+        members?.findAll { Staff s1 -> s1.status.isActive() } ?: new ArrayList<Staff>()
     }
-    @GrailsTypeChecked
-    Collection<Staff> getMembersByStatus(Collection statuses=[]) {
+
+    // Can't move to static class because Grails manages this relationship so no direct queries
+    Collection<Staff> getMembersByStatus(Collection<StaffStatus> statuses) {
         if (statuses) {
-            HashSet<StaffStatus> findStatuses =
-                new HashSet<>(TypeConversionUtils.toEnumList(StaffStatus, statuses))
-            this.members.findAll { Staff s1 ->
-                s1.status in findStatuses
-            }
+            HashSet<StaffStatus> statusesToFind = new HashSet<>(statuses)
+            members?.findAll { Staff s1 -> statusesToFind.contains(s1.status) }
         }
-        else { this.members }
-    }
-
-    // Property Access
-    // ---------------
-
-    @GrailsTypeChecked
-    void setLocation(Location l) {
-        this.location = l
-        this.location?.save()
-    }
-    boolean getHasInactivePhone() {
-        Phone ph = this.phoneWithAnyStatus
-        ph ? !ph.isActive : false
-    }
-    Phone getPhoneWithAnyStatus() {
-        PhoneOwnership.createCriteria().list {
-            projections { property("phone") }
-            eq("type", PhoneOwnershipType.GROUP)
-            eq("ownerId", this.id)
-        }[0]
-    }
-    Phone getPhone() {
-        PhoneOwnership.createCriteria().list {
-            projections { property("phone") }
-            phone { isNotNull("numberAsString") }
-            eq("type", PhoneOwnershipType.GROUP)
-            eq("ownerId", this.id)
-        }[0]
+        else { members }
     }
 }

@@ -1,197 +1,134 @@
 package org.textup
 
-import com.twilio.rest.api.v2010.account.IncomingPhoneNumber
 import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
 import java.util.concurrent.Future
+import org.springframework.transaction.annotation.Propagation
+import org.textup.action.*
+import org.textup.annotation.*
 import org.textup.rest.*
 import org.textup.type.*
 import org.textup.util.*
+import org.textup.util.domain.*
 import org.textup.validator.*
-import org.textup.validator.action.*
 
 @GrailsTypeChecked
 @Transactional
 class PhoneService {
 
-    AuthService authService
     CallService callService
     MediaService mediaService
-    NotificationService notificationService
-    NumberService numberService
-    ResultFactory resultFactory
+    OwnerPolicyService ownerPolicyService
+    PhoneActionService phoneActionService
 
-    Result<Staff> mergePhone(Staff s1, Map body, String timezone) {
-        if (body.phone instanceof Map && Utils.<Boolean>doWithoutFlush{ authService.isActive }) {
-            Phone p1 = s1.phoneWithAnyStatus ?: new Phone([:])
-            p1.updateOwner(s1)
-            mergeHelper(p1, body.phone as Map, timezone)
-                .then({ resultFactory.success(s1) })
+    // `PhoneActionService` called in this service requires that even newly-created phones are
+    // immediately findable via id. Therefore, this method requires a new transaction such that
+    // after returning the newly-created phone will already have been persisted to the db.
+    // The downside of this method is that we'll have a few more orphan rows in the phone id for
+    // empty phones pointing to nonexistent staff members.
+    // [NOTE] only external method calls heed annotations
+    // [NOTE] must NOT return a domain object because the session for this new transaction will be
+    // closed and the returned object will be detached. Return an ID instead to allow re-fetching
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    Result<Long> tryFindAnyIdOrCreateImmediatelyForOwner(Long ownerId, PhoneOwnershipType type) {
+        Phone p1 = IOCUtils.phoneCache.findPhone(ownerId, type, true)
+        if (p1) {
+            IOCUtils.resultFactory.success(p1.id)
         }
-        else { resultFactory.success(s1) }
-    }
-    Result<Team> mergePhone(Team t1, Map body, String timezone) {
-        if (body.phone instanceof Map && Utils.<Boolean>doWithoutFlush{ authService.isActive }) {
-            Phone p1 = t1.phoneWithAnyStatus ?: new Phone([:])
-            p1.updateOwner(t1)
-            mergeHelper(p1, body.phone as Map, timezone)
-                .then({ resultFactory.success(t1) })
+        else {
+            Phone.tryCreate(ownerId, type).then { Phone p2 ->
+                // associate owner with newly-created phone in the cache
+                IOCUtils.phoneCache.updateOwner(ownerId, type, p2.id)
+                IOCUtils.resultFactory.success(p2.id, ResultStatus.CREATED)
+            }
         }
-        else { resultFactory.success(t1) }
     }
 
-    // Updating helpers
-    // ----------------
-
-    protected Result<Phone> mergeHelper(Phone p1, Map body, String timezone) {
+    Result<Phone> tryUpdate(Phone p1, TypeMap body, Long staffId, String timezone) {
         Future<?> future
-        Result<Phone> res = mediaService.tryProcess(p1, body, true)
-            .then { Tuple<WithMedia, Future<?>> processed ->
-                future = processed.second
-                handlePhoneActions(p1, body)
+        tryHandlePhoneActionsImmediatelyAndRefresh(p1, body)
+            .then { mediaService.tryCreateOrUpdate(p1, body, true) }
+            .then { Future<?> fut1 ->
+                future = fut1
+                tryUpdateOwnerPolicy(p1, staffId, body.typedList(Map, "policies"), timezone)
             }
-            .then { handleAvailability(p1, body, timezone) }
-            .then { updateFields(p1, body) }
-        // try to initiate voicemail greeting call at very end if successful so far
-        if (res.success) {
-            requestVoicemailGreetingCall(p1, body)
-                .logFail("PhoneService.mergeHelper: trying to start voicemail greeting call")
-        }
-        else { // cancel media processing if this request is unsuccessful
-            if (future) { future.cancel(true) }
-        }
-        res
-    }
-
-    protected Result<Phone> updateFields(Phone p1, Map body) {
-        if (body.awayMessage) {
-            p1.awayMessage = body.awayMessage
-        }
-        if (body.voice) {
-            p1.voice = TypeConversionUtils.convertEnum(VoiceType, body.voice)
-        }
-        if (body.language) {
-            p1.language = TypeConversionUtils.convertEnum(VoiceLanguage, body.language)
-        }
-        if (body.useVoicemailRecordingIfPresent != null) {
-            p1.useVoicemailRecordingIfPresent = TypeConversionUtils
-                .to(Boolean, body.useVoicemailRecordingIfPresent, p1.useVoicemailRecordingIfPresent)
-        }
-        if (p1.save()) {
-            resultFactory.success(p1)
-        }
-        else { resultFactory.failWithValidationErrors(p1.errors) }
-    }
-
-    protected Result<Phone> handleAvailability(Phone p1, Map body, String timezone) {
-        if (body.availability instanceof Map) {
-            NotificationPolicy np1 = p1.owner.getOrCreatePolicyForStaff(authService.loggedIn.id)
-            Result<?> res = notificationService.update(np1, body.availability as Map, timezone)
-            if (!res.success) { return res }
-        }
-        resultFactory.success(p1)
-    }
-
-    protected Result<?> requestVoicemailGreetingCall(Phone p1, Map body) {
-        String num = body.requestVoicemailGreetingCall
-        if (!num) {
-            return resultFactory.success()
-        }
-        PhoneNumber toNum = new PhoneNumber(number: getNumberToCallForVoicemailGreeting(num))
-        if (!toNum.validate()) {
-            return resultFactory.failWithValidationErrors(toNum.errors)
-        }
-        callService.start(p1.number, [toNum], CallTwiml.infoForRecordVoicemailGreeting(),
-            p1.customAccountId)
-    }
-    protected String getNumberToCallForVoicemailGreeting(String possibleNum) {
-        possibleNum == "true" ? authService.loggedInAndActive?.personalPhoneAsString : possibleNum
-    }
-
-    // Phone actions
-    // -------------
-
-    protected Result<Phone> handlePhoneActions(Phone p1, Map body) {
-        if (body.doPhoneActions) {
-            ActionContainer ac1 = new ActionContainer(body.doPhoneActions)
-            List<PhoneAction> actions = ac1.validateAndBuildActions(PhoneAction)
-            if (ac1.hasErrors()) {
-                return resultFactory.failWithValidationErrors(ac1.errors)
+            .then { trySetFields(p1, body) }
+            .then {
+                tryRequestVoicemailGreetingCall(p1, body.string("requestVoicemailGreetingCall"))
             }
-            if (p1.customAccountId) {
-                return resultFactory.failWithCodeAndStatus(
-                    "phoneService.handlePhoneActions.disabledWhenDebugging",
-                    ResultStatus.FORBIDDEN, [p1.number.prettyPhoneNumber])
-            }
-            Collection<Result<?>> failResults = []
-            for (PhoneAction a1 in actions) {
-                Result<Phone> res
-                switch (a1) {
-                    case Constants.PHONE_ACTION_DEACTIVATE:
-                        res = deactivatePhone(p1)
-                        break
-                    case Constants.PHONE_ACTION_TRANSFER:
-                        res = transferPhone(p1, a1.id, a1.typeAsEnum)
-                        break
-                    case Constants.PHONE_ACTION_NEW_NUM_BY_NUM:
-                        res = updatePhoneForNumber(p1, a1.phoneNumber)
-                        break
-                    default: // Constants.PHONE_ACTION_NEW_NUM_BY_ID
-                        res = updatePhoneForApiId(p1, a1.numberId)
+            .then { DomainUtils.trySave(p1) }
+            .ifFailAndPreserveError { future?.cancel(true) }
+    }
+
+    // Helpers
+    // -------
+
+    // Must be an admin to perform phone actions
+    protected Result<Void> tryHandlePhoneActionsImmediatelyAndRefresh(Phone p1, TypeMap body) {
+        if (phoneActionService.hasActions(body)) {
+            AuthUtils.tryGetActiveAuthUser()
+                .then { Staff authUser -> AuthUtils.isAllowed(authUser.status == StaffStatus.ADMIN) }
+                .then { phoneActionService.tryHandleActions(p1.id, body) }
+                .then {
+                    // refresh in case we made db updates in the phoneActionService
+                    // [NOTE] this means that this helper method needs to be called first
+                    // because all changes to the phone object in this session will be discarded
+                    // as the phone object is effectively refetched from the db
+                    p1.refresh()
+                    Result.void()
                 }
-                if (!res.success) { failResults << res }
+        }
+        else { Result.void() }
+    }
+
+    protected Result<Phone> trySetFields(Phone p1, TypeMap body) {
+        p1.with {
+            if (body.awayMessage) awayMessage = body.awayMessage
+            if (body.voice) voice = body.enum(VoiceType, "voice")
+            if (body.language) language = body.enum(VoiceLanguage, "language")
+            if (body.boolean("useVoicemailRecordingIfPresent") != null) {
+                p1.useVoicemailRecordingIfPresent = body.boolean("useVoicemailRecordingIfPresent")
             }
-            if (failResults) {
-                return resultFactory.failWithResultsAndStatus(failResults, ResultStatus.BAD_REQUEST)
+            if (body.boolean("allowSharingWithOtherTeams") != null) {
+                p1.owner.allowSharingWithOtherTeams = body.boolean("allowSharingWithOtherTeams")
             }
         }
-        resultFactory.success(p1)
+        DomainUtils.trySave(p1)
     }
 
-    protected Result<Phone> deactivatePhone(Phone p1) {
-        String oldApiId = p1.apiId
-        p1.deactivate()
-        if (!p1.validate()) {
-            return resultFactory.failWithValidationErrors(p1.errors)
+    protected Result<Phone> tryUpdateOwnerPolicy(Phone p1, Long sId, Collection<Map> policies,
+        String timezone) {
+
+        Map oInfo = policies?.find { Map m -> TypeMap.create(m).long("staffId") == sId }
+        if (oInfo) {
+            OwnerPolicies.tryFindOrCreateForOwnerAndStaffId(p1.owner, sId)
+                .then { OwnerPolicy op1 ->
+                    ownerPolicyService.tryUpdate(op1, TypeMap.create(oInfo), timezone)
+                }
+                .then { DomainUtils.trySave(p1) }
         }
-        if (oldApiId) {
-            numberService
-                .freeExistingNumberToInternalPool(oldApiId)
-                .then { resultFactory.success(p1) }
-        }
-        else { resultFactory.success(p1) }
+        else { DomainUtils.trySave(p1) }
     }
 
-    protected Result<Phone> transferPhone(Phone p1, Long id, PhoneOwnershipType type) {
-        p1
-            .transferTo(id, type)
-            .then { resultFactory.success(p1) }
+    protected Result<?> tryRequestVoicemailGreetingCall(Phone p1, String numToCall) {
+        if (numToCall) {
+            AuthUtils.tryGetActiveAuthUser()
+                .then { Staff authUser ->
+                    tryGetGreetingCallNum(numToCall, authUser.personalNumber)
+                }
+                .then { PhoneNumber toNum ->
+                    callService.start(p1.number,
+                        [toNum],
+                        CallTwiml.infoForRecordVoicemailGreeting(),
+                        p1.customAccountId)
+                }
+        }
+        else { Result.void() }
     }
 
-    protected Result<Phone> updatePhoneForNumber(Phone p1, PhoneNumber pNum) {
-        if (!pNum.validate()) {
-            return resultFactory.failWithValidationErrors(pNum.errors)
-        }
-        if (pNum.number == p1.numberAsString) {
-            return resultFactory.success(p1)
-        }
-        if (Utils.<Boolean>doWithoutFlush({ Phone.countByNumberAsString(pNum.number) > 0 })) {
-            return resultFactory.failWithCodeAndStatus("phoneService.changeNumber.duplicate",
-                ResultStatus.UNPROCESSABLE_ENTITY)
-        }
-        numberService.changeForNumber(pNum)
-            .then({ IncomingPhoneNumber iNum -> numberService.updatePhoneWithNewNumber(iNum, p1) })
-    }
-
-    protected Result<Phone> updatePhoneForApiId(Phone p1, String apiId) {
-        if (apiId == p1.apiId) {
-            return resultFactory.success(p1)
-        }
-        if (Utils.<Boolean>doWithoutFlush({ Phone.countByApiId(apiId) > 0 })) {
-            return resultFactory.failWithCodeAndStatus("phoneService.changeNumber.duplicate",
-                ResultStatus.UNPROCESSABLE_ENTITY)
-        }
-        numberService.changeForApiId(apiId)
-            .then({ IncomingPhoneNumber iNum -> numberService.updatePhoneWithNewNumber(iNum, p1) })
+    protected Result<PhoneNumber> tryGetGreetingCallNum(String possibleNum, PhoneNumber authNum) {
+        possibleNum == "true" ?
+            IOCUtils.resultFactory.success(authNum) :
+            PhoneNumber.tryCreate(possibleNum)
     }
 }

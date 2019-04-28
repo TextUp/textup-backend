@@ -211,28 +211,28 @@ class AudioUtilsSpec extends Specification {
 
         then:
         res.status == ResultStatus.BAD_REQUEST
-        res.errorMessages[0] == "audioUtils.convert.timeoutIsNegative"
+        res.errorMessages[0] == "audioUtils.timeoutIsNegative"
 
         when: "input type is not an audio type"
         res = audioUtils.convert(10, MediaType.IMAGE_JPEG, tempFile, MediaType.AUDIO_MP3)
 
         then:
         res.status == ResultStatus.BAD_REQUEST
-        res.errorMessages[0] == "audioUtils.convert.typesMustBeAudio"
+        res.errorMessages[0] == "audioUtils.typesMustBeAudio"
 
         when: "input path does not exist or is not readable"
         res = audioUtils.convert(10, MediaType.AUDIO_MP3, invalidFile, MediaType.AUDIO_MP3)
 
         then:
         res.status == ResultStatus.BAD_REQUEST
-        res.errorMessages[0] == "audioUtils.convert.inputPathInvalid"
+        res.errorMessages[0] == "audioUtils.inputPathInvalid"
 
         when: "output type is not an audio type"
         res = audioUtils.convert(10, MediaType.AUDIO_MP3, tempFile, MediaType.IMAGE_JPEG)
 
         then:
         res.status == ResultStatus.BAD_REQUEST
-        res.errorMessages[0] == "audioUtils.convert.typesMustBeAudio"
+        res.errorMessages[0] == "audioUtils.typesMustBeAudio"
     }
 
     @Unroll

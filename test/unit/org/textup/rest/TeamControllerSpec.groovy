@@ -1,259 +1,220 @@
 package org.textup.rest
 
-import grails.plugin.springsecurity.SpringSecurityService
-import grails.test.mixin.gorm.Domain
-import grails.test.mixin.hibernate.HibernateTestMixin
-import grails.test.mixin.TestFor
-import grails.test.mixin.TestMixin
-import grails.validation.ValidationErrors
-import org.springframework.context.MessageSource
+import grails.gorm.DetachedCriteria
+import grails.test.mixin.*
+import grails.test.mixin.gorm.*
+import grails.test.mixin.hibernate.*
 import org.textup.*
+import org.textup.structure.*
 import org.textup.test.*
 import org.textup.type.*
 import org.textup.util.*
-import spock.lang.Shared
-import spock.lang.Specification
-import static javax.servlet.http.HttpServletResponse.*
+import org.textup.util.domain.*
+import org.textup.validator.*
+import spock.lang.*
 
+@Domain([AnnouncementReceipt, ContactNumber, CustomAccountDetails, FeaturedAnnouncement,
+    FutureMessage, GroupPhoneRecord, IncomingSession, IndividualPhoneRecord, Location, MediaElement,
+    MediaElementVersion, MediaInfo, Organization, OwnerPolicy, Phone, PhoneNumberHistory,
+    PhoneOwnership, PhoneRecord, PhoneRecordMembers, Record, RecordCall, RecordItem,
+    RecordItemReceipt, RecordNote, RecordNoteRevision, RecordText, Role, Schedule,
+    SimpleFutureMessage, Staff, StaffRole, Team, Token])
 @TestFor(TeamController)
-@Domain([CustomAccountDetails, Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
-    RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
-    Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole, NotificationPolicy,
-    MediaInfo, MediaElement, MediaElementVersion])
 @TestMixin(HibernateTestMixin)
-class TeamControllerSpec extends CustomSpec {
+class TeamControllerSpec extends Specification {
 
     static doWithSpring = {
         resultFactory(ResultFactory)
     }
+
     def setup() {
-        super.setupData()
-    }
-    def cleanup() {
-        super.cleanupData()
+        TestUtils.standardMockSetup()
     }
 
-    // List
-    // ----
+    void "test index"() {
+        given:
+        String tzId = TestUtils.randString()
+        Long orgId = TestUtils.randIntegerUpTo(88)
+        Long sId1 = TestUtils.randIntegerUpTo(88)
+        Long sId2 = TestUtils.randIntegerUpTo(88)
 
-    protected mockForList() {
-        controller.authService = [
-            getLoggedInAndActive:{ Staff.findByUsername(loggedInUsername) },
-            isAdminAt:{ Long id -> true }
-        ] as AuthService
-    }
+        DetachedCriteria crit1 = GroovyMock()
+        DetachedCriteria crit2 = GroovyMock()
+        MockedMethod tryGetAuthId = MockedMethod.create(AuthUtils, "tryGetAuthId") {
+            Result.createSuccess(sId1)
+        }
+        MockedMethod buildActiveForOrgIds = MockedMethod.create(Teams, "buildActiveForOrgIds") {
+            crit1
+        }
+        MockedMethod buildActiveForStaffIds = MockedMethod.create(Teams, "buildActiveForStaffIds") {
+            crit2
+        }
+        MockedMethod respondWithCriteria = MockedMethod.create(controller, "respondWithCriteria")
 
-    void "test list with staff id"() {
         when:
-        mockForList()
-        request.method = "GET"
-        controller.index()
-        Staff loggedIn = Staff.findByUsername(loggedInUsername)
-        List<Long> ids = TypeConversionUtils.allTo(Long, loggedIn.teams*.id)
-
-        then:
-        response.status == SC_OK
-        response.json.size() == ids.size()
-        response.json*.id.every { ids.contains(it as Long) }
-    }
-
-    void "test list with nonexistent org id"() {
-        when:
-        mockForList()
-        request.method = "GET"
-        params.organizationId = -88L
+        params.timezone = tzId
         controller.index()
 
         then:
-        response.status == SC_NOT_FOUND
-    }
+        buildActiveForStaffIds.latestArgs == [[sId1]]
+        respondWithCriteria.latestArgs == [crit2, params, null, MarshallerUtils.KEY_TEAM]
+        RequestUtils.tryGet(RequestUtils.TIMEZONE).payload == tzId
 
-    void "test list with org id"() {
         when:
-        mockForList()
-        request.method = "GET"
-        params.organizationId = org.id
+        params.clear()
+        response.reset()
+
+        params.staffId = sId2
         controller.index()
-        List<Long> ids = TypeConversionUtils.allTo(Long, org.teams*.id)
 
         then:
-        response.status == SC_OK
-        response.json.size() == ids.size()
-        response.json*.id.every { ids.contains(it as Long) }
+        buildActiveForStaffIds.latestArgs == [[sId2]]
+        respondWithCriteria.latestArgs == [crit2, params, null, MarshallerUtils.KEY_TEAM]
+        RequestUtils.tryGet(RequestUtils.TIMEZONE).payload == null
+
+        when:
+        params.clear()
+        response.reset()
+
+        params.organizationId = orgId
+        controller.index()
+
+        then:
+        buildActiveForOrgIds.latestArgs == [[orgId]]
+        respondWithCriteria.latestArgs == [crit1, params, null, MarshallerUtils.KEY_TEAM]
+        RequestUtils.tryGet(RequestUtils.TIMEZONE).payload == null
+
+        cleanup:
+        tryGetAuthId?.restore()
+        buildActiveForOrgIds?.restore()
+        buildActiveForStaffIds?.restore()
+        respondWithCriteria?.restore()
     }
 
-    // Show
-    // ----
+    void "test show"() {
+        given:
+        String tzId = TestUtils.randString()
+        Long id = TestUtils.randIntegerUpTo(88)
 
-    void "test show nonexistent team"() {
+        MockedMethod doShow = MockedMethod.create(controller, "doShow")
+        MockedMethod isAllowed = MockedMethod.create(Teams, "isAllowed")
+        MockedMethod mustFindForId = MockedMethod.create(Teams, "mustFindForId")
+
         when:
-        request.method = "GET"
-        params.id = -88L
+        params.id = id
+        params.timezone = tzId
         controller.show()
 
         then:
-        response.status == SC_NOT_FOUND
-    }
-
-    void "test show forbidden team"() {
-        given:
-        controller.authService = [
-            hasPermissionsForTeam:{ Long id -> false }
-        ] as AuthService
+        doShow.latestArgs[0] instanceof Closure
+        doShow.latestArgs[1] instanceof Closure
+        RequestUtils.tryGet(RequestUtils.TIMEZONE).payload == tzId
 
         when:
-        request.method = "GET"
-        params.id = t1.id
-        controller.show()
+        doShow.latestArgs[0].call()
+        doShow.latestArgs[1].call()
 
         then:
-        response.status == SC_FORBIDDEN
+        isAllowed.latestArgs == [id]
+        mustFindForId.latestArgs == [id]
+
+        cleanup:
+        doShow?.restore()
+        isAllowed?.restore()
+        mustFindForId?.restore()
     }
 
-    void "test show team"() {
+    void "test save"() {
         given:
-        controller.authService = [
-            hasPermissionsForTeam:{ Long id -> true },
-        ] as AuthService
+        String tzId = TestUtils.randString()
+        Long orgId = TestUtils.randIntegerUpTo(88)
+        TypeMap body = TypeMap.create(org: orgId)
+
+        controller.teamService = GroovyMock(TeamService)
+        MockedMethod doSave = MockedMethod.create(controller, "doSave")
+        MockedMethod isAllowed = MockedMethod.create(Organizations, "isAllowed")
 
         when:
-        request.method = "GET"
-        params.id = t1.id
-        controller.show()
-
-        then:
-        response.status == SC_OK
-        response.json.id == t1.id
-    }
-
-    // Save
-    // ----
-
-    void "test save team"() {
-        given:
-        controller.teamService = [create:{ Map body, String timezone ->
-            new Result(payload:t1, status:ResultStatus.CREATED)
-        }] as TeamService
-
-        when:
-        request.json = "{'team':{}}"
-        params.id = t1.id
-        request.method = "POST"
+        params.timezone = tzId
         controller.save()
 
         then:
-        response.status == SC_CREATED
-        response.json.id == t1.id
-
-    }
-
-    // Update
-    // ------
-
-    void "test update nonexistent team"() {
-        given:
-        controller.authService = [
-            exists:{ Class clazz, Long id -> false }
-        ] as AuthService
+        doSave.latestArgs[0] == MarshallerUtils.KEY_TEAM
+        doSave.latestArgs[1] == request
+        doSave.latestArgs[2] == controller.teamService
+        doSave.latestArgs[3] instanceof Closure
+        RequestUtils.tryGet(RequestUtils.TIMEZONE).payload == tzId
 
         when:
-        request.json = "{'team':{}}"
-        params.id = -88L
-        request.method = "PUT"
+        doSave.latestArgs[3].call(body)
+
+        then:
+        body.timezone == tzId
+        isAllowed.latestArgs == [orgId]
+
+        cleanup:
+        doSave?.restore()
+        isAllowed?.restore()
+    }
+
+    void "test update"() {
+        given:
+        String tzId = TestUtils.randString()
+        Long id = TestUtils.randIntegerUpTo(88)
+        TypeMap body = TypeMap.create()
+
+        controller.teamService = GroovyMock(TeamService)
+        MockedMethod doUpdate = MockedMethod.create(controller, "doUpdate")
+        MockedMethod isAllowed = MockedMethod.create(Teams, "isAllowed")
+
+        when:
+        params.id = id
+        params.timezone = tzId
         controller.update()
 
         then:
-        response.status == SC_NOT_FOUND
-    }
-
-    void "test update forbidden team"() {
-        given:
-        controller.authService = [
-            exists:{ Class clazz, Long id -> true },
-            hasPermissionsForTeam:{ Long id -> false }
-        ] as AuthService
+        doUpdate.latestArgs[0] == MarshallerUtils.KEY_TEAM
+        doUpdate.latestArgs[1] == request
+        doUpdate.latestArgs[2] == controller.teamService
+        doUpdate.latestArgs[3] instanceof Closure
+        RequestUtils.tryGet(RequestUtils.TIMEZONE).payload == tzId
 
         when:
-        request.json = "{'team':{}}"
-        params.id = t1.id
-        request.method = "PUT"
-        controller.update()
+        doUpdate.latestArgs[3].call(body)
 
         then:
-        response.status == SC_FORBIDDEN
+        body.timezone == tzId
+        isAllowed.latestArgs == [id]
+
+        cleanup:
+        doUpdate?.restore()
+        isAllowed?.restore()
     }
 
-    void "test update team"() {
+    void "test delete"() {
         given:
-        controller.teamService = [update:{ Long cId, Map body, String timezone ->
-            new Result(payload:t1, status:ResultStatus.OK)
-        }] as TeamService
-        controller.authService = [
-            exists:{ Class clazz, Long id -> true },
-            hasPermissionsForTeam:{ Long id -> true }
-        ] as AuthService
+        Long id = TestUtils.randIntegerUpTo(88)
+
+        controller.teamService = GroovyMock(TeamService)
+        MockedMethod doDelete = MockedMethod.create(controller, "doDelete")
+        MockedMethod isAllowed = MockedMethod.create(Teams, "isAllowed")
 
         when:
-        request.json = "{'team':{}}"
-        params.id = t1.id
-        request.method = "PUT"
-        controller.update()
-
-        then:
-        response.status == SC_OK
-        response.json.id == t1.id
-    }
-
-    // Delete
-    // ------
-
-    void "test delete nonexistent team"() {
-        given:
-        controller.authService = [
-            exists:{ Class clazz, Long id -> false }
-        ] as AuthService
-
-        when:
-        params.id = -88L
-        request.method = "DELETE"
+        params.id = id
         controller.delete()
 
         then:
-        response.status == SC_NOT_FOUND
-    }
-
-    void "test delete forbidden team"() {
-        given:
-        controller.authService = [
-            exists:{ Class clazz, Long id -> true },
-            isAdminForTeam:{ Long id -> false }
-        ] as AuthService
+        doDelete.latestArgs[0] == controller.teamService
+        doDelete.latestArgs[1] instanceof Closure
 
         when:
-        params.id = t1.id
-        request.method = "DELETE"
-        controller.delete()
+        doDelete.latestArgs[1].call()
 
         then:
-        response.status == SC_FORBIDDEN
-    }
+        isAllowed.latestArgs == [id]
 
-    void "test delete team"() {
-        given:
-        controller.teamService = [delete:{ Long tId ->
-            new Result(payload:null, status:ResultStatus.NO_CONTENT)
-        }] as TeamService
-        controller.authService = [
-            exists:{ Class clazz, Long id -> true },
-            isAdminForTeam:{ Long id -> true }
-        ] as AuthService
-
-        when:
-        params.id = t1.id
-        request.method = "DELETE"
-        controller.delete()
-
-        then:
-        response.status == SC_NO_CONTENT
+        cleanup:
+        doDelete?.restore()
+        isAllowed?.restore()
     }
 }

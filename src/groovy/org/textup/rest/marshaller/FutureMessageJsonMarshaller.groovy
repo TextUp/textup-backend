@@ -1,49 +1,55 @@
 package org.textup.rest.marshaller
 
 import grails.compiler.GrailsTypeChecked
-import org.codehaus.groovy.grails.commons.GrailsApplication
-import org.codehaus.groovy.grails.web.mapping.LinkGenerator
 import org.textup.*
 import org.textup.rest.*
-import org.textup.type.LogLevel
+import org.textup.structure.*
+import org.textup.type.*
+import org.textup.util.*
+import org.textup.util.domain.*
+import org.textup.validator.*
 
 @GrailsTypeChecked
 class FutureMessageJsonMarshaller extends JsonNamedMarshaller {
 
-	static final Closure marshalClosure = { String namespace, GrailsApplication grailsApplication,
-        LinkGenerator linkGenerator, ReadOnlyFutureMessage fMsg ->
-
+	static final Closure marshalClosure = { ReadOnlyFutureMessage fMsg1 ->
         Map json = [:]
         json.with {
-        	id = fMsg.id
-        	whenCreated = fMsg.whenCreated
-			startDate = fMsg.startDate
-			notifySelf = fMsg.notifySelf
-			type = fMsg.type.toString()
-			message = fMsg.message
-            isDone = fMsg.isReallyDone
-            isRepeating = fMsg.isRepeating
-            language = fMsg.language?.toString()
-            media = fMsg.readOnlyMedia
-            if (fMsg.nextFireDate) nextFireDate = fMsg.nextFireDate
-			if (fMsg.isRepeating) {
-				if (fMsg.endDate) endDate = fMsg.endDate
-				hasEndDate = !!fMsg.endDate
+            id               = fMsg1.id
+            isDone           = fMsg1.isReallyDone
+            isRepeating      = fMsg1.isRepeating
+            language         = fMsg1.language?.toString()
+            links            = MarshallerUtils.buildLinks(RestUtils.RESOURCE_FUTURE_MESSAGE, fMsg1.id)
+            media            = fMsg1.readOnlyMedia
+            message          = fMsg1.message
+            notifySelfOnSend = fMsg1.notifySelfOnSend
+            startDate        = fMsg1.startDate
+            type             = fMsg1.type.toString()
+            whenCreated      = fMsg1.whenCreated
+
+            if (fMsg1.nextFireDate) nextFireDate = fMsg1.nextFireDate
+			if (fMsg1.isRepeating) {
+                if (fMsg1.endDate) endDate = fMsg1.endDate
 				// repeating specific to simple schedule
-				if (fMsg instanceof ReadOnlySimpleFutureMessage) {
-					repeatIntervalInDays = fMsg.repeatIntervalInDays
-					if (fMsg.repeatCount) repeatCount = fMsg.repeatCount
-					if (fMsg.timesTriggered) timesTriggered = fMsg.timesTriggered
+				if (fMsg1 instanceof ReadOnlySimpleFutureMessage) {
+                    repeatIntervalInDays                     = fMsg1.repeatIntervalInDays
+                    if (fMsg1.repeatCount) repeatCount       = fMsg1.repeatCount
+                    if (fMsg1.timesTriggered) timesTriggered = fMsg1.timesTriggered
 				}
 			}
         }
-        // find owner, may be a contact or a tag
-        json.contact = Contact.findByRecord(fMsg.readOnlyRecord)?.id
-        if (!json.contact) {
-        	json.tag = ContactTag.findByRecord(fMsg.readOnlyRecord)?.id
-        }
-        json.links = [:] << [self:linkGenerator.link(namespace:namespace,
-            resource:"futureMessage", action:"show", id:fMsg.id, absolute:false)]
+
+        RequestUtils.tryGet(RequestUtils.PHONE_RECORD_ID)
+            .thenEnd { Object prId ->
+                PhoneRecord pr1 = PhoneRecord.get(TypeUtils.to(Long, prId))
+                if (pr1) {
+                    if (pr1 instanceof GroupPhoneRecord) {
+                        json.tag = pr1.id
+                    }
+                    else { json.contact = pr1.id }
+                }
+            }
+
         json
 	}
 

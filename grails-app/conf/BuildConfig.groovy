@@ -62,7 +62,7 @@ grails.project.dependency.resolution = {
         //for twilio plugin assisting with api calls
         compile "com.twilio.sdk:twilio:7.9.1"
         //for sending emails
-        compile "com.sendgrid:sendgrid-java:4.1.2"
+        compile "com.sendgrid:sendgrid-java:4.3.0"
         //amazon cloudfront, all aws sdk dependencies must same version to avoid conflicts
         compile "com.amazonaws:aws-java-sdk-cloudfront:1.10.11"
         //amazon s3. newer version 1.10.32 returns "NoSuchFieldError: INSTANCE"
@@ -117,9 +117,6 @@ grails.project.dependency.resolution = {
 
         compile ":rest-client-builder:2.0.4-SNAPSHOT"
         compile ":remote-control:2.0"
-
-        //for api documentation generation
-        compile ":rest-api-doc:0.6.1"
 
         // for performance monitoring
         // JavaMelody causes problems with tomcat7 from starting from v1.55.0

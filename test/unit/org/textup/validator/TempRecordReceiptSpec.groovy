@@ -1,53 +1,64 @@
 package org.textup.validator
 
+import grails.test.mixin.*
+import grails.test.mixin.gorm.*
+import grails.test.mixin.hibernate.*
+import grails.test.mixin.support.*
+import grails.test.runtime.*
+import grails.validation.*
+import org.joda.time.*
+import org.textup.*
+import org.textup.structure.*
 import org.textup.test.*
-import grails.test.mixin.support.GrailsUnitTestMixin
-import grails.test.mixin.TestMixin
-import spock.lang.Shared
-import spock.lang.Specification
+import org.textup.type.*
+import org.textup.util.*
+import spock.lang.*
 
 @TestMixin(GrailsUnitTestMixin)
 class TempRecordReceiptSpec extends Specification {
 
+	static doWithSpring = {
+        resultFactory(ResultFactory)
+    }
+
+    def setup() {
+        TestUtils.standardMockSetup()
+    }
+
 	void "test validation"() {
-		when: "we have a TempRecordReceipt"
-		TempRecordReceipt receipt = new TempRecordReceipt()
+		given:
+		String apiId = TestUtils.randString()
+		PhoneNumber validNum = TestUtils.randPhoneNumber()
+		PhoneNumber invalidNum = PhoneNumber.create("invalid num")
+
+		when:
+		Result res = TempRecordReceipt.tryCreate(null, null)
 
 		then:
-		receipt.validate() == false
-		receipt.errors.errorCount == 2
+		res.status == ResultStatus.UNPROCESSABLE_ENTITY
 
-		when: "we we fill in the required fields except for phone number"
-		receipt.apiId = "testing"
-
-		then:
-		receipt.validate() == false
-		receipt.errors.errorCount == 1
-
-		when: "we set an invalid phone number"
-		receipt.contactNumber = new PhoneNumber(number:"invalid123")
+		when:
+		res = TempRecordReceipt.tryCreate(apiId, invalidNum)
 
 		then:
-		receipt.validate() == false
-		receipt.errors.errorCount == 1
+		res.status == ResultStatus.UNPROCESSABLE_ENTITY
 
-		when: "we set a valid phone number"
-		receipt.contactNumber = new PhoneNumber(number:"222 333 4444")
+		when:
+		res = TempRecordReceipt.tryCreate(apiId, validNum)
 
 		then:
-		receipt.validate() == true
+		res.status == ResultStatus.CREATED
+		res.payload.contactNumber.number == validNum.number
+		res.payload.apiId == apiId
+		res.payload.numBillable == null
+		res.payload.status == ReceiptStatus.PENDING // default
 
-		when: "negative number of segments"
-		receipt.numSegments = -88
+		when:
+		res.payload.numBillable = TestUtils.randIntegerUpTo(88, true)
+		res.payload.status = ReceiptStatus.SUCCESS
 
-		then: "invalid"
-		receipt.validate() == false
-		receipt.errors.getFieldErrorCount("numSegments") == 1
-
-		when: "null number of segments"
-		receipt.numSegments = null
-
-		then: "valid again"
-		receipt.validate() == true
+		then:
+		res.payload.numBillable > 0
+		res.payload.status == ReceiptStatus.SUCCESS
 	}
 }

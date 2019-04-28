@@ -1,15 +1,17 @@
 package org.textup
 
-import grails.test.mixin.gorm.Domain
-import grails.test.mixin.hibernate.HibernateTestMixin
-import grails.test.mixin.TestMixin
-import grails.validation.ValidationErrors
-import org.springframework.context.MessageSource
-import org.springframework.context.NoSuchMessageException
-import org.springframework.context.support.StaticMessageSource
+import grails.test.mixin.*
+import grails.test.mixin.gorm.*
+import grails.test.mixin.hibernate.*
+import grails.test.mixin.support.*
+import grails.test.runtime.*
+import grails.validation.*
+import org.joda.time.*
+import org.textup.structure.*
 import org.textup.test.*
 import org.textup.type.*
 import org.textup.util.*
+import org.textup.validator.*
 import spock.lang.*
 
 @Domain([CustomAccountDetails, Organization, Location])
@@ -28,17 +30,8 @@ class ResultFactorySpec extends Specification {
     	Location loc1 = TestUtils.buildLocation()
         Location loc2 = TestUtils.buildLocation()
 
-    	when: "without specifying payload"
-    	Result<Location> res = resultFactory.<Location>success()
-
-    	then:
-    	res.success == true
-    	res.status == ResultStatus.NO_CONTENT
-    	res.payload == null
-    	res.errorMessages.isEmpty() == true
-
     	when: "with specified payload"
-    	res = resultFactory.<Location>success(loc1)
+    	Result res = resultFactory.success(loc1)
 
     	then:
     	res.success == true
@@ -98,16 +91,34 @@ class ResultFactorySpec extends Specification {
 
     void "test fail for throwable"() {
         given:
+        ByteArrayOutputStream stdErr = TestUtils.captureAllStreamsReturnStdErr()
+        Throwable err = Mock()
         String msg = TestUtils.randString()
+        String prefix = TestUtils.randString()
 
         when:
-        Result res = resultFactory.failWithThrowable(new Throwable(msg))
+        Result res = resultFactory.failWithThrowable(err)
 
         then:
+        1 * err.message >> msg
         res.payload == null
         res.status == ResultStatus.INTERNAL_SERVER_ERROR
         res.errorMessages.size() == 1
         res.errorMessages[0] == msg
+        stdErr.size() == 0
+
+        when: "logging prefix and printing stacktrace"
+        res = resultFactory.failWithThrowable(err, prefix, true)
+
+        then:
+        (1.._) * err.message >> msg
+        1 * err.printStackTrace()
+        res.errorMessages == [msg]
+        stdErr.toString().contains(prefix)
+        stdErr.toString().contains(msg)
+
+        cleanup:
+        TestUtils.restoreAllStreams()
     }
 
     void "test fail for validation errors"() {

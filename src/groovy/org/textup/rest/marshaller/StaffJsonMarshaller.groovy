@@ -1,52 +1,43 @@
 package org.textup.rest.marshaller
 
 import grails.compiler.GrailsTypeChecked
-import org.codehaus.groovy.grails.commons.GrailsApplication
-import org.codehaus.groovy.grails.web.mapping.LinkGenerator
-import org.joda.time.DateTime
 import org.textup.*
 import org.textup.rest.*
-import org.textup.validator.LocalInterval
+import org.textup.structure.*
+import org.textup.type.*
+import org.textup.util.*
+import org.textup.util.domain.*
+import org.textup.validator.*
 
 @GrailsTypeChecked
 class StaffJsonMarshaller extends JsonNamedMarshaller {
-    static final Closure marshalClosure = { String namespace, GrailsApplication grailsApplication,
-        LinkGenerator linkGenerator, Staff s1 ->
 
+    static final Closure marshalClosure = { ReadOnlyStaff rs1 ->
         Map json = [:]
         json.with {
-            id = s1.id
-            username = s1.username
-            name = s1.name
-            email = s1.email
-            status = s1.status.toString()
-            schedule  = s1.schedule
-            phone = s1.phone
-            hasInactivePhone = s1.hasInactivePhone
-            channelName = s1.channelName
-            // manual schedule fields
-            manualSchedule = s1.manualSchedule
-            if (s1.manualSchedule == true) {
-                isAvailable = s1.isAvailable
-            }
-        }
-        AuthService authService = grailsApplication.mainContext.getBean(AuthService)
-        if (authService.isLoggedIn(s1.id) || authService.isAdminAtSameOrgAs(s1.id)) {
-            json.with {
-                org = s1.org
-                if (s1.personalPhoneNumber) {
-                    personalPhoneNumber = s1.personalPhoneNumber.e164PhoneNumber
-                }
-                teams = s1.getTeams()
-            }
+            id       = rs1.id
+            links    = MarshallerUtils.buildLinks(RestUtils.RESOURCE_STAFF, rs1.id)
+            name     = rs1.name
+            phone    = IOCUtils.phoneCache.findPhone(rs1.id, PhoneOwnershipType.INDIVIDUAL, true)
+            status   = rs1.status.toString()
+            username = rs1.username
         }
 
-        json.links = [:] << [self:linkGenerator.link(namespace:namespace,
-            resource:"staff", action:"show", id:s1.id, absolute:false)]
+        Staffs.isAllowed(rs1.id)
+            .thenEnd {
+                json.with {
+                    channelName    = SocketUtils.channelName(rs1)
+                    email          = rs1.email
+                    org            = rs1.readOnlyOrg
+                    personalNumber = rs1.hasPersonalNumber() ? rs1.personalNumber : null
+                    teams          = Teams.buildActiveForStaffIds([rs1.id]).list()
+                }
+            }
+
         json
     }
 
     StaffJsonMarshaller() {
-        super(Staff, marshalClosure)
+        super(ReadOnlyStaff, marshalClosure)
     }
 }

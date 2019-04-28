@@ -11,10 +11,10 @@ enum VoiceType {
     private final Voice twilioVoice
 
     VoiceType(Voice voice) {
-        this.twilioVoice = voice
+        twilioVoice = voice
     }
 
     String toTwimlValue() {
-        this.twilioVoice.toString()
+        twilioVoice.toString()
     }
 }

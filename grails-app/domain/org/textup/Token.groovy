@@ -7,14 +7,21 @@ import groovy.transform.EqualsAndHashCode
 import org.jadira.usertype.dateandtime.joda.PersistentDateTime
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
-import org.textup.type.TokenType
+import org.textup.structure.*
+import org.textup.type.*
 import org.textup.util.*
+import org.textup.util.domain.*
+import org.textup.validator.*
 
-@GrailsTypeChecked
 @EqualsAndHashCode
-class Token implements WithId {
+@GrailsTypeChecked
+class Token implements WithId, CanSave<Token> {
 
-    DateTime expires = DateTime.now(DateTimeZone.UTC).plusHours(1)
+    // Need to declare id for it to be considered in equality operator
+    // see: https://stokito.wordpress.com/2014/12/19/equalsandhashcode-on-grails-domains/
+    Long id
+
+    DateTime expires = JodaUtils.utcNow().plusHours(1)
     String token
     Integer maxNumAccess
     int timesAccessed = 0
@@ -23,71 +30,67 @@ class Token implements WithId {
     String stringData
 
     static transients = ["data"]
+    static mapping = {
+        expires type: PersistentDateTime
+        stringData type: "text"
+    }
     static constraints = {
-    	token unique:true
-        maxNumAccess nullable:true
-        // [SHARED maxSize] 65535 bytes max for `text` column divided by 4 bytes per character ut8mb4
-    	stringData maxSize: Constants.MAX_TEXT_COLUMN_SIZE, validator: { String data, Token obj ->
+    	token unique: true
+        maxNumAccess nullable: true
+    	stringData maxSize: ValidationUtils.MAX_TEXT_COLUMN_SIZE, validator: { String data, Token obj ->
     		if (!obj.type?.requiredKeys.every { String key -> data.contains(key) }) {
-    			["requiredKeys", obj.type, obj.type.requiredKeys]
+    			["token.stringData.requiredKeys", obj.type, obj.type.requiredKeys]
     		}
     	}
     }
-    static mapping = {
-        expires type:PersistentDateTime
-        stringData type:"text"
-    }
 
-    // Hooks
-    // -----
+    static Result<Token> tryCreate(TokenType type, Map data) {
+        Token tok1 = new Token(type: type, stringData: DataFormatUtils.toJsonString(data))
+        DomainUtils.trySave(tok1, ResultStatus.CREATED)
+    }
 
     def beforeValidate() {
-        if (!this.token) { generateToken() }
+        if (!token) {
+            generateToken()
+        }
     }
+
+    // Properties
+    // ----------
+
+    boolean getIsExpired() { expires.isBeforeNow() || !isAllowedNumAccess() }
+
+    TypeMap getData() {
+        try {
+            stringData ?
+                new TypeMap(DataFormatUtils.jsonToObject(stringData)) :
+                new TypeMap()
+        }
+        catch (Throwable e) {
+            log.error("getData: invalid json string `${stringData}`")
+            e.printStackTrace()
+            new TypeMap()
+        }
+    }
+
+    // Helpers
+    // -------
+
     protected void generateToken() {
         // can't flush in GORM event hooks and calling dynamic finders
         // auto-flushes by default
-        Utils.doWithoutFlush({
-            Integer tokenSize = this.type?.tokenSize ?: Constants.DEFAULT_TOKEN_LENGTH
+        Utils.doWithoutFlush {
+            Integer tokenSize = type?.tokenSize ?: Constants.DEFAULT_TOKEN_LENGTH
             String tokenString = StringUtils.randomAlphanumericString(tokenSize)
             //ensure that our generated token is unique
             while (Token.countByToken(tokenString) != 0) {
                 tokenString = StringUtils.randomAlphanumericString(tokenSize)
             }
-            this.token = tokenString
-        })
+            token = tokenString
+        }
     }
 
-    // Expiration
-    // ----------
-
-    boolean getIsExpired() {
-        expires.isBeforeNow() || !isAllowedNumAccess()
-    }
     protected boolean isAllowedNumAccess() {
         !maxNumAccess || maxNumAccess < 0 || timesAccessed < maxNumAccess
-    }
-
-    // Data
-    // ----
-
-    void setData(Map p) {
-        if (p != null) {
-            this.stringData = DataFormatUtils.toJsonString(p)
-        }
-    }
-
-    Map getData() {
-        if (!this.stringData) {
-        	return [:]
-    	}
-        try {
-            DataFormatUtils.jsonToObject(this.stringData) as Map
-        }
-        catch (Throwable e) {
-            log.error("Token.getData: invalid json string '${this.stringData}'")
-            e.printStackTrace()
-            [:]
-        }
     }
 }

@@ -1,93 +1,125 @@
 package org.textup.rest.marshaller
 
-import grails.converters.JSON
-import org.joda.time.DateTime
+import org.joda.time.*
 import org.textup.*
+import org.textup.structure.*
 import org.textup.test.*
+import org.textup.type.*
 import org.textup.util.*
+import org.textup.util.domain.*
 import org.textup.validator.*
+import spock.lang.*
 
-class RecordItemRequestJsonMarshallerIntegrationSpec extends CustomSpec {
-
-    def grailsApplication
-
-    def setup() {
-        setupIntegrationData()
-    }
-
-    def cleanup() {
-        cleanupIntegrationData()
-    }
+class RecordItemRequestJsonMarshallerIntegrationSpec extends Specification {
 
     void "test marshalling"() {
         given:
-        RecordItemRequest iReq = TestUtils.buildRecordItemRequest(p1)
-        c1.phone = p1
-        c1.record.storeOutgoingCall()
+        Phone p1 = TestUtils.buildActiveStaffPhone()
+        IndividualPhoneRecord ipr1 = TestUtils.buildIndPhoneRecord(p1)
+        RecordCall rCall1 = TestUtils.buildRecordCall(ipr1.record)
 
-        Record.withSession { it.flush() }
+        RecordItemRequest iReq1 = RecordItemRequest.tryCreate(p1, null, false).payload
 
-        iReq.groupByEntity = false
-
-        when: "without pagination options"
-        Map json
-        JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-            json = TestUtils.jsonToMap(iReq as JSON)
+        MockedMethod tryGetActiveAuthUser = MockedMethod.create(AuthUtils, "tryGetActiveAuthUser") {
+            Result.createError([], ResultStatus.FORBIDDEN)
         }
 
+        when:
+        RequestUtils.trySet(RequestUtils.PAGINATION_OPTIONS, "not a string")
+        Map json = TestUtils.objToJsonMap(iReq1)
+
         then:
+        json.maxAllowedNumItems == ControllerUtils.MAX_PAGINATION_MAX
+        json.phoneName == p1.buildName()
+        json.phoneNumber == p1.number.prettyPhoneNumber
         json.totalNumItems > 0
-        json.totalNumItems == iReq.countRecordItems()
-        json.maxAllowedNumItems == Constants.MAX_PAGINATION_MAX
+        json.totalNumItems == iReq1.criteria.count()
         json.sections.size() == 1
-        json.sections[0].recordItems.size() == iReq.recordItems.size()
+        json.sections[0].recordItems.size() > 0
+        json.sections[0].recordItems.size() == iReq1.criteria.count()
 
-        when: "with pagination options"
-        Utils.trySetOnRequest(Constants.REQUEST_PAGINATION_OPTIONS, [offset: 1000])
+        when:
+        RequestUtils.trySet(RequestUtils.PAGINATION_OPTIONS, [offset: 1000])
+        json = TestUtils.objToJsonMap(iReq1)
 
-        JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-            json = TestUtils.jsonToMap(iReq as JSON)
+        then:
+        json.maxAllowedNumItems == ControllerUtils.MAX_PAGINATION_MAX
+        json.phoneName == p1.buildName()
+        json.phoneNumber == p1.number.prettyPhoneNumber
+        json.totalNumItems > 0
+        json.totalNumItems == iReq1.criteria.count()
+        json.sections.size() == 1
+        json.sections[0].recordItems.isEmpty()
+
+        cleanup:
+        tryGetActiveAuthUser?.restore()
+    }
+
+    void "test marshalling exported by name"() {
+        given:
+        Staff s1 = TestUtils.buildStaff()
+        Phone p1 = TestUtils.buildActiveStaffPhone(s1)
+        RecordItemRequest iReq1 = RecordItemRequest.tryCreate(p1, null, false).payload
+
+        MockedMethod tryGetActiveAuthUser = MockedMethod.create(AuthUtils, "tryGetActiveAuthUser") {
+            Result.createError([], ResultStatus.FORBIDDEN)
         }
 
+        when:
+        Map json = TestUtils.objToJsonMap(iReq1)
+
         then:
-        json.totalNumItems > 0
-        json.totalNumItems == iReq.countRecordItems()
-        json.maxAllowedNumItems == Constants.MAX_PAGINATION_MAX
-        json.sections.size() == 1
-        json.sections[0].recordItems.size() == 0
+        json.exportedBy == null
+
+        when:
+        tryGetActiveAuthUser = MockedMethod.create(tryGetActiveAuthUser) { Result.createSuccess(s1) }
+        json = TestUtils.objToJsonMap(iReq1)
+
+        then:
+        json.exportedBy == s1.name
+
+        cleanup:
+        tryGetActiveAuthUser?.restore()
     }
 
     void "test marshalling specified timezone"() {
         given:
-        MockedMethod toDateTimeWithZone = TestUtils
-            .mock(DateTimeUtils, "toDateTimeWithZone") { DateTime dt -> dt }
+        String tzId = "Europe/Stockholm"
+        String offsetString = TestUtils.getDateTimeOffsetString(tzId)
 
-        RecordItemRequest iReq = TestUtils.buildRecordItemRequest(p1)
-        iReq.with {
+        Phone p1 = TestUtils.buildActiveStaffPhone()
+        IndividualPhoneRecord ipr1 = TestUtils.buildIndPhoneRecord(p1)
+        RecordCall rCall1 = TestUtils.buildRecordCall(ipr1.record)
+
+        RecordItemRequest iReq1 = RecordItemRequest.tryCreate(p1, null, false).payload
+        iReq1.with {
             start = DateTime.now().minusDays(8)
             end = DateTime.now().minusDays(1)
         }
 
-        c1.phone = p1
-        c1.record.storeOutgoingCall()
-        Record.withSession { it.flush() }
-
-        when:
-        String tzId = "Europe/Stockholm"
-        Utils.trySetOnRequest(Constants.REQUEST_TIMEZONE, tzId)
-
-        Map json
-        JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-            json = TestUtils.jsonToMap(iReq as JSON)
+        MockedMethod tryGetActiveAuthUser = MockedMethod.create(AuthUtils, "tryGetActiveAuthUser") {
+            Result.createError([], ResultStatus.FORBIDDEN)
         }
 
+        when:
+        RequestUtils.trySet(RequestUtils.TIMEZONE, 123)
+        Map json = TestUtils.objToJsonMap(iReq1)
+
         then:
-        toDateTimeWithZone.callCount == 3
-        toDateTimeWithZone.callArguments.every { it[1] == tzId }
-        toDateTimeWithZone.callArguments.any { it[0] == iReq.start }
-        toDateTimeWithZone.callArguments.any { it[0] == iReq.end }
+        json.startDate.contains("Z")
+        json.endDate.contains("Z")
+        json.exportedOnDate.contains("Z")
+
+        when:
+        RequestUtils.trySet(RequestUtils.TIMEZONE, tzId)
+        json = TestUtils.objToJsonMap(iReq1)
+
+        then:
+        json.startDate.contains(offsetString)
+        json.endDate.contains(offsetString)
+        json.exportedOnDate.contains(offsetString)
 
         cleanup:
-        toDateTimeWithZone.restore()
+        tryGetActiveAuthUser?.restore()
     }
 }

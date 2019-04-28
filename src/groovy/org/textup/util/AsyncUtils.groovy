@@ -2,19 +2,29 @@ package org.textup.util
 
 import grails.async.*
 import grails.compiler.GrailsTypeChecked
+import groovy.transform.TypeCheckingMode
 import groovy.util.logging.Log4j
 import java.util.concurrent.*
 import org.textup.*
+import org.textup.structure.*
+import org.textup.type.*
+import org.textup.util.domain.*
+import org.textup.validator.*
 
 @GrailsTypeChecked
 @Log4j
 class AsyncUtils {
 
-    static final int SEND_BATCH_SIZE = 20
     static final int UPLOAD_BATCH_SIZE = 8
 
-    static <I extends WithId> Map<Long, I> idMap(Collection<I> withIdObjects) {
-        MapUtils.<Long, I>buildObjectMap({ I obj -> obj.id }, withIdObjects)
+    @GrailsTypeChecked(TypeCheckingMode.SKIP)
+    static <T extends CanSave> Collection<T> getAllIds(Class<T> clazz, Collection<Long> thisIds) {
+        Collection<Long> ids = CollectionUtils.shallowCopyNoNull(thisIds)
+        Collection<T> found = clazz.getAll(ids as Iterable<Serializable>)
+        if (found.size() != ids.size()) {
+            log.error("getAllIds: did not find all for `$clazz` and `$ids`")
+        }
+        CollectionUtils.ensureNoNull(found)
     }
 
     static <T> Future<T> noOpFuture(T obj = null) {
@@ -26,9 +36,7 @@ class AsyncUtils {
         ] as Future<?>
     }
 
-    static <K, T> List<T> doAsyncInBatches(Collection<K> data, Closure<T> doAction,
-        int batchSize = SEND_BATCH_SIZE) {
-
+    static <K, T> List<T> doAsyncInBatches(Collection<K> data, int batchSize, Closure<T> doAction) {
         if (!data) {
             return []
         }

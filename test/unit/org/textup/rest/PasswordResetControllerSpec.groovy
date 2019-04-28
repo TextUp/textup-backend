@@ -1,99 +1,73 @@
 package org.textup.rest
 
-import org.textup.test.*
-import grails.test.mixin.gorm.Domain
-import grails.test.mixin.hibernate.HibernateTestMixin
-import grails.test.mixin.TestFor
-import grails.test.mixin.TestMixin
-import org.joda.time.DateTime
+import grails.test.mixin.*
+import grails.test.mixin.gorm.*
+import grails.test.mixin.hibernate.*
 import org.textup.*
-import org.textup.util.*
+import org.textup.structure.*
+import org.textup.test.*
 import org.textup.type.*
-import spock.lang.Shared
-import static javax.servlet.http.HttpServletResponse.*
+import org.textup.util.*
+import org.textup.util.domain.*
+import org.textup.validator.*
+import spock.lang.*
 
+@Domain([AnnouncementReceipt, ContactNumber, CustomAccountDetails, FeaturedAnnouncement,
+    FutureMessage, GroupPhoneRecord, IncomingSession, IndividualPhoneRecord, Location, MediaElement,
+    MediaElementVersion, MediaInfo, Organization, OwnerPolicy, Phone, PhoneNumberHistory,
+    PhoneOwnership, PhoneRecord, PhoneRecordMembers, Record, RecordCall, RecordItem,
+    RecordItemReceipt, RecordNote, RecordNoteRevision, RecordText, Role, Schedule,
+    SimpleFutureMessage, Staff, StaffRole, Team, Token])
 @TestFor(PasswordResetController)
-@Domain([CustomAccountDetails, Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
-    RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
-    Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole, NotificationPolicy,
-    MediaInfo, MediaElement, MediaElementVersion])
 @TestMixin(HibernateTestMixin)
-class PasswordResetControllerSpec extends CustomSpec {
+class PasswordResetControllerSpec extends Specification {
 
     static doWithSpring = {
         resultFactory(ResultFactory)
     }
 
     def setup() {
-        setupData()
+        TestUtils.standardMockSetup()
     }
 
-    def cleanup() {
-        cleanupData()
-    }
-
-    // Request reset
-    // -------------
-
-    void "test request reset without username"() {
+    void "test save"() {
         given:
-        controller.passwordResetService = Mock(PasswordResetService)
+        TypeMap body = TypeMap.create(username: TestUtils.randString())
 
-    	when:
-    	request.method = "POST"
-    	request.json = "{}"
-    	controller.requestReset()
+        controller.passwordResetService = GroovyMock(PasswordResetService)
+        MockedMethod tryGetJsonBody = MockedMethod.create(RequestUtils, "tryGetJsonBody") {
+            Result.createSuccess(body)
+        }
 
-    	then:
-        0 * controller.passwordResetService._
-    	response.status == SC_BAD_REQUEST
+        when:
+        controller.save()
+
+        then:
+        1 * controller.passwordResetService.start(body.username) >> Result.void()
+        response.status == ResultStatus.NO_CONTENT.intStatus
+
+        cleanup:
+        tryGetJsonBody?.restore()
     }
 
-    void "test request request success"() {
+    void "test update"() {
         given:
-        String un = TestUtils.randString()
-        controller.passwordResetService = Mock(PasswordResetService)
+        TypeMap body = TypeMap.create(token: TestUtils.randString(),
+            password: TestUtils.randString())
 
-    	when:
-    	request.method = "POST"
-        request.json = DataFormatUtils.toJsonString(username: un)
-    	controller.requestReset()
+        controller.passwordResetService = GroovyMock(PasswordResetService)
+        MockedMethod tryGetJsonBody = MockedMethod.create(RequestUtils, "tryGetJsonBody") {
+            Result.createSuccess(body)
+        }
 
-    	then:
-        1 * controller.passwordResetService.start(un) >> new Result(status: ResultStatus.NO_CONTENT)
-    	response.status == SC_NO_CONTENT
-    }
+        when:
+        controller.update()
 
-    // Complete request
-    // ----------------
+        then:
+        1 * controller.passwordResetService.finish(body.token, body.password) >> Result.void()
+        response.status == ResultStatus.NO_CONTENT.intStatus
 
-    void "test complete request with missing info"() {
-        given:
-        controller.passwordResetService = Mock(PasswordResetService)
-
-    	when:
-    	request.method = "PUT"
-    	request.json = "{}"
-    	controller.resetPassword()
-
-    	then:
-        0 * controller.passwordResetService._
-    	response.status == SC_BAD_REQUEST
-    }
-
-    void "test complete request success"() {
-    	given:
-    	String tok = TestUtils.randString()
-        String pwd = TestUtils.randString()
-        controller.passwordResetService = Mock(PasswordResetService)
-
-    	when:
-    	request.method = "PUT"
-        request.json = DataFormatUtils.toJsonString(token: tok, password: pwd)
-    	controller.resetPassword()
-
-    	then:
-        1 * controller.passwordResetService.finish(tok, pwd) >> new Result()
-    	response.status == SC_NO_CONTENT
+        cleanup:
+        tryGetJsonBody?.restore()
     }
 }

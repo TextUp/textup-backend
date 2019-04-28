@@ -4,149 +4,108 @@ import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
 import java.util.concurrent.Future
 import org.joda.time.DateTime
+import org.textup.annotation.*
+import org.textup.rest.*
+import org.textup.structure.*
 import org.textup.type.*
 import org.textup.util.*
+import org.textup.util.domain.*
 import org.textup.validator.*
 
 @GrailsTypeChecked
 @Transactional
-class FutureMessageService {
+class FutureMessageService implements ManagesDomain.Creater<FutureMessage>, ManagesDomain.Updater<FutureMessage>, ManagesDomain.Deleter {
 
     FutureMessageJobService futureMessageJobService
     MediaService mediaService
-    ResultFactory resultFactory
     SocketService socketService
 
-    // Create
-    // ------
-
-    Result<FutureMessage> createForContact(Long cId, Map body, String timezone = null) {
-        this.create(Contact.get(cId)?.record, body, timezone)
-    }
-    Result<FutureMessage> createForSharedContact(Long scId, Map body, String timezone = null) {
-        SharedContact sc1 = SharedContact.get(scId)
-        if (!sc1) {
-            return resultFactory.failWithCodeAndStatus(
-                "futureMessageService.create.noRecordOrInsufficientPermissions",
-                ResultStatus.UNPROCESSABLE_ENTITY)
-        }
-        sc1.tryGetRecord().then { Record rec1 -> this.create(rec1, body, timezone) }
-    }
-    Result<FutureMessage> createForTag(Long ctId, Map body, String timezone = null) {
-        this.create(ContactTag.get(ctId)?.record, body, timezone)
-    }
-
     @RollbackOnResultFailure
-    protected Result<FutureMessage> create(Record rec, Map body, String timezone = null) {
-        if (!rec) {
-            return resultFactory.failWithCodeAndStatus(
-                "futureMessageService.create.noRecordOrInsufficientPermissions",
-                ResultStatus.UNPROCESSABLE_ENTITY)
-        }
+    Result<FutureMessage> tryCreate(Long prId, TypeMap body) {
         Future<?> future
-        SimpleFutureMessage fm0 = new SimpleFutureMessage(record: rec, language: rec.language)
-        Result<FutureMessage> res = mediaService.tryProcess(fm0, body)
-            .then { Tuple<WithMedia, Future<Result<MediaInfo>>> processed ->
-                future = processed.second
-                setFromBody(fm0, body, timezone, ResultStatus.CREATED)
+        PhoneRecordWrappers.mustFindForId(prId)
+            .then { PhoneRecordWrapper w1 -> w1.tryGetRecord() }
+            .then { Record rec1 -> mediaService.tryCreate(body).curry(rec1) }
+            .then { Record rec1, Tuple<MediaInfo, Future<?>> tup1->
+                Tuple.split(tup1) { MediaInfo mInfo, Future<?> fut1 ->
+                    future = fut1
+                    SimpleFutureMessage.tryCreate(rec1,
+                        body.enum(FutureMessageType, "type"),
+                        body.trimmedString("message"),
+                        mInfo)
+                }
             }
-        if (!res.success && future) { future.cancel(true) }
-        res
+            .then { FutureMessage fMsg -> trySetFields(fMsg, body, body.string("timezone")) }
+            .then { FutureMessage fMsg -> trySchedule(true, fMsg) }
+            .then { FutureMessage fMsg -> DomainUtils.trySave(fMsg, ResultStatus.CREATED) }
+            .ifFailAndPreserveError { future?.cancel(true) }
     }
 
-    // Update
-    // ------
-
     @RollbackOnResultFailure
-    Result<FutureMessage> update(Long fId, Map body, String timezone = null) {
-        FutureMessage fMsg = FutureMessage.get(fId)
-        if (!fMsg) {
-            return resultFactory.failWithCodeAndStatus("futureMessageService.update.notFound",
-                ResultStatus.NOT_FOUND, [fId])
-        }
-        // need to set first to ensure that future message validators take into account
-        // the media object too
+    Result<FutureMessage> tryUpdate(Long fId, TypeMap body) {
         Future<?> future
-        Result<FutureMessage> res = mediaService.tryProcess(fMsg, body)
-            .then { Tuple<WithMedia, Future<Result<MediaInfo>>> processed ->
-                future = processed.second
-                setFromBody(fMsg, body, timezone)
+        FutureMessages.mustFindForId(fId)
+            // process media first to add in media info object BEFORE validation
+            .then { FutureMessage fMsg ->
+                mediaService.tryCreateOrUpdate(fMsg, body).curry(fMsg)
             }
-        if (!res.success && future) { future.cancel(true) }
-        res
+            .then { FutureMessage fMsg, Future<?> fut1 ->
+                future = fut1
+                trySetFields(fMsg, body, body.string("timezone"))
+            }
+            .then { FutureMessage fMsg -> trySchedule(false, fMsg) }
+            .then { FutureMessage fMsg -> DomainUtils.trySave(fMsg) }
+            .ifFailAndPreserveError { future?.cancel(true) }
     }
-
-    // Delete
-    // ------
 
     @RollbackOnResultFailure
-    Result<Void> delete(Long fId) {
-        FutureMessage fMsg = FutureMessage.get(fId)
-        if (!fMsg) {
-            return resultFactory.failWithCodeAndStatus("futureMessageService.delete.notFound",
-                ResultStatus.NOT_FOUND, [fId])
-        }
-        futureMessageJobService.unschedule(fMsg).then {
-            fMsg.isDone = true
-            if (fMsg.save()) {
-                resultFactory.success()
+    Result<Void> tryDelete(Long fId) {
+        FutureMessages.mustFindForId(fId)
+            .then { FutureMessage fMsg -> futureMessageJobService.tryUnschedule(fMsg).curry(fMsg) }
+            .then { FutureMessage fMsg ->
+                fMsg.isDone = true
+                DomainUtils.trySave(fMsg)
             }
-            else { resultFactory.failWithValidationErrors(fMsg.errors) }
-        }
     }
 
-    // Helper Methods
-    // --------------
+    // Helpers
+    // -------
 
-    protected Result<FutureMessage> setFromBody(FutureMessage fMsg, Map body,
-        String timezone = null, ResultStatus status = ResultStatus.OK) {
+    protected Result<FutureMessage> trySetFields(FutureMessage fMsg, TypeMap body,
+        String timezone = null) {
 
         fMsg.with {
-            if (body.notifySelf != null) notifySelf = body.notifySelf
-            if (body.type) {
-                type = TypeConversionUtils.convertEnum(FutureMessageType, body.type)
-            }
-            if (body.message) message = body.message
-            // optional properties
-            if (body.startDate) {
-                startDate = DateTimeUtils.toDateTimeWithZone(body.startDate, timezone)
-            }
-            if (body.language) {
-                language = TypeConversionUtils.convertEnum(VoiceLanguage, body.language)
-            }
+            if (body.notifySelfOnSend != null) notifySelfOnSend = body.boolean("notifySelfOnSend")
+            if (body.type) type = body.enum(FutureMessageType, "type")
+            if (body.message != null) message = body.trimmedString("message")
+            if (body.startDate) startDate = body.dateTime("startDate", timezone)
             // don't wrap endDate setter in if statement because we want to support nulling
             // endDate by omitting it from the passed-in body
-            endDate = DateTimeUtils.toDateTimeWithZone(body.endDate, timezone)
+            endDate = body.dateTime("endDate", timezone)
         }
+        // we're updating the future message's copy of the language, not the record's language
+        if (body.language) fMsg.language = body.enum(VoiceLanguage, "language")
+
         if (fMsg.instanceOf(SimpleFutureMessage)) {
             SimpleFutureMessage sMsg = fMsg as SimpleFutureMessage
-            // repeat count is nullable!
-            sMsg.repeatCount = TypeConversionUtils.to(Integer, body.repeatCount)
-            if (body.repeatIntervalInDays) {
-                sMsg.repeatIntervalInDays = TypeConversionUtils.to(Integer, body.repeatIntervalInDays)
+            sMsg.with {
+                repeatCount = body.int("repeatCount")
+                if (body.repeatIntervalInDays) repeatIntervalInDays = body.int("repeatIntervalInDays")
             }
         }
         // if timezone is provided, determine if we need to schedule a date to adjust to
         // account for daylight savings time
         if (timezone) {
-            fMsg.checkScheduleDaylightSavingsAdjustment(DateTimeUtils.getZoneFromId(timezone))
+            fMsg.checkScheduleDaylightSavingsAdjustment(JodaUtils.getZoneFromId(timezone))
         }
-        // for some reason, calling save here instantly persists the message
-        if (fMsg.validate()) {
-            boolean isNew = !fMsg.id // is new if no id yet
-            if (isNew || fMsg.shouldReschedule) {
-                Result res = futureMessageJobService.schedule(fMsg)
-                if (!res.success) {
-                    return resultFactory.failWithResultsAndStatus([res], res.status)
-                }
+        DomainUtils.trySave(fMsg)
+    }
+
+    protected Result<FutureMessage> trySchedule(boolean isNew, FutureMessage fMsg) {
+        futureMessageJobService.trySchedule(isNew, fMsg)
+            .then {
+                socketService.sendFutureMessages([fMsg]) // will refresh trigger
+                DomainUtils.trySave(fMsg)
             }
-            // call save finally here to persist the message
-            if (fMsg.save()) {
-                socketService.sendFutureMessages([fMsg]) // socketService will refresh trigger
-                resultFactory.success(fMsg, status)
-            }
-            else { resultFactory.failWithValidationErrors(fMsg.errors) }
-        }
-        else { resultFactory.failWithValidationErrors(fMsg.errors) }
     }
 }

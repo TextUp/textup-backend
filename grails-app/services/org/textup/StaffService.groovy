@@ -1,236 +1,150 @@
 package org.textup
 
 import grails.compiler.GrailsTypeChecked
-import grails.plugins.rest.client.RestBuilder
-import grails.plugins.rest.client.RestResponse
 import grails.transaction.Transactional
-import org.codehaus.groovy.grails.commons.GrailsApplication
-import org.springframework.transaction.TransactionStatus
+import org.textup.annotation.*
+import org.textup.rest.*
+import org.textup.structure.*
 import org.textup.type.*
 import org.textup.util.*
-import org.textup.validator.PhoneNumber
+import org.textup.util.domain.*
+import org.textup.validator.*
 
 @GrailsTypeChecked
 @Transactional
-class StaffService {
+class StaffService implements ManagesDomain.Updater<Staff> {
 
-    ResultFactory resultFactory
-    AuthService authService
     MailService mailService
+    OrganizationService organizationService
     PhoneService phoneService
-    GrailsApplication grailsApplication
 
-    // Create
-    // ------
-
-    Result<Staff> addRoleToStaff(Long sId) {
-        Staff s1 = Staff.get(sId)
-        if (s1) {
-            Role role = Role.findOrCreateByAuthority("ROLE_USER")
-            if (!role.save()) {
-                return resultFactory.failWithValidationErrors(role.errors)
+    // [NOTE] `tryCreate` can be called by anybody
+    @RollbackOnResultFailure
+    Result<Staff> tryCreate(TypeMap body) {
+        organizationService.tryFindOrCreate(body.typeMapNoNull("org"))
+            .then { Organization org1 -> Roles.tryGetUserRole().curry(org1) }
+            .then { Organization org1, Role r1 ->
+                Staff.tryCreate(r1, org1, body.string("name"), body.string("username"),
+                    body.string("password"), body.string("email"))
             }
-            try {
-                StaffRole.create(s1, role, true)
-                resultFactory.success(s1)
+            .then { Staff s1 -> trySetFields(s1, body) }
+            .then { Staff s1 -> trySetLockCode(s1, body.string("lockCode")) }
+            .then { Staff s1 -> trySetStatus(s1, body.enum(StaffStatus, "status")) }
+            .then { Staff s1 ->
+                tryUpdatePhone(s1, body.typeMapNoNull("phone"), body.string("timezone")).curry(s1)
             }
-            catch (Throwable e) {
-                log.error("StaffService.addRoleToStaff: ${e.message}, $e")
-                e.printStackTrace()
-                resultFactory.failWithThrowable(e)
-            }
-        }
-        else {
-            resultFactory.failWithCodeAndStatus("staffService.update.notFound",
-                ResultStatus.NOT_FOUND, [sId])
-        }
+            .then { Staff s1 -> finishCreate(s1, body) }
     }
 
     @RollbackOnResultFailure
-    Result<Staff> create(Map body, String timezone) {
-        verifyCreateRequest(body)
-            .then({ fillStaffInfo(new Staff(), body, timezone) })
-            .then({ Staff s1 -> completeStaffCreation(s1, body, timezone) })
-            .then({ Staff s1 -> resultFactory.success(s1, ResultStatus.CREATED) })
+    Result<Staff> tryUpdate(Long staffId, TypeMap body) {
+        Staffs.mustFindForId(staffId)
+            .then { Staff s1 -> trySetFields(s1, body) }
+            .then { Staff s1 -> trySetLockCode(s1, body.string("lockCode")) }
+            .then { Staff s1 -> trySetStatus(s1, body.enum(StaffStatus, "status")) }
+            .then { Staff s1 ->
+                tryUpdatePhone(s1, body.typeMapNoNull("phone"), body.string("timezone")).curry(s1)
+            }
+            .then { Staff s1 -> finishUpdate(s1) }
     }
-    protected Result<Void> verifyCreateRequest(Map body) {
-        // don't need captcha to verify that user is not a bot if
-        // we are trying to create a staff member after logging in
-        if (authService.isActive) {
-            return resultFactory.success()
+
+    // Helpers
+    // -------
+
+    protected Result<Staff> finishCreate(Staff s1, TypeMap body) {
+        Result<?> res = Result.void()
+        if (s1.org.status == OrgStatus.PENDING) {
+            res = mailService.notifyAboutPendingOrg(s1.org)
         }
-        Map response = [:]
-        String captcha = body?.captcha
-        if (captcha) {
-            String verifyLink = grailsApplication
-                .flatConfig["textup.apiKeys.reCaptcha.verifyEndpoint"]
-            String secret = grailsApplication
-                .flatConfig["textup.apiKeys.reCaptcha.secret"]
-            response = doVerifyRequest("${verifyLink}?secret=${secret}&response=${captcha}")
+        else if (s1.status == StaffStatus.PENDING) {
+            List<Staff> admins = Staffs
+                .buildForOrgIdAndOptions(s1.org.id, null, [StaffStatus.ADMIN])
+                .list()
+            res = mailService.notifyAboutPendingStaff(s1, admins)
         }
-        if (response.success) {
-            resultFactory.success()
+        else if (s1.status == StaffStatus.STAFF) {
+            res = AuthUtils.tryGetActiveAuthUser()
+                .then { Staff authUser ->
+                    mailService.notifyInvitation(authUser,
+                        s1,
+                        body.string("password"),
+                        body.string("lockCode", Constants.DEFAULT_LOCK_CODE))
+                }
         }
-        else {
-            resultFactory.failWithCodeAndStatus("staffService.create.couldNotVerifyCaptcha",
-                ResultStatus.UNPROCESSABLE_ENTITY)
-        }
+        res.then { IOCUtils.resultFactory.success(s1, ResultStatus.CREATED) }
     }
-    // for mocking during testing
-    private Map doVerifyRequest(String requestUrl) {
-        (new RestBuilder())
-            .post(requestUrl)
-            .json as Map ?: [:]
+
+    protected Result<Staff> finishUpdate(Staff s1) {
+        Result<?> res = Result.void()
+        // email notifications if changing away from pending
+        StaffStatus oldStatus = s1.getPersistentValue("status") as StaffStatus
+        if (oldStatus.isPending() && !s1.status.isPending()) {
+            res = s1.status.isActive() ?
+                mailService.notifyApproval(s1) :
+                mailService.notifyRejection(s1)
+        }
+        res.then { IOCUtils.resultFactory.success(s1) }
     }
-    protected Result<Staff> fillStaffInfo(Staff s1, Map body, String timezone) {
+
+    protected Result<Staff> trySetFields(Staff s1, TypeMap body) {
         s1.with {
             if (body.name) name = body.name
             if (body.username) username = body.username
             if (body.password) password = body.password
             if (body.email) email = body.email
-            if (body.manualSchedule != null) manualSchedule = body.manualSchedule
-            if (body.isAvailable != null) isAvailable = body.isAvailable
-        }
-        if (body.lockCode) {
-            if (body.lockCode ==~ /\d{${Constants.LOCK_CODE_LENGTH}}/) {
-                s1.lockCode = body.lockCode
-            }
-            else {
-                return resultFactory.failWithCodeAndStatus("staffService.lockCodeFormat",
-                    ResultStatus.UNPROCESSABLE_ENTITY)
+            if (body.personalNumber != null) {
+                personalNumber = PhoneNumber.create(body.string("personalNumber"))
             }
         }
-        if (body.personalPhoneNumber != null) {
-            s1.personalPhoneNumber = new PhoneNumber(number:body.personalPhoneNumber as String)
-        }
-        if (body.schedule instanceof Map && s1.schedule.instanceOf(WeeklySchedule)) {
-            WeeklySchedule wSched = WeeklySchedule.get(s1.schedule.id)
-            if (!wSched) {
-                return resultFactory.failWithCodeAndStatus("staffService.fillStaffInfo.scheduleNotFound",
-                    ResultStatus.UNPROCESSABLE_ENTITY, [s1.schedule.id, s1.id])
-            }
-            Result<Schedule> res = wSched.updateWithIntervalStrings(body.schedule as Map, timezone)
-            if (!res.success) {
-                return resultFactory.failWithResultsAndStatus([res], res.status)
-            }
-        }
-        // leave validation for later step because might not have org
-        resultFactory.success(s1)
-    }
-    protected Result<Staff> completeStaffCreation(Staff s1, Map body, String timezone) {
-        tryAddStaffToOrg(s1, body.org).then({ Organization o1 ->
-            // only allowed to change status if is admin and organization
-            // is not pending
-            if (body.status && o1.id && authService.isAdminAt(o1.id) &&
-                o1.status != OrgStatus.PENDING) {
-                s1.status = TypeConversionUtils.convertEnum(StaffStatus, body.status)
-            }
-            // initially save first so we know that staff is valid
-            // before trying to send out email notification and adding a phone
-            if (s1.save()) {
-                phoneService
-                    .mergePhone(s1, body, timezone)
-                    .then({ notifyAfterCreation(s1, o1, body) })
-            }
-            else { resultFactory.failWithValidationErrors(s1.errors) }
-        })
-    }
-    protected Result<Organization> tryAddStaffToOrg(Staff s1, def rawInfo) {
-        if (!rawInfo || !(rawInfo instanceof Map)) {
-            return resultFactory.failWithCodeAndStatus("staffService.create.mustSpecifyOrg",
-                ResultStatus.UNPROCESSABLE_ENTITY)
-        }
-        Map orgInfo = rawInfo as Map
-        Organization org
-        //if we specify id then we must be associating with existing
-        if (orgInfo.id) { // existing organization
-            org = Organization.get(TypeConversionUtils.to(Long, orgInfo.id))
-            if (!org) {
-                return resultFactory.failWithCodeAndStatus("staffService.create.orgNotFound",
-                    ResultStatus.NOT_FOUND, [orgInfo.id])
-            }
-            //if logged in is admin at org we are adding this staff to, permit status update
-            s1.status = StaffStatus.PENDING
-        }
-        else { // create new organization
-            s1.status = StaffStatus.ADMIN
-            org = new Organization(orgInfo as Map)
-            org.status = OrgStatus.PENDING
-            org.location = new Location(orgInfo.location as Map)
-            if (!org.location.save()) { //needs to be before org.save()
-                return resultFactory.failWithValidationErrors(org.location.errors)
-            }
-            if (!org.save()) {
-                return resultFactory.failWithValidationErrors(org.errors)
-            }
-        }
-        s1.org = org
-
-        resultFactory.success(org)
-    }
-    protected Result<Staff> notifyAfterCreation(Staff s1, Organization o1, Map body) {
-        Result<?> res
-        if (o1.status == OrgStatus.PENDING) {
-            res = mailService.notifyAboutPendingOrg(o1)
-        }
-        else if (s1.status == StaffStatus.PENDING) {
-            res = mailService.notifyAboutPendingStaff(s1, o1.getAdmins())
-        }
-        else if (s1.status == StaffStatus.STAFF) {
-            String pwd = body.password as String,
-                lockCode = body.lockCode ? body.lockCode as String :
-                    Constants.DEFAULT_LOCK_CODE
-            Staff invitedBy = authService.loggedIn
-            res = mailService.notifyInvitation(invitedBy, s1, pwd, lockCode)
-        }
-
-        if (res?.success) {
-            resultFactory.success(s1)
-        }
-        else { resultFactory.failWithResultsAndStatus([res], res.status) }
+        DomainUtils.trySave(s1)
     }
 
-    // Update
-    // ------
+    protected Result<Staff> trySetLockCode(Staff s1, String lockCode) {
+        if (lockCode) {
+            // Need to validate here because, once saved, the lock code is obfuscated
+            if (!ValidationUtils.isValidLockCode(lockCode)) {
+                return IOCUtils.resultFactory.failWithCodeAndStatus("staffService.lockCodeFormat",
+                    ResultStatus.UNPROCESSABLE_ENTITY, [ValidationUtils.LOCK_CODE_LENGTH])
+            }
+            s1.lockCode = lockCode
+        }
+        DomainUtils.trySave(s1)
+    }
 
-    @RollbackOnResultFailure
-    Result<Staff> update(Long staffId, Map body, String timezone) {
-        findStaffForId(staffId)
-            .then({ Staff s1 -> fillStaffInfo(s1, body, timezone) })
-            .then({ Staff s1 -> tryUpdateStatus(s1, body) })
-            .then({ Staff s1 -> phoneService.mergePhone(s1, body, timezone) })
-            .then({ Staff s1 ->
-                StaffStatus oldStatus = s1.getPersistentValue("status") as StaffStatus
-                // email notifications if changing away from pending
-                if (oldStatus.isPending && !s1.status.isPending) {
-                    Result<?> res = s1.status.isActive ?
-                        mailService.notifyApproval(s1) :
-                        mailService.notifyRejection(s1)
-                    if (!res.success) {
-                        return resultFactory.failWithResultsAndStatus([res], res.status)
-                    }
+    protected Result<Staff> trySetStatus(Staff s1, StaffStatus newStatus) {
+        // Only want to do admin check if the user is attempting to update this
+        if (!newStatus || s1.status == newStatus) {
+            return IOCUtils.resultFactory.success(s1)
+        }
+        AuthUtils.tryGetAuthId()
+            .then { Long authId -> Organizations.tryIfAdmin(s1.org.id, authId) }
+            .then {
+                Integer numAdmins = Staffs
+                    .buildForOrgIdAndOptions(s1.org.id, null, [StaffStatus.ADMIN])
+                    .count() as Integer
+                if (numAdmins == 1 && s1.status == StaffStatus.ADMIN &&
+                    newStatus != StaffStatus.ADMIN) {
+                    IOCUtils.resultFactory.failWithCodeAndStatus("staffService.lastAdmin",
+                        ResultStatus.FORBIDDEN)
                 }
-                resultFactory.success(s1)
-            })
+                else {
+                    s1.status = newStatus
+                    DomainUtils.trySave(s1)
+                }
+            }
     }
-    protected Result<Staff> findStaffForId(Long sId) {
-        Staff s1 = Staff.get(sId)
-        if (s1) {
-            resultFactory.success(s1)
+
+    // [NOTE] ensure that a public user cannot provision creation of phone, must be logged-in
+    protected Result<?> tryUpdatePhone(Staff s1, TypeMap phoneInfo, String timezone) {
+        // Only want to do logged-in check if the user is attempting to update this
+        if (!phoneInfo) {
+            return Result.void()
         }
-        else {
-            resultFactory.failWithCodeAndStatus("staffService.update.notFound",
-                ResultStatus.NOT_FOUND, [sId])
-        }
-    }
-    protected Result<Staff> tryUpdateStatus(Staff s1, Map body) {
-        //can only update status if you are an admin
-        if (body.status && authService.isAdminAtSameOrgAs(s1.id)) {
-            s1.status = TypeConversionUtils.convertEnum(StaffStatus, body.status)
-        }
-        if (s1.save()) {
-            resultFactory.success(s1)
-        }
-        else { resultFactory.failWithValidationErrors(s1.errors) }
+        Staffs.isAllowed(s1.id)
+            .then {
+                phoneService.tryFindAnyIdOrCreateImmediatelyForOwner(s1.id, PhoneOwnershipType.INDIVIDUAL)
+            }
+            .then { Long pId -> Phones.mustFindForId(pId) }
+            .then { Phone p1 -> phoneService.tryUpdate(p1, phoneInfo, s1.id, timezone) }
     }
 }

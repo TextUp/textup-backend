@@ -9,16 +9,23 @@ import org.apache.http.client.methods.HttpUriRequest
 import org.apache.http.HttpResponse
 import org.apache.http.impl.client.*
 import org.textup.*
+import org.textup.structure.*
+import org.textup.type.*
+import org.textup.util.domain.*
+import org.textup.validator.*
 
 @GrailsTypeChecked
 @Log4j
 class HttpUtils {
 
+    static final String PROTOCOL_HTTP = "http"
+    static final String PROTOCOL_HTTPS = "https"
+
     // From http://www.baeldung.com/httpclient-4-basic-authentication
     // Twilio has inconsistent behavior with a basic authentication header string.
     // Therefore, use Credential Provider
     static <T> Result<T> executeBasicAuthRequest(String un, String pwd,
-        HttpUriRequest request, Closure<Result<T>> doAction) {
+        HttpUriRequest request, Closure<Result<T>> onSuccess) {
 
         try {
             UsernamePasswordCredentials authValues = new UsernamePasswordCredentials(un, pwd)
@@ -30,13 +37,20 @@ class HttpUtils {
                 .build()
             client.withCloseable {
                 HttpResponse resp = client.execute(request)
-                resp.withCloseable { doAction(resp) }
+                resp.withCloseable {
+                    ResultStatus status = ResultStatus.convert(resp.statusLine.statusCode)
+                    if (status.isSuccess) {
+                        onSuccess(resp)
+                    }
+                    else {
+                        IOCUtils.resultFactory.failWithCodeAndStatus("httpUtils.requestFail",
+                            status, [resp.statusLine.reasonPhrase])
+                    }
+                }
             }
         }
         catch (Throwable e) {
-            log.error("HttpUtils.executeBasicAuthRequest: ${e.message}")
-            e.printStackTrace()
-            IOCUtils.resultFactory.failWithThrowable(e)
+            IOCUtils.resultFactory.failWithThrowable(e, "executeBasicAuthRequest", true)
         }
     }
 }

@@ -5,46 +5,42 @@ import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.joda.time.DateTime
 import org.textup.*
 import org.textup.rest.*
+import org.textup.structure.*
 import org.textup.type.*
 import org.textup.util.*
+import org.textup.util.domain.*
 import org.textup.validator.*
 
 @GrailsTypeChecked
 class RecordItemRequestJsonMarshaller extends JsonNamedMarshaller {
 
-	static final Closure marshalClosure = { String namespace, GrailsApplication grailsApplication,
-        RecordItemRequest itemRequest ->
-
-        AuthService authService = grailsApplication.mainContext.getBean(AuthService)
-
+	static final Closure marshalClosure = { RecordItemRequest iReq1 ->
 		Map json = [:]
         json.with {
-            totalNumItems = itemRequest.countRecordItems()
-            maxAllowedNumItems = Constants.MAX_PAGINATION_MAX
-            exportedBy = authService.loggedInAndActive?.name
-            phoneName = itemRequest.phone?.name
-            phoneNumber = itemRequest.phone?.number?.prettyPhoneNumber
+            maxAllowedNumItems = ControllerUtils.MAX_PAGINATION_MAX
+            phoneName          = iReq1.mutablePhone.buildName()
+            phoneNumber        = iReq1.mutablePhone.number.prettyPhoneNumber // pass phone number as string
+            totalNumItems      = iReq1.criteria.count()
+            startDate          = iReq1.buildFormattedStart()
+            endDate            = iReq1.buildFormattedEnd()
+            exportedOnDate     = JodaUtils.CURRENT_TIME_FORMAT.print(JodaUtils.utcNow())
         }
+        AuthUtils.tryGetActiveAuthUser()
+            .thenEnd { Staff authUser -> json.exportedBy = authUser.name }
         // fetching sections with appropriate pagination options
-    	Utils.tryGetFromRequest(Constants.REQUEST_PAGINATION_OPTIONS)
-            .logFail("RecordItemRequestJsonMarshaller: no available request", LogLevel.DEBUG)
-            .thenEnd({ Map options = null -> json.sections = itemRequest.getSections(options)},
-                { json.sections = itemRequest.getSections() })
+    	RequestUtils.tryGet(RequestUtils.PAGINATION_OPTIONS)
+            .ifFailAndPreserveError { json.sections = iReq1.buildSections() }
+            .thenEnd { Object opts ->
+                json.sections = iReq1.buildSections(TypeUtils.to(Map, opts))
+            }
         // setting timestamps with appropriate
-        Utils.tryGetFromRequest(Constants.REQUEST_TIMEZONE)
-            .logFail("RecordItemRequestJsonMarshaller: no available request", LogLevel.DEBUG)
-            .thenEnd { String tz = null ->
+        RequestUtils.tryGet(RequestUtils.TIMEZONE)
+            .thenEnd { Object tz ->
                 json.with {
-                    startDate = itemRequest.start
-                        ? DateTimeUtils.FILE_TIMESTAMP_FORMAT.print(
-                            DateTimeUtils.toDateTimeWithZone(itemRequest.start, tz))
-                        : "beginning"
-                    endDate = itemRequest.end
-                        ? DateTimeUtils.FILE_TIMESTAMP_FORMAT.print(
-                            DateTimeUtils.toDateTimeWithZone(itemRequest.end, tz))
-                        : "end"
-                    exportedOnDate = DateTimeUtils.CURRENT_TIME_FORMAT.print(
-                        DateTimeUtils.toDateTimeWithZone(DateTime.now(), tz))
+                    startDate      = iReq1.buildFormattedStart(tz)
+                    endDate        = iReq1.buildFormattedEnd(tz)
+                    exportedOnDate = JodaUtils.CURRENT_TIME_FORMAT
+                        .print(JodaUtils.toDateTimeWithZone(DateTime.now(), tz))
                 }
             }
 		json

@@ -31,7 +31,9 @@ tr.number-detail-expanded + tr > td {
     border-top-width: 0;
 }
 
-.table--horizontal-scroll th, .table--horizontal-scroll td { white-space: nowrap; }
+.table--horizontal-scroll th, .table--horizontal-scroll td {
+    white-space: nowrap;
+}
 
 .table-cell__highlight {
     background-color: #f3f7fa;

@@ -1,22 +1,25 @@
 package org.textup
 
-import com.amazonaws.services.s3.model.PutObjectResult
-import grails.test.mixin.gorm.Domain
-import grails.test.mixin.hibernate.HibernateTestMixin
-import grails.test.mixin.TestMixin
-import java.nio.charset.StandardCharsets
-import org.apache.commons.codec.binary.Base64
-import org.apache.commons.codec.digest.DigestUtils
-import org.codehaus.groovy.grails.commons.GrailsApplication
-import org.joda.time.DateTime
+import grails.test.mixin.*
+import grails.test.mixin.gorm.*
+import grails.test.mixin.hibernate.*
+import grails.test.mixin.support.*
+import grails.test.runtime.*
+import grails.validation.*
+import org.joda.time.*
+import org.textup.structure.*
 import org.textup.test.*
 import org.textup.type.*
 import org.textup.util.*
 import org.textup.validator.*
 import spock.lang.*
 
-@Domain([CustomAccountDetails, Record, RecordItem, RecordText, RecordCall, RecordNote, RecordNoteRevision,
-    RecordItemReceipt, Location, MediaInfo, MediaElement, MediaElementVersion])
+@Domain([AnnouncementReceipt, ContactNumber, CustomAccountDetails, FeaturedAnnouncement,
+    FutureMessage, GroupPhoneRecord, IncomingSession, IndividualPhoneRecord, Location, MediaElement,
+    MediaElementVersion, MediaInfo, Organization, OwnerPolicy, Phone, PhoneNumberHistory,
+    PhoneOwnership, PhoneRecord, PhoneRecordMembers, Record, RecordCall, RecordItem,
+    RecordItemReceipt, RecordNote, RecordNoteRevision, RecordText, Role, Schedule,
+    SimpleFutureMessage, Staff, StaffRole, Team, Token])
 @TestMixin(HibernateTestMixin)
 @Unroll
 class RecordNoteSpec extends Specification {
@@ -25,123 +28,47 @@ class RecordNoteSpec extends Specification {
         resultFactory(ResultFactory)
     }
 
-    void "test validation + cascading to location"() {
-        given:
-        Record rec1 = new Record()
-        rec1.save(flush: true, failOnError: true)
-
-    	when: "empty note"
-        RecordNote note1 = new RecordNote()
-
-    	then: "invalid"
-        note1.validate() == false
-        note1.errors.getFieldErrorCount("record") == 1
-
-        when: "fill in a record"
-        note1.record = rec1
-
-        then:
-        note1.validate() == true
-
-        when: "add a invalid location"
-        note1.location = new Location()
-
-        then: "parent is invalid"
-        note1.validate() == false
-        note1.errors.getFieldErrorCount("location.address") == 1
-        note1.errors.getFieldErrorCount("location.lat") == 1
-        note1.errors.getFieldErrorCount("location.lon") == 1
-
-        when: "fill in location"
-        note1.location.address = "hi"
-        note1.location.lat = 0G
-        note1.location.lon = 0G
-
-        then: "parent becomes valid again"
-        note1.validate() == true
+    def setup() {
+        TestUtils.standardMockSetup()
     }
 
-    void "test creating a revision"() {
-    	given: "a valid note"
-        Record rec = new Record()
-        rec.save(flush: true, failOnError: true)
-        RecordNote note1 = new RecordNote(record:rec)
-        note1.authorName = "hello"
-        note1.authorId = 88L
-        note1.authorType = AuthorType.STAFF
-        note1.noteContents = "hello there!"
-        note1.location = new Location(address: "hi", lat: 0G, lon: 0G)
-        note1.media = new MediaInfo()
-        assert note1.validate()
+    void "test validation + cascading to location"() {
+        given:
+        Record rec1 = TestUtils.buildRecord()
 
-    	when: "creating a revision for an unsaved note"
-        RecordNoteRevision rev1 = note1.createRevision()
+    	when: "empty note"
+        Result res = RecordNote.tryCreate(null, null, null, null)
 
-    	then: "null because revisions use PERSISTED values"
-        rev1.authorName == null
-        rev1.authorId == null
-        rev1.authorType == null
-        rev1.whenChanged == null
-        rev1.noteContents == null
-        rev1.location == null
-        rev1.media == null
+    	then: "invalid"
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
 
-        when: "creating a revision for a saved note"
-        note1.removeFromRevisions(rev1)
-        rev1.discard()
-        note1.save(flush:true, failOnError:true)
-        int lBaseline = Location.count()
-        int mBaseline = MediaInfo.count()
-        rev1 = note1.createRevision()
-        RecordNote.withSession { it.flush() }
+        when: "fill in a record"
+        res = RecordNote.tryCreate(rec1, null, null, null)
 
-        then: "revision created but no media because media is still empty"
-        rev1.authorName == note1.authorName
-        rev1.authorId == note1.authorId
-        rev1.authorType == note1.authorType
-        rev1.whenChanged == note1.whenChanged
-        rev1.noteContents == note1.noteContents
-        rev1.location instanceof Location
-        rev1.location.id != note1.location.id
-        note1.media.id != null
-        rev1.media == null
-        Location.count() == lBaseline + 1
-        MediaInfo.count() == mBaseline
+        then: "validation for info within note is handled in `TempRecordItem`"
+        res.status == ResultStatus.CREATED
 
-        when: "add some media elements to the media"
-        MediaElement e1 = new MediaElement()
-        e1.sendVersion = new MediaElementVersion(type: MediaType.IMAGE_PNG,
-            versionId: UUID.randomUUID().toString(),
-            sizeInBytes: Constants.MAX_MEDIA_SIZE_PER_MESSAGE_IN_BYTES / 2,
-            widthInPixels: 888)
-        note1.media.addToMediaElements(e1)
-        note1.save(flush:true, failOnError:true)
-        rev1 = note1.createRevision()
-        RecordNote.withSession { it.flush() }
+        when: "add a invalid location"
+        res = RecordNote.tryCreate(rec1, null, null, new Location())
 
-        then: "revision created this time has all fields, including media, populated"
-        rev1.authorName == note1.authorName
-        rev1.authorId == note1.authorId
-        rev1.authorType == note1.authorType
-        rev1.whenChanged == note1.whenChanged
-        rev1.noteContents == note1.noteContents
-        rev1.location instanceof Location
-        rev1.location.id != note1.location.id
-        rev1.media instanceof MediaInfo
-        rev1.media.id != note1.media.id
-        Location.count() == lBaseline + 2
-        MediaInfo.count() == mBaseline + 1
+        then: "parent is invalid"
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+
+        when: "fill in location"
+        res = RecordNote.tryCreate(rec1, null, null, TestUtils.buildLocation())
+
+        then: "parent becomes valid again"
+        res.status == ResultStatus.CREATED
     }
 
     void "test do not create revision for newly-created note"() {
         given:
-        Record rec = new Record()
-        rec.save(flush: true, failOnError: true)
+        Record rec1 = TestUtils.buildRecord()
         int lBaseline = Location.count()
         int mBaseline = MediaInfo.count()
 
         when: "an unsaved record note"
-        RecordNote note1 = new RecordNote(record:rec)
+        RecordNote note1 = RecordNote.tryCreate(rec1, null).payload
         Result<RecordNote> res = note1.tryCreateRevision()
         RecordNote.withSession { it.flush() }
 
@@ -164,22 +91,19 @@ class RecordNoteSpec extends Specification {
 
     void "test determining if should create revision for an existing note"() {
         given: "a saved valid note"
-        Record rec = new Record()
-        rec.save(flush: true, failOnError: true)
-        RecordNote note1 = new RecordNote(record:rec)
-        note1.authorName = "hello"
-        note1.authorId = 88L
-        note1.authorType = AuthorType.STAFF
-        note1.noteContents = "hello there!"
-        note1.location = new Location(address: "hi", lat: 0G, lon: 0G)
-        note1.media = new MediaInfo()
-        assert note1.save(flush: true, failOnError: true)
+        MediaElement el1 = TestUtils.buildMediaElement()
+        RecordNote note1 = RecordNote.tryCreate(TestUtils.buildRecord(),
+            TestUtils.randString(),
+            TestUtils.buildMediaInfo(),
+            TestUtils.buildLocation()).payload
+        note1.author = TestUtils.buildAuthor()
+        RecordNote.withSession { it.flush() }
+
         int initialNumRevisions = note1.revisions?.size() ?: 0
         DateTime initialWhenChanged = note1.whenChanged
 
         when: "change isDeleted property"
         note1.isDeleted = true
-        assert note1.hasDirtyNonObjectFields() == false
         assert note1.tryCreateRevision().success == true
         note1.save(flush: true, failOnError: true)
 
@@ -189,7 +113,6 @@ class RecordNoteSpec extends Specification {
 
         when: "change a non-object property"
         note1.noteContents = "hi! what's up?"
-        assert note1.hasDirtyNonObjectFields() == true
         assert note1.tryCreateRevision().success == true
         note1.save(flush: true, failOnError: true)
 
@@ -202,7 +125,6 @@ class RecordNoteSpec extends Specification {
         initialNumRevisions = note1.revisions.size()
         initialWhenChanged = note1.whenChanged
 
-        assert note1.hasDirtyNonObjectFields() == false
         assert note1.tryCreateRevision().success == true
         note1.save(flush: true, failOnError: true)
 
@@ -210,17 +132,11 @@ class RecordNoteSpec extends Specification {
         note1.revisions?.size() == initialNumRevisions + 1
         note1.whenChanged.isAfter(initialWhenChanged)
 
-        when: "add to media media"
-        MediaElement e1 = new MediaElement()
-        e1.sendVersion = new MediaElementVersion(type: MediaType.IMAGE_PNG,
-            versionId: UUID.randomUUID().toString(),
-            sizeInBytes: Constants.MAX_MEDIA_SIZE_PER_MESSAGE_IN_BYTES / 2,
-            widthInPixels: 888)
-        note1.media.addToMediaElements(e1)
+        when: "add to media"
+        note1.media.addToMediaElements(el1)
 
         initialNumRevisions = note1.revisions.size()
         initialWhenChanged = note1.whenChanged
-        assert note1.hasDirtyNonObjectFields() == false
         assert note1.tryCreateRevision().success == true
         note1.save(flush: true, failOnError: true)
 
@@ -231,7 +147,6 @@ class RecordNoteSpec extends Specification {
         when: "make no changes after mediaElements in `media` child is initialized"
         initialNumRevisions = note1.revisions.size()
         initialWhenChanged = note1.whenChanged
-        assert note1.hasDirtyNonObjectFields() == false
         assert note1.tryCreateRevision().success == true
         note1.save(flush: true, failOnError: true)
 
@@ -240,11 +155,10 @@ class RecordNoteSpec extends Specification {
         note1.whenChanged == initialWhenChanged
 
         when: "remove from media"
-        note1.media.removeMediaElement(e1.uid)
+        note1.media.removeMediaElement(el1.uid)
 
         initialNumRevisions = note1.revisions.size()
         initialWhenChanged = note1.whenChanged
-        assert note1.hasDirtyNonObjectFields() == false
         assert note1.tryCreateRevision().success == true
         note1.save(flush: true, failOnError: true)
 
@@ -255,7 +169,6 @@ class RecordNoteSpec extends Specification {
         when: "make no changes after mediaElements in `media` child is initialized"
         initialNumRevisions = note1.revisions.size()
         initialWhenChanged = note1.whenChanged
-        assert note1.hasDirtyNonObjectFields() == false
         assert note1.tryCreateRevision().success == true
         note1.save(flush: true, failOnError: true)
 

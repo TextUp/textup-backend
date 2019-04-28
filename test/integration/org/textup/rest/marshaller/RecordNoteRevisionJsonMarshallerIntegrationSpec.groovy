@@ -11,32 +11,27 @@ import spock.lang.*
 
 class RecordNoteRevisionJsonMarshallerIntegrationSpec extends Specification {
 
-    def grailsApplication
-
     void "test marshalling revision"() {
         given: "revision"
         String tzId = "Europe/Stockholm"
         String offsetString = TestUtils.getDateTimeOffsetString(tzId)
 
-        Record rec = new Record()
-        rec.save(flush:true, failOnError:true)
-        RecordNote note1 = new RecordNote(record:rec, noteContents:"note contents!!")
-        note1.save(flush:true, failOnError:true)
-        RecordNoteRevision rev1 = new RecordNoteRevision(note: note1,
+        Record rec1 = TestUtils.buildRecord()
+        RecordNote rNote1 = new RecordNote(record: rec1, noteContents: TestUtils.randString())
+        rNote1.save(flush:true, failOnError:true)
+        RecordNoteRevision rev1 = new RecordNoteRevision(note: rNote1,
             whenChanged: DateTime.now(),
-            location: new Location(address: "hi", lat: 0G, lon: 0G),
-            authorName: "hi",
-            authorId: 8L,
+            location: TestUtils.buildLocation(),
+            authorName: TestUtils.randString(),
+            authorId: TestUtils.randIntegerUpTo(88, true),
             authorType: AuthorType.STAFF,
-            noteContents: "hi",
-            media: new MediaInfo())
+            noteContents: TestUtils.randString(),
+            media: TestUtils.buildMediaInfo())
         rev1.save(flush:true, failOnError:true)
 
     	when:
-    	Map json
-    	JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-    		json = TestUtils.jsonToMap(rev1 as JSON)
-    	}
+        RequestUtils.trySet(RequestUtils.TIMEZONE, 1234)
+    	Map json = TestUtils.objToJsonMap(rev1)
 
     	then:
         json.id != null
@@ -47,13 +42,11 @@ class RecordNoteRevisionJsonMarshallerIntegrationSpec extends Specification {
         json.authorName == rev1.authorName
         json.authorId == rev1.authorId
         json.authorType == rev1.authorType.toString()
-        !json.whenChanged.contains(offsetString)
+        json.whenChanged.contains("Z")
 
         when: "add timezone"
-        Utils.trySetOnRequest(Constants.REQUEST_TIMEZONE, tzId)
-        JSON.use(grailsApplication.config.textup.rest.defaultLabel) {
-            json = TestUtils.jsonToMap(rev1 as JSON)
-        }
+        RequestUtils.trySet(RequestUtils.TIMEZONE, tzId)
+        json = TestUtils.objToJsonMap(rev1)
 
         then:
         json.whenChanged.contains(offsetString)

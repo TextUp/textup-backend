@@ -1,5 +1,5 @@
 import groovy.sql.*
-import org.textup.type.MediaType
+import org.textup.type.*
 
 // [NOTE] that this comes BEFORE `recorded_voicemail_greeting.groovy` so that the `is_public`
 // column in the `media_element_version` table doesn't exist yet

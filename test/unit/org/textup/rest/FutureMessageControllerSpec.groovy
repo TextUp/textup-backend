@@ -9,349 +9,215 @@ import grails.test.mixin.TestMixin
 import grails.validation.ValidationErrors
 import org.springframework.context.MessageSource
 import org.textup.*
+import org.textup.structure.*
 import org.textup.test.*
 import org.textup.type.*
 import org.textup.util.*
-import spock.lang.Shared
-import spock.lang.Specification
-import static javax.servlet.http.HttpServletResponse.*
+import org.textup.util.domain.*
+import org.textup.validator.*
+import spock.lang.*
 
+@Domain([AnnouncementReceipt, ContactNumber, CustomAccountDetails, FeaturedAnnouncement,
+    FutureMessage, GroupPhoneRecord, IncomingSession, IndividualPhoneRecord, Location, MediaElement,
+    MediaElementVersion, MediaInfo, Organization, OwnerPolicy, Phone, PhoneNumberHistory,
+    PhoneOwnership, PhoneRecord, PhoneRecordMembers, Record, RecordCall, RecordItem,
+    RecordItemReceipt, RecordNote, RecordNoteRevision, RecordText, Role, Schedule,
+    SimpleFutureMessage, Staff, StaffRole, Team, Token])
 @TestFor(FutureMessageController)
-@Domain([CustomAccountDetails, Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
-    RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization, NotificationPolicy,
-    Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole, FutureMessage,
-    MediaInfo, MediaElement, MediaElementVersion])
 @TestMixin(HibernateTestMixin)
-class FutureMessageControllerSpec extends CustomSpec {
+class FutureMessageControllerSpec extends Specification {
 
 	static doWithSpring = {
         resultFactory(ResultFactory)
     }
 
-    FutureMessage fMsg1
-
     def setup() {
-        super.setupData()
-        JodaConverters.registerJsonAndXmlMarshallers()
+        TestUtils.standardMockSetup()
         IOCUtils.metaClass."static".getQuartzScheduler = { -> TestUtils.mockScheduler() }
-        fMsg1 = new FutureMessage(record: c1.record, type:FutureMessageType.CALL, message:"hi")
-        fMsg1.save(flush:true, failOnError:true)
-    }
-    def cleanup() {
-        super.cleanupData()
     }
 
-    protected void mockAuth(boolean exists, boolean hasPermission) {
-    	controller.authService = [
-    		exists: { Class clazz, Long id -> exists },
-    		hasPermissionsForFutureMessage: { Long id -> hasPermission }
-    	] as AuthService
-    }
-
-    // List
-    // ----
-
-    void "test list with no ids"() {
-		when:
-		request.method = "GET"
-		controller.index()
-
-		then:
-		response.status == SC_BAD_REQUEST
-    }
-    void "test list with more than 1 id"() {
-    	when:
-		request.method = "GET"
-		params.contactId = c1.id
-		params.tagId = tag1.id
-		controller.index()
-
-		then:
-		response.status == SC_BAD_REQUEST
-    }
-    void "test list for contact id for my contact"() {
+    void "test index"() {
     	given:
-    	controller.authService = [hasPermissionsForContact: { Long id ->
-    		true
-		}] as AuthService
-		fMsg1.record = c1.record
-		fMsg1.save(flush:true, failOnError:true)
+    	PhoneRecord spr1 = TestUtils.buildSharedPhoneRecord()
+    	spr1.permission = SharePermission.NONE
+    	PhoneRecord spr2 = TestUtils.buildSharedPhoneRecord()
+    	GroupPhoneRecord gpr1 = TestUtils.buildGroupPhoneRecord()
+
+    	FutureMessage fMsg1 = TestUtils.buildFutureMessage(spr2.record)
+    	FutureMessage fMsg2 = TestUtils.buildFutureMessage(gpr1.record)
+
+    	MockedMethod isAllowed = MockedMethod.create(PhoneRecords, "isAllowed") { Result.void() }
 
     	when:
-		request.method = "GET"
-		params.contactId = c1.id
-		controller.index()
+    	params.contactId = spr1.id
+    	Result res = controller.index()
 
-		then:
-		response.status == SC_OK
-		response.json.isEmpty() == false
-		response.json*.id.find { it == fMsg1.id }
-    }
-    void "test list for contact id for shared contact"() {
-    	given:
-    	controller.authService = [
-    		hasPermissionsForContact: { Long id -> false },
-    		getSharedContactIdForContact: { Long id -> sc1.id }
-		] as AuthService
-		fMsg1.record = sc1.contact.record
-		fMsg1.save(flush:true, failOnError:true)
+    	then:
+    	isAllowed.latestArgs == [spr1.id]
+    	response.status == ResultStatus.FORBIDDEN.intStatus
+    	response.text.contains("phoneRecordWrapper.insufficientPermission")
+        RequestUtils.tryGet(RequestUtils.PHONE_RECORD_ID).payload == spr1.id
 
     	when:
-		request.method = "GET"
-		params.contactId = c1.id
-		controller.index()
+    	params.clear()
+    	response.reset()
+    	params.contactId = spr2.id
+    	res = controller.index()
 
-		then:
-		response.status == SC_OK
-		response.json.isEmpty() == false
-		response.json*.id.find { it == fMsg1.id }
-    }
-    void "test list for tag id"() {
-    	given:
-    	controller.authService = [hasPermissionsForTag: { Long id ->
-    		true
-    	}] as AuthService
-		fMsg1.record = tag1.record
-		fMsg1.save(flush:true, failOnError:true)
+    	then:
+    	isAllowed.latestArgs == [spr2.id]
+    	response.status == ResultStatus.OK.intStatus
+    	response.json[0].id == fMsg1.id
+        RequestUtils.tryGet(RequestUtils.PHONE_RECORD_ID).payload == spr2.id
 
     	when:
-		request.method = "GET"
-		params.tagId = tag1.id
-		controller.index()
+    	params.clear()
+    	response.reset()
+    	params.tagId = gpr1.id
+    	res = controller.index()
 
-		then:
-		response.status == SC_OK
-		response.json.isEmpty() == false
-		response.json*.id.find { it == fMsg1.id }
+    	then:
+    	isAllowed.latestArgs == [gpr1.id]
+    	response.status == ResultStatus.OK.intStatus
+    	response.json[0].id == fMsg2.id
+        RequestUtils.tryGet(RequestUtils.PHONE_RECORD_ID).payload == gpr1.id
+
+    	cleanup:
+    	isAllowed?.restore()
     }
 
-    // Show
-    // ----
+    void "test show"() {
+        given:
+        Long id = TestUtils.randIntegerUpTo(88)
 
-    void "test show nonexistent message"() {
-		when:
-		request.method = "GET"
-		params.id = "-88L"
-		controller.show()
+        MockedMethod doShow = MockedMethod.create(controller, "doShow")
+        MockedMethod isAllowed = MockedMethod.create(FutureMessages, "isAllowed")
+        MockedMethod mustFindForId = MockedMethod.create(FutureMessages, "mustFindForId")
 
-		then:
-		response.status == SC_NOT_FOUND
-    }
-    void "test show forbidden message"() {
-    	given:
-		controller.authService = [
-    		hasPermissionsForFutureMessage: { Long id -> false }
-    	] as AuthService
+        when:
+        params.id = id
+        controller.show()
 
-		when:
-		request.method = "GET"
-		params.id = fMsg1.id
-		controller.show()
+        then:
+        doShow.latestArgs[0] instanceof Closure
+        doShow.latestArgs[1] instanceof Closure
 
-		then:
-		response.status == SC_FORBIDDEN
-    }
-    void "test show message"() {
-    	given:
-    	controller.authService = [
-    		hasPermissionsForFutureMessage: { Long id -> true }
-    	] as AuthService
+        when:
+        doShow.latestArgs[0].call()
+        doShow.latestArgs[1].call()
 
-		when:
-		request.method = "GET"
-		params.id = fMsg1.id
-		controller.show()
+        then:
+        isAllowed.latestArgs == [id]
+        mustFindForId.latestArgs == [id]
 
-		then:
-		response.status == SC_OK
-		response.json.id == fMsg1.id
+        cleanup:
+        doShow?.restore()
+        isAllowed?.restore()
+        mustFindForId?.restore()
     }
 
-    // Save
-    // ----
+    void "test save"() {
+        given:
+        Long contactId = TestUtils.randIntegerUpTo(88)
+        Long tagId = TestUtils.randIntegerUpTo(88)
 
-    String _calledWhichCreate
-    protected void mockForSave() {
-    	controller.futureMessageService = [
-    		createForTag: { Long id, Map body, String timezone = null ->
-    			_calledWhichCreate = "tag"
-    			new Result(payload:fMsg1, status:ResultStatus.CREATED)
-			},
-			createForContact: { Long id, Map body, String timezone = null ->
-				_calledWhichCreate = "contact"
-				new Result(payload:fMsg1, status:ResultStatus.CREATED)
-			},
-			createForSharedContact: { Long id, Map body, String timezone = null ->
-				_calledWhichCreate = "sharedContact"
-				new Result(payload:fMsg1, status:ResultStatus.CREATED)
-			}
-    	] as FutureMessageService
+        controller.futureMessageService = GroovyMock(FutureMessageService)
+        MockedMethod doSave = MockedMethod.create(controller, "doSave")
+        MockedMethod isAllowed = MockedMethod.create(PhoneRecords, "isAllowed")
+
+        when:
+        params.tagId = tagId
+        controller.save()
+
+        then:
+        doSave.latestArgs[0] == MarshallerUtils.KEY_FUTURE_MESSAGE
+        doSave.latestArgs[1] == request
+        doSave.latestArgs[2] == controller.futureMessageService
+        doSave.latestArgs[3] instanceof Closure
+
+        when:
+        doSave.latestArgs[3].call()
+
+        then:
+        isAllowed.latestArgs == [tagId]
+        RequestUtils.tryGet(RequestUtils.PHONE_RECORD_ID).payload == tagId
+
+        when:
+        response.reset()
+        params.contactId = contactId
+        controller.save()
+
+        then:
+        doSave.latestArgs[0] == MarshallerUtils.KEY_FUTURE_MESSAGE
+        doSave.latestArgs[1] == request
+        doSave.latestArgs[2] == controller.futureMessageService
+        doSave.latestArgs[3] instanceof Closure
+
+        when:
+        doSave.latestArgs[3].call()
+
+        then:
+        isAllowed.latestArgs == [contactId]
+        RequestUtils.tryGet(RequestUtils.PHONE_RECORD_ID).payload == contactId
+
+        cleanup:
+        doSave?.restore()
+        isAllowed?.restore()
     }
 
-    void "test save no ids"() {
-    	when:
-		request.method = "POST"
-		controller.save()
+    void "test update"() {
+        given:
+        Long id = TestUtils.randIntegerUpTo(88)
 
-		then:
-		response.status == SC_BAD_REQUEST
-    }
-    void "test save multiple ids"() {
-    	when:
-		request.method = "POST"
-		params.contactId = c1.id
-		params.tagId = tag1.id
-		controller.save()
+        controller.futureMessageService = GroovyMock(FutureMessageService)
+        MockedMethod doUpdate = MockedMethod.create(controller, "doUpdate")
+        MockedMethod isAllowed = MockedMethod.create(FutureMessages, "isAllowed")
 
-		then:
-		response.status == SC_BAD_REQUEST
-    }
-    void "test save for contact id for my contact"() {
-    	given:
-		mockForSave()
-		controller.authService = [
-    		exists: { Class clazz, Long id -> true },
-    		hasPermissionsForContact: { Long id -> true }
-    	] as AuthService
+        when:
+        params.id = id
+        controller.update()
 
-		when:
-		request.json = "{'future-message':{}}"
-		request.method = "POST"
-		params.contactId = c1.id
-		controller.save()
+        then:
+        doUpdate.latestArgs[0] == MarshallerUtils.KEY_FUTURE_MESSAGE
+        doUpdate.latestArgs[1] == request
+        doUpdate.latestArgs[2] == controller.futureMessageService
+        doUpdate.latestArgs[3] instanceof Closure
 
-		then: "implicitly save for logged-in staff"
-		response.status == SC_CREATED
-        response.json.id == fMsg1.id
-        _calledWhichCreate == "contact"
-    }
-    void "test save for contact id for shared contact"() {
-    	mockForSave()
-		controller.authService = [
-    		exists: { Class clazz, Long id -> true },
-    		hasPermissionsForContact: { Long id -> false },
-    		getSharedContactIdForContact: { Long id -> sc1.id }
-    	] as AuthService
+        when:
+        doUpdate.latestArgs[3].call()
 
-		when:
-		request.json = "{'future-message':{}}"
-		request.method = "POST"
-		params.contactId = c1.id
-		controller.save()
+        then:
+        isAllowed.latestArgs == [id]
 
-		then: "implicitly save for logged-in staff"
-		response.status == SC_CREATED
-        response.json.id == fMsg1.id
-        _calledWhichCreate == "sharedContact"
-    }
-    void "test save for tag id"() {
-    	given:
-		mockForSave()
-		controller.authService = [
-    		exists: { Class clazz, Long id -> true },
-    		hasPermissionsForTag: { Long id -> true }
-    	] as AuthService
-
-		when:
-		request.json = "{'future-message':{}}"
-		request.method = "POST"
-		params.tagId = tag1.id
-		controller.save()
-
-		then: "implicitly save for logged-in staff"
-		response.status == SC_CREATED
-        response.json.id == fMsg1.id
-        _calledWhichCreate == "tag"
+        cleanup:
+        doUpdate?.restore()
+        isAllowed?.restore()
     }
 
-    // Update
-    // ------
+    void "test delete"() {
+        given:
+        Long id = TestUtils.randIntegerUpTo(88)
 
-	void "test update nonexistent message"() {
-		given:
-		mockAuth(false, false)
+        controller.futureMessageService = GroovyMock(FutureMessageService)
+        MockedMethod doDelete = MockedMethod.create(controller, "doDelete")
+        MockedMethod isAllowed = MockedMethod.create(FutureMessages, "isAllowed")
 
-		when:
-		request.json = "{'future-message':{}}"
-		request.method = "PUT"
-		params.id = fMsg1.id
-		controller.update()
+        when:
+        params.id = id
+        controller.delete()
 
-		then:
-		response.status == SC_NOT_FOUND
-	}
-	void "test update forbidden message"() {
-		given:
-		mockAuth(true, false)
+        then:
+        doDelete.latestArgs[0] == controller.futureMessageService
+        doDelete.latestArgs[1] instanceof Closure
 
-		when:
-		request.json = "{'future-message':{}}"
-		request.method = "PUT"
-		params.id = fMsg1.id
-		controller.update()
+        when:
+        doDelete.latestArgs[1].call()
 
-		then:
-		response.status == SC_FORBIDDEN
-	}
-	void "test update message"() {
-		given:
-		mockAuth(true, true)
-		controller.futureMessageService = [update: { Long id,
-			Map fInfo, String timezone ->
-			new Result(success:true, payload:fMsg1)
-		}] as FutureMessageService
+        then:
+        isAllowed.latestArgs == [id]
 
-		when:
-		request.json = "{'future-message':{}}"
-		request.method = "PUT"
-		params.id = fMsg1.id
-		controller.update()
-
-		then:
-		response.status == SC_OK
-		response.json.id == fMsg1.id
-	}
-
-    // Delete
-    // ------
-
-    void "test delete nonexistent message"() {
-    	given:
-		mockAuth(false, false)
-
-		when:
-		request.method = "DELETE"
-		params.id = fMsg1.id
-		controller.delete()
-
-		then:
-		response.status == SC_NOT_FOUND
-	}
-	void "test delete forbidden message"() {
-		given:
-		mockAuth(true, false)
-
-		when:
-		request.method = "DELETE"
-		params.id = fMsg1.id
-		controller.delete()
-
-		then:
-		response.status == SC_FORBIDDEN
-	}
-	void "test delete message"() {
-		given:
-		mockAuth(true, true)
-		controller.futureMessageService = [delete: { Long id ->
-			new Result<Void>(payload:null, status:ResultStatus.NO_CONTENT)
-		}] as FutureMessageService
-
-		when:
-		request.method = "DELETE"
-		params.id = fMsg1.id
-		controller.delete()
-
-		then:
-		response.status == SC_NO_CONTENT
-	}
+        cleanup:
+        doDelete?.restore()
+        isAllowed?.restore()
+    }
 }

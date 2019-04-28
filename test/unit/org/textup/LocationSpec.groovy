@@ -1,95 +1,126 @@
 package org.textup
 
+import grails.test.mixin.*
+import grails.test.mixin.gorm.*
+import grails.test.mixin.hibernate.*
+import grails.test.mixin.support.*
+import grails.test.runtime.*
+import grails.validation.*
+import org.joda.time.*
+import org.textup.structure.*
 import org.textup.test.*
-import grails.test.mixin.gorm.Domain
-import grails.test.mixin.hibernate.HibernateTestMixin
-import grails.test.mixin.TestMixin
-import grails.validation.ValidationErrors
-import org.springframework.context.MessageSource
-import spock.lang.Ignore
-import spock.lang.Shared
-import spock.lang.Specification
+import org.textup.type.*
+import org.textup.util.*
+import org.textup.validator.*
+import spock.lang.*
 
 @Domain(Location)
 @TestMixin(HibernateTestMixin)
 class LocationSpec extends Specification {
 
+    static doWithSpring = {
+        resultFactory(ResultFactory)
+    }
+
+    def setup() {
+        TestUtils.standardMockSetup()
+    }
+
     void "test constraints and deletion"() {
+        given:
+        String address = TestUtils.randString()
+        BigDecimal validLat = 0G
+        BigDecimal validLng = 88G
+
     	when:
-    	Location l = new Location(address:"testing address")
+        Result res = Location.tryCreate(null, null, null)
 
     	then:
-    	l.validate() == false
-    	l.errors.errorCount == 2
+    	res.status == ResultStatus.UNPROCESSABLE_ENTITY
 
-    	when: "lat out of bounds"
-    	l.lat = -100G
-    	l.lon = 0G
+    	when:
+        res = Location.tryCreate(address, -888G, -888G)
 
-    	then:
-    	l.validate() == false
-    	l.errors.errorCount == 1
+        then:
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
 
-    	when: "lon out of bounds"
-    	l.lat = 0G
-    	l.lon = 200G
+        when:
+        res = Location.tryCreate(address, validLat, validLng)
 
-    	then:
-    	l.validate() == false
-    	l.errors.errorCount == 1
+        then:
+        res.status == ResultStatus.CREATED
+        res.payload.address == address
+        res.payload.lat == validLat
+        res.payload.lng == validLng
+    }
 
-    	when: "valid bounds"
-    	l.lat = 0G
-    	l.lon = 0G
+    void "test determining if actually dirty"() {
+        when:
+        Location loc1 = TestUtils.buildLocation()
 
-    	then:
-    	l.save(flush:true)
+        then:
+        loc1.isDirty() == false
+        loc1.isActuallyDirty() == false
 
-    	when: "delete this location"
-    	int baseline = Location.count()
-    	l.delete(flush:true)
+        when: "change lat by a little bit"
+        loc1.lat = loc1.lat + 0.000001
 
-    	then:
-    	Location.count() == baseline - 1
+        then:
+        loc1.isDirty() == true
+        loc1.isActuallyDirty() == false
+
+        when: "change lng by a little bit"
+        loc1.lng = loc1.lng + 0.000001
+
+        then:
+        loc1.isDirty() == true
+        loc1.isActuallyDirty() == false
+
+        when: "change address"
+        loc1.address = TestUtils.randString()
+
+        then:
+        loc1.isDirty() == true
+        loc1.isActuallyDirty() == true
     }
 
     void "test duplicating persistent state"() {
         given: "an unsaved obj"
-        Location loc = new Location(address: "hi", lat: 0G, lon: 0G)
-        assert loc.validate()
+        Location loc1 = new Location(address: "hi", lat: 0G, lng: 0G)
+        assert loc1.validate()
 
         when: "try create duplicate"
-        Location dup = loc.tryDuplicatePersistentState()
+        Location dup = loc1.tryDuplicatePersistentState()
 
         then: "cannot do so because no persisted values to draw from"
         dup == null
 
         when: "save obj, then create duplicate"
-        loc.save(flush: true, failOnError:true)
-        dup = loc.tryDuplicatePersistentState()
+        loc1.save(flush: true, failOnError:true)
+        dup = loc1.tryDuplicatePersistentState()
 
         then: "persisted values are NOT null"
         dup instanceof Location
         null != dup.address
-        dup.address == loc.address
+        dup.address == loc1.address
         null != dup.lat
-        dup.lat == loc.lat
-        null != dup.lon
-        dup.lon == loc.lon
+        dup.lat == loc1.lat
+        null != dup.lng
+        dup.lng == loc1.lng
 
         when: "change some values on the Location"
-        loc.address = "something else"
-        loc.lat = 8G
-        assert loc.validate()
-        dup = loc.tryDuplicatePersistentState()
+        loc1.address = "something else"
+        loc1.lat = 8G
+        assert loc1.validate()
+        dup = loc1.tryDuplicatePersistentState()
 
         then: "duplicate still uses persisted values"
         dup instanceof Location
         null != dup.address
-        dup.address != loc.address
+        dup.address != loc1.address
         null != dup.lat
-        dup.lat != loc.lat
-        null != dup.lon
-        dup.lon == loc.lon
+        dup.lat != loc1.lat
+        null != dup.lng
+        dup.lng == loc1.lng
     }
 }

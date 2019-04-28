@@ -48,8 +48,8 @@ $(document).ready(function() {
     }
   }
   function buildNumberChart($cell, bindTo, chartData) {
-    if (chartData && chartData.currentMonthIndex && chartData.numberData) {
-      var chartObj = generateChart(bindTo, chartData.currentMonthIndex, chartData.numberData);
+    if (chartData && chartData.currentMonthIndex && chartData.phoneIdData) {
+      var chartObj = generateChart(bindTo, chartData.currentMonthIndex, chartData.phoneIdData);
       charts.push(chartObj);
       storeChartObjOnTableCell($cell, chartObj);
     }
@@ -61,7 +61,7 @@ $(document).ready(function() {
       $table = $target.closest("table"),
       tableObj = $table.DataTable({ retrieve: true }),
       rowObj = tableObj.row($row),
-      number = $target.data("number");
+      phoneId = $target.data("phoneId");
     if (rowObj.child.isShown()) {
       rowObj.child.hide();
       $row.removeClass("number-detail-expanded");
@@ -72,7 +72,7 @@ $(document).ready(function() {
       } else {
         var divEl = document.createElement("div");
         rowObj.child(divEl).show();
-        fetchDataAndBuildChart(buildNumberChart.bind(null, $target, divEl), { number: number });
+        fetchDataAndBuildChart(buildNumberChart.bind(null, $target, divEl), { phoneId: phoneId });
       }
       $row.addClass("number-detail-expanded");
     }

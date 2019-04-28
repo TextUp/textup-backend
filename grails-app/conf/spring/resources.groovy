@@ -2,10 +2,13 @@ import com.amazonaws.auth.BasicAWSCredentials
 import com.amazonaws.services.s3.AmazonS3Client
 import com.pusher.rest.Pusher
 import org.textup.*
+import org.textup.annotation.*
 import org.textup.cache.*
 import org.textup.media.*
+import org.textup.override.*
 import org.textup.rest.*
 import org.textup.rest.marshaller.*
+import org.textup.structure.*
 import org.textup.util.*
 import org.textup.validator.*
 
@@ -32,9 +35,14 @@ beans = {
 
 	s3Service(AmazonS3Client,
 		new BasicAWSCredentials(apiConfig.aws.accessKey, apiConfig.aws.secretKey))
-	audioUtils(AudioUtils, audioConfig.executableDirectory, audioConfig.executableName,
+	audioUtils(AudioUtils,
+		audioConfig.executableDirectory,
+		audioConfig.executableName,
 		tConfig.tempDirectory)
-	pusherService(Pusher, apiConfig.pusher.appId, apiConfig.pusher.apiKey, apiConfig.pusher.apiSecret) {
+	pusherService(Pusher,
+		apiConfig.pusher.appId,
+		apiConfig.pusher.apiKey,
+		apiConfig.pusher.apiSecret) {
 		encrypted = true
 	}
 	resultFactory(ResultFactory) { bean ->
@@ -48,252 +56,38 @@ beans = {
 	}
 	// Override cache manager to support constraining the in-memory cache size
 	grailsCacheManager(ConstrainedSizeCacheManager) {
-		cacheNameToMaxSize = [(Constants.CACHE_RECEIPTS): Constants.CACHE_RECEIPTS_MAX_SIZE]
+		cacheNameToMaxSize = [
+			(Constants.CACHE_RECEIPTS): Constants.CACHE_RECEIPTS_MAX_SIZE,
+			(Constants.CACHE_PHONES): Constants.CACHE_PHONES_MAX_SIZE
+		]
 	}
+	phoneCache(PhoneCache)
 	receiptCache(RecordItemReceiptCache)
 
 	// Marshallers
 	// -----------
 
-	contactableRenderer(ApiJsonRenderer, Contactable) {
-		label = tRestConfig.v1.contact.singular
-	}
-	contactableCollectionRenderer(ApiJsonCollectionRenderer, Contactable) {
-		label = tRestConfig.v1.contact.plural
-	}
-	contactableJsonMarshaller(ContactableJsonMarshaller) {
-		name = tRestConfig.defaultLabel
-		namespace = v1Namespace
-	}
-
-	tagRenderer(ApiJsonRenderer, ContactTag) {
-		label = tRestConfig.v1.tag.singular
-	}
-	tagCollectionRenderer(ApiJsonCollectionRenderer, ContactTag) {
-		label = tRestConfig.v1.tag.plural
-	}
-	tagJsonMarshaller(ContactTagJsonMarshaller) {
-		name = tRestConfig.defaultLabel
-		namespace = v1Namespace
-	}
-
-	organizationRenderer(ApiJsonRenderer, Organization) {
-		label = tRestConfig.v1.organization.singular
-	}
-	organizationCollectionRenderer(ApiJsonCollectionRenderer, Organization) {
-		label = tRestConfig.v1.organization.plural
-	}
-	organizationJsonMarshaller(OrganizationJsonMarshaller) {
-		name = tRestConfig.defaultLabel
-		namespace = v1Namespace
-	}
-
-	locationRenderer(ApiJsonRenderer, ReadOnlyLocation) {
-		label = tRestConfig.v1.location.singular
-	}
-	locationCollectionRenderer(ApiJsonCollectionRenderer, ReadOnlyLocation) {
-		label = tRestConfig.v1.location.plural
-	}
-	locationJsonMarshaller(LocationJsonMarshaller) {
-		name = tRestConfig.defaultLabel
-		namespace = v1Namespace
-	}
-
-	phoneRenderer(ApiJsonRenderer, Phone) {
-		label = tRestConfig.v1.phone.singular
-	}
-	phoneCollectionRenderer(ApiJsonCollectionRenderer, Phone) {
-		label = tRestConfig.v1.phone.plural
-	}
-	phoneJsonMarshaller(PhoneJsonMarshaller) {
-		name = tRestConfig.defaultLabel
-		namespace = v1Namespace
-	}
-
-	recordRenderer(ApiJsonRenderer, ReadOnlyRecordItem) {
-		label = tRestConfig.v1.record.singular
-	}
-	recordCollectionRenderer(ApiJsonCollectionRenderer, ReadOnlyRecordItem) {
-		label = tRestConfig.v1.record.plural
-	}
-	recordJsonMarshaller(RecordItemJsonMarshaller) {
-		name = tRestConfig.defaultLabel
-		namespace = v1Namespace
-	}
-
-	recordItemStatusRenderer(ApiJsonRenderer, RecordItemStatus) {
-		label = tRestConfig.v1.recordItemStatus.singular
-	}
-	recordItemStatusCollectionRenderer(ApiJsonCollectionRenderer, RecordItemStatus) {
-		label = tRestConfig.v1.recordItemStatus.plural
-	}
-	recordItemStatusJsonMarshaller(RecordItemStatusJsonMarshaller) {
-		name = tRestConfig.defaultLabel
-		namespace = v1Namespace
-	}
-
-	recordItemRequestRenderer(ApiJsonRenderer, RecordItemRequest) {
-		label = tRestConfig.v1.recordItemRequest.singular
-	}
-	recordItemRequestCollectionRenderer(ApiJsonCollectionRenderer, RecordItemRequest) {
-		label = tRestConfig.v1.recordItemRequest.plural
-	}
-	recordItemRequestJsonMarshaller(RecordItemRequestJsonMarshaller) {
-		name = tRestConfig.defaultLabel
-		namespace = v1Namespace
-	}
-
-	revisionRenderer(ApiJsonRenderer, ReadOnlyRecordNoteRevision) {
-		label = tRestConfig.v1.revision.singular
-	}
-	revisionCollectionRenderer(ApiJsonCollectionRenderer, ReadOnlyRecordNoteRevision) {
-		label = tRestConfig.v1.revision.plural
-	}
-	revisionJsonMarshaller(RecordNoteRevisionJsonMarshaller) {
-		name = tRestConfig.defaultLabel
-		namespace = v1Namespace
-	}
-
-	mediaInfoRenderer(ApiJsonRenderer, ReadOnlyMediaInfo) {
-		label = tRestConfig.v1.mediaInfo.singular
-	}
-	mediaInfoCollectionRenderer(ApiJsonCollectionRenderer, ReadOnlyMediaInfo) {
-		label = tRestConfig.v1.mediaInfo.plural
-	}
-	mediaInfoJsonMarshaller(MediaInfoJsonMarshaller) {
-		name = tRestConfig.defaultLabel
-		namespace = v1Namespace
-	}
-
-	mediaElementRenderer(ApiJsonRenderer, ReadOnlyMediaElement) {
-		label = tRestConfig.v1.mediaElement.singular
-	}
-	mediaElementCollectionRenderer(ApiJsonCollectionRenderer, ReadOnlyMediaElement) {
-		label = tRestConfig.v1.mediaElement.plural
-	}
-	mediaElementJsonMarshaller(MediaElementJsonMarshaller) {
-		name = tRestConfig.defaultLabel
-		namespace = v1Namespace
-	}
-
-	futureMessageRenderer(ApiJsonRenderer, ReadOnlyFutureMessage) {
-		label = tRestConfig.v1.futureMessage.singular
-	}
-	futureMessageCollectionRenderer(ApiJsonCollectionRenderer, ReadOnlyFutureMessage) {
-		label = tRestConfig.v1.futureMessage.plural
-	}
-	futureMessageJsonMarshaller(FutureMessageJsonMarshaller) {
-		name = tRestConfig.defaultLabel
-		namespace = v1Namespace
-	}
-
-	staffRenderer(ApiJsonRenderer, Staff) {
-		label = tRestConfig.v1.staff.singular
-	}
-	staffCollectionRenderer(ApiJsonCollectionRenderer, Staff) {
-		label = tRestConfig.v1.staff.plural
-	}
-	staffJsonMarshaller(StaffJsonMarshaller) {
-		name = tRestConfig.defaultLabel
-		namespace = v1Namespace
-	}
-
-	scheduleRenderer(ApiJsonRenderer, Schedule) {
-		label = tRestConfig.v1.schedule.singular
-	}
-	scheduleCollectionRenderer(ApiJsonCollectionRenderer, Schedule) {
-		label = tRestConfig.v1.schedule.plural
-	}
-	scheduleJsonMarshaller(ScheduleJsonMarshaller) {
-		name = tRestConfig.defaultLabel
-		namespace = v1Namespace
-	}
-
-	teamRenderer(ApiJsonRenderer, Team) {
-		label = tRestConfig.v1.team.singular
-	}
-	teamCollectionRenderer(ApiJsonCollectionRenderer, Team) {
-		label = tRestConfig.v1.team.plural
-	}
-	teamJsonMarshaller(TeamJsonMarshaller) {
-		name = tRestConfig.defaultLabel
-		namespace = v1Namespace
-	}
-
-	sessionRenderer(ApiJsonRenderer, IncomingSession) {
-		label = tRestConfig.v1.session.singular
-	}
-	sessionCollectionRenderer(ApiJsonCollectionRenderer, IncomingSession) {
-		label = tRestConfig.v1.session.plural
-	}
-	sessionJsonMarshaller(SessionJsonMarshaller) {
-		name = tRestConfig.defaultLabel
-		namespace = v1Namespace
-	}
-
-	announcementRenderer(ApiJsonRenderer, FeaturedAnnouncement) {
-		label = tRestConfig.v1.announcement.singular
-	}
-	announcementCollectionRenderer(ApiJsonCollectionRenderer, FeaturedAnnouncement) {
-		label = tRestConfig.v1.announcement.plural
-	}
-	announcementJsonMarshaller(AnnouncementJsonMarshaller) {
-		name = tRestConfig.defaultLabel
-		namespace = v1Namespace
-	}
-
-	notificationRenderer(ApiJsonRenderer, Notification) {
-		label = tRestConfig.v1.notification.singular
-	}
-	notificationCollectionRenderer(ApiJsonCollectionRenderer, Notification) {
-		label = tRestConfig.v1.notification.plural
-	}
-	notificationJsonMarshaller(NotificationJsonMarshaller) {
-		name = tRestConfig.defaultLabel
-		namespace = v1Namespace
-	}
-
-	notificationStatusRenderer(ApiJsonRenderer, NotificationStatus) {
-		label = tRestConfig.v1.notificationStatus.singular
-	}
-	notificationStatusCollectionRenderer(ApiJsonCollectionRenderer, NotificationStatus) {
-		label = tRestConfig.v1.notificationStatus.plural
-	}
-	notificationStatusJsonMarshaller(NotificationStatusJsonMarshaller) {
-		name = tRestConfig.defaultLabel
-		namespace = v1Namespace
-	}
-
-	staffPolicyAvailabilityRenderer(ApiJsonRenderer, StaffPolicyAvailability) {
-		label = tRestConfig.v1.staffPolicyAvailability.singular
-	}
-	staffPolicyAvailabilityCollectionRenderer(ApiJsonCollectionRenderer, StaffPolicyAvailability) {
-		label = tRestConfig.v1.staffPolicyAvailability.plural
-	}
-	staffPolicyAvailabilityJsonMarshaller(StaffPolicyAvailabilityJsonMarshaller) {
-		name = tRestConfig.defaultLabel
-		namespace = v1Namespace
-	}
-
-	availableNumberRenderer(ApiJsonRenderer, AvailablePhoneNumber) {
-		label = tRestConfig.v1.availableNumber.singular
-	}
-	availableNumberCollectionRenderer(ApiJsonCollectionRenderer, AvailablePhoneNumber) {
-		label = tRestConfig.v1.availableNumber.plural
-	}
-	availableNumberJsonMarshaller(AvailablePhoneNumberJsonMarshaller) {
-		name = tRestConfig.defaultLabel
-		namespace = v1Namespace
-	}
-
-	mergeGroupRenderer(ApiJsonRenderer, MergeGroup) {
-		label = tRestConfig.v1.mergeGroup.singular
-	}
-	mergeGroupCollectionRenderer(ApiJsonCollectionRenderer, MergeGroup) {
-		label = tRestConfig.v1.mergeGroup.plural
-	}
-	mergeGroupJsonMarshaller(MergeGroupJsonMarshaller) {
-		name = tRestConfig.defaultLabel
-		namespace = v1Namespace
-	}
+	MarshallerUtils.setupJsonMarshaller(delegate, MarshallerUtils.KEY_ANNOUNCEMENT, FeaturedAnnouncement, AnnouncementJsonMarshaller)
+	MarshallerUtils.setupJsonMarshaller(delegate, MarshallerUtils.KEY_CONTACT, PhoneRecordWrapper, PhoneRecordWrapperJsonMarshaller)
+	MarshallerUtils.setupJsonMarshaller(delegate, MarshallerUtils.KEY_FUTURE_MESSAGE, ReadOnlyFutureMessage, FutureMessageJsonMarshaller)
+	MarshallerUtils.setupJsonMarshaller(delegate, MarshallerUtils.KEY_LOCATION, ReadOnlyLocation, LocationJsonMarshaller)
+	MarshallerUtils.setupJsonMarshaller(delegate, MarshallerUtils.KEY_MEDIA_ELEMENT, ReadOnlyMediaElement, MediaElementJsonMarshaller)
+	MarshallerUtils.setupJsonMarshaller(delegate, MarshallerUtils.KEY_MEDIA_ELEMENT_VERSION, ReadOnlyMediaElementVersion, MediaElementVersionJsonMarshaller)
+	MarshallerUtils.setupJsonMarshaller(delegate, MarshallerUtils.KEY_MEDIA_INFO, ReadOnlyMediaInfo, MediaInfoJsonMarshaller)
+	MarshallerUtils.setupJsonMarshaller(delegate, MarshallerUtils.KEY_MERGE_GROUP, MergeGroup, MergeGroupJsonMarshaller)
+	MarshallerUtils.setupJsonMarshaller(delegate, MarshallerUtils.KEY_MERGE_GROUP_ITEM, MergeGroupItem, MergeGroupItemJsonMarshaller)
+	MarshallerUtils.setupJsonMarshaller(delegate, MarshallerUtils.KEY_NOTIFICATION, Notification, NotificationJsonMarshaller)
+	MarshallerUtils.setupJsonMarshaller(delegate, MarshallerUtils.KEY_NOTIFICATION_DETAIL, NotificationDetail, NotificationDetailJsonMarshaller)
+	MarshallerUtils.setupJsonMarshaller(delegate, MarshallerUtils.KEY_ORGANIZATION, ReadOnlyOrganization, OrganizationJsonMarshaller)
+	MarshallerUtils.setupJsonMarshaller(delegate, MarshallerUtils.KEY_OWNER_POLICY, ReadOnlyOwnerPolicy, OwnerPolicyJsonMarshaller)
+	MarshallerUtils.setupJsonMarshaller(delegate, MarshallerUtils.KEY_PHONE, Phone, PhoneJsonMarshaller)
+	MarshallerUtils.setupJsonMarshaller(delegate, MarshallerUtils.KEY_PHONE_NUMBER, BasePhoneNumber, BasePhoneNumberJsonMarshaller)
+	MarshallerUtils.setupJsonMarshaller(delegate, MarshallerUtils.KEY_RECORD_ITEM, ReadOnlyRecordItem, RecordItemJsonMarshaller)
+	MarshallerUtils.setupJsonMarshaller(delegate, MarshallerUtils.KEY_RECORD_ITEM_REQUEST, RecordItemRequest, RecordItemRequestJsonMarshaller)
+	MarshallerUtils.setupJsonMarshaller(delegate, MarshallerUtils.KEY_REVISION, ReadOnlyRecordNoteRevision, RecordNoteRevisionJsonMarshaller)
+	MarshallerUtils.setupJsonMarshaller(delegate, MarshallerUtils.KEY_SCHEDULE, ReadOnlySchedule, ScheduleJsonMarshaller)
+	MarshallerUtils.setupJsonMarshaller(delegate, MarshallerUtils.KEY_SESSION, IncomingSession, SessionJsonMarshaller)
+	MarshallerUtils.setupJsonMarshaller(delegate, MarshallerUtils.KEY_STAFF, ReadOnlyStaff, StaffJsonMarshaller)
+	MarshallerUtils.setupJsonMarshaller(delegate, MarshallerUtils.KEY_TAG, GroupPhoneRecord, GroupPhoneRecordJsonMarshaller)
+	MarshallerUtils.setupJsonMarshaller(delegate, MarshallerUtils.KEY_TEAM, Team, TeamJsonMarshaller)
 }

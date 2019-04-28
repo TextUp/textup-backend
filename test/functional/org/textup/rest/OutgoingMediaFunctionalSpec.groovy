@@ -1,26 +1,38 @@
 package org.textup.rest
 
-import org.textup.test.*
 import grails.plugins.rest.client.RestResponse
+import grails.test.mixin.*
+import grails.test.mixin.support.*
+import java.util.concurrent.*
 import javax.servlet.http.HttpServletRequest
-import org.codehaus.groovy.grails.web.util.TypeConvertingMap
 import org.joda.time.*
 import org.springframework.util.LinkedMultiValueMap
 import org.springframework.util.MultiValueMap
 import org.textup.*
+import org.textup.cache.*
+import org.textup.media.*
+import org.textup.structure.*
+import org.textup.test.*
 import org.textup.type.*
 import org.textup.util.*
+import org.textup.util.domain.*
 import org.textup.validator.*
-import static org.springframework.http.HttpStatus.*
+import org.textup.validator.action.*
+import spock.lang.*
 
-class OutgoingMediaFunctionalSpec extends RestSpec {
+@TestMixin(GrailsUnitTestMixin) // enables local use of validator classes
+class OutgoingMediaFunctionalSpec extends FunctionalSpec {
+
+    static doWithSpring = {
+        resultFactory(ResultFactory)
+    }
 
     def setup() {
-        setupData()
+        doSetup()
     }
 
     def cleanup() {
-        cleanupData()
+        doCleanup()
     }
 
     void "test scheduling a future message call with media"() {
@@ -29,14 +41,15 @@ class OutgoingMediaFunctionalSpec extends RestSpec {
         String thisMessage = TestUtils.randString()
         String thisData = TestUtils.encodeBase64String(TestUtils.getJpegSampleData256())
         String thisChecksum = TestUtils.getChecksum(thisData)
-        Long cId = remote.exec({ un ->
-            Phone p1 = Staff.findByUsername(un).phone
-            return Contact.findAllByPhone(p1)[0].id
+        Long iprId = remote.exec({ un ->
+            Staff s1 = Staff.findByUsername(un)
+            Phone p1 = IOCUtils.phoneCache.findPhone(s1.id, PhoneOwnershipType.INDIVIDUAL)
+            return TestUtils.buildIndPhoneRecord(p1).id
         }.curry(loggedInUsername))
         List mediaActions = []
         2.times {
             mediaActions << [
-                action: Constants.MEDIA_ACTION_ADD,
+                action: MediaAction.ADD,
                 mimeType: MediaType.IMAGE_JPEG.mimeType,
                 data: thisData,
                 checksum: thisChecksum
@@ -47,16 +60,16 @@ class OutgoingMediaFunctionalSpec extends RestSpec {
         Map beforeCounts = remote.exec({
             [
                 numFuture: FutureMessage.count(),
-                numItems:RecordItem.count(),
-                numReceipts:RecordItemReceipt.count(),
+                numItems: RecordItem.count(),
+                numReceipts: RecordItemReceipt.count(),
                 numMediaInfo: MediaInfo.count(),
             ]
         })
-        RestResponse response = rest.post("${baseUrl}/v1/future-messages?contactId=${cId}") {
+        RestResponse response = rest.post("${baseUrl}/v1/future-messages?contactId=${iprId}") {
             contentType("application/json")
             header("Authorization", "Bearer $authToken")
             json {
-                'future-message' {
+                "future-message" {
                     message = thisMessage
                     type = FutureMessageType.CALL.toString().toLowerCase()
                     startDate = DateTime.now().minusDays(2).toString()
@@ -67,25 +80,25 @@ class OutgoingMediaFunctionalSpec extends RestSpec {
         Map afterCounts = remote.exec({
             [
                 numFuture: FutureMessage.count(),
-                numItems:RecordItem.count(),
-                numReceipts:RecordItemReceipt.count(),
+                numItems: RecordItem.count(),
+                numReceipts: RecordItemReceipt.count(),
                 numMediaInfo: MediaInfo.count(),
             ]
         })
 
         then: "future message created but not sent out yet!"
-        response.status == CREATED.value()
-        response.json['future-message'] instanceof Map
-        response.json['future-message'].message == thisMessage
-        (response.json['future-message'].uploadErrors instanceof List) == false
-        response.json['future-message'].media?.images instanceof List
-        response.json['future-message'].media?.images.size() == mediaActions.size()
-        response.json['future-message'].media?.images.each {
+        response.status == ResultStatus.CREATED.intStatus
+        response.json["future-message"] instanceof Map
+        response.json["future-message"].message == thisMessage
+        (response.json["future-message"].media.uploadErrors instanceof List) == false
+        response.json["future-message"].media.images instanceof List
+        response.json["future-message"].media.images.size() == mediaActions.size()
+        response.json["future-message"].media.images.each {
             assert it.versions.every {
                 it.type == MediaType.IMAGE_JPEG.mimeType && it.link instanceof String
             }
         }
-        response.json['future-message'].media?.audio.isEmpty()
+        response.json["future-message"].media.audio.isEmpty()
         afterCounts.numItems == beforeCounts.numItems
         afterCounts.numReceipts == beforeCounts.numReceipts
         afterCounts.numMediaInfo == beforeCounts.numMediaInfo + 1
@@ -98,14 +111,15 @@ class OutgoingMediaFunctionalSpec extends RestSpec {
         String thisMessage = TestUtils.randString()
         String thisData = TestUtils.encodeBase64String(TestUtils.getJpegSampleData256())
         String thisChecksum = TestUtils.getChecksum(thisData)
-        Long cId = remote.exec({ un ->
-            Phone p1 = Staff.findByUsername(un).phone
-            return Contact.findAllByPhone(p1)[0].id
+        Long iprId = remote.exec({ un ->
+            Staff s1 = Staff.findByUsername(un)
+            Phone p1 = IOCUtils.phoneCache.findPhone(s1.id, PhoneOwnershipType.INDIVIDUAL)
+            return TestUtils.buildIndPhoneRecord(p1).id
         }.curry(loggedInUsername))
         List mediaActions = []
-        (Constants.MAX_NUM_MEDIA_PER_MESSAGE * 2).times {
+        (ValidationUtils.MAX_NUM_MEDIA_PER_MESSAGE * 2).times {
             mediaActions << [
-                action: Constants.MEDIA_ACTION_ADD,
+                action: MediaAction.ADD,
                 mimeType: MediaType.IMAGE_JPEG.mimeType,
                 data: thisData,
                 checksum: thisChecksum
@@ -115,8 +129,8 @@ class OutgoingMediaFunctionalSpec extends RestSpec {
         when:
         Map beforeCounts = remote.exec({
             [
-                numItems:RecordItem.count(),
-                numReceipts:RecordItemReceipt.count(),
+                numItems: RecordItem.count(),
+                numReceipts: RecordItemReceipt.count(),
                 numMediaInfo: MediaInfo.count(),
             ]
         })
@@ -125,26 +139,29 @@ class OutgoingMediaFunctionalSpec extends RestSpec {
             header("Authorization", "Bearer ${authToken}")
             json {
                 record {
-                    sendToContacts = [cId]
+                    type = RecordItemType.TEXT.toString()
+                    ids = [iprId]
                     contents = thisMessage
                     doMediaActions = mediaActions
                 }
             }
         }
+        // Allow time for the session to flush before getting after counts
+        TimeUnit.SECONDS.sleep(3)
         Map afterCounts = remote.exec({
             [
-                numItems:RecordItem.count(),
-                numReceipts:RecordItemReceipt.count(),
+                numItems: RecordItem.count(),
+                numReceipts: RecordItemReceipt.count(),
                 numMediaInfo: MediaInfo.count(),
             ]
         })
 
         then:
-        response.status == CREATED.value()
+        response.status == ResultStatus.CREATED.intStatus
         response.json.records instanceof List
         response.json.records.size() == 1
         response.json.records[0].contents == thisMessage
-        (response.json.records[0].uploadErrors instanceof List) == false
+        (response.json.records[0].media.uploadErrors instanceof List) == false
         response.json.records[0].media?.images instanceof List
         response.json.records[0].media?.images.size() == mediaActions.size()
         response.json.records[0].media?.images.each {
@@ -155,7 +172,7 @@ class OutgoingMediaFunctionalSpec extends RestSpec {
         response.json.records[0].media?.audio.isEmpty()
         afterCounts.numItems == beforeCounts.numItems + 1
         afterCounts.numReceipts == beforeCounts.numReceipts +
-            Math.ceil(mediaActions.size() / Constants.MAX_NUM_MEDIA_PER_MESSAGE)
+            Math.ceil(mediaActions.size() / ValidationUtils.MAX_NUM_MEDIA_PER_MESSAGE)
         afterCounts.numMediaInfo == beforeCounts.numMediaInfo + 1
     }
 
@@ -163,10 +180,8 @@ class OutgoingMediaFunctionalSpec extends RestSpec {
         given: "re-override storage service to have some upload errors"
         String errorMsg = TestUtils.randString()
         remote.exec({ thisError ->
-            TestUtils.forceMock(ctx.storageService, "uploadAsync") {
-                Result failRes = new Result(status: ResultStatus.BAD_REQUEST,
-                    errorMessages: [thisError])
-                new ResultGroup([failRes])
+            MockedMethod.force(ctx.storageService, "uploadAsync") {
+                Result.createError([thisError], ResultStatus.BAD_REQUEST).toGroup()
             }
             return
         }.curry(errorMsg))
@@ -176,14 +191,15 @@ class OutgoingMediaFunctionalSpec extends RestSpec {
         String thisMessage = TestUtils.randString()
         String thisData = TestUtils.encodeBase64String(TestUtils.getJpegSampleData256())
         String thisChecksum = TestUtils.getChecksum(thisData)
-        Long cId = remote.exec({ un ->
-            Phone p1 = Staff.findByUsername(un).phone
-            return Contact.findAllByPhone(p1)[0].id
+        Long iprId = remote.exec({ un ->
+            Staff s1 = Staff.findByUsername(un)
+            Phone p1 = IOCUtils.phoneCache.findPhone(s1.id, PhoneOwnershipType.INDIVIDUAL)
+            return TestUtils.buildIndPhoneRecord(p1).id
         }.curry(loggedInUsername))
         List mediaActions = []
         2.times {
             mediaActions << [
-                action: Constants.MEDIA_ACTION_ADD,
+                action: MediaAction.ADD,
                 mimeType: MediaType.IMAGE_JPEG.mimeType,
                 data: thisData,
                 checksum: thisChecksum
@@ -193,8 +209,8 @@ class OutgoingMediaFunctionalSpec extends RestSpec {
         when:
         Map beforeCounts = remote.exec({
             [
-                numItems:RecordItem.count(),
-                numReceipts:RecordItemReceipt.count(),
+                numItems: RecordItem.count(),
+                numReceipts: RecordItemReceipt.count(),
                 numMediaInfo: MediaInfo.count(),
             ]
         })
@@ -203,7 +219,8 @@ class OutgoingMediaFunctionalSpec extends RestSpec {
             header("Authorization", "Bearer $authToken")
             json {
                 record {
-                    sendToContacts = [cId]
+                    type = RecordItemType.TEXT.toString()
+                    ids = [iprId]
                     contents = thisMessage
                     doMediaActions = mediaActions
                 }
@@ -218,7 +235,7 @@ class OutgoingMediaFunctionalSpec extends RestSpec {
         })
 
         then: "media is created and message is sent normally, but upload errors are noted"
-        response.status == CREATED.value()
+        response.status == ResultStatus.CREATED.intStatus
         response.json.records instanceof List
         response.json.records.size() == 1
         response.json.records[0].contents == thisMessage
@@ -234,7 +251,7 @@ class OutgoingMediaFunctionalSpec extends RestSpec {
         response.json.records[0].media.audio.isEmpty()
         afterCounts.numItems == beforeCounts.numItems + 1
         afterCounts.numReceipts == beforeCounts.numReceipts +
-            Math.ceil(mediaActions.size() / Constants.MAX_NUM_MEDIA_PER_MESSAGE)
+            Math.ceil(mediaActions.size() / ValidationUtils.MAX_NUM_MEDIA_PER_MESSAGE)
         afterCounts.numMediaInfo == beforeCounts.numMediaInfo + 1
     }
 }

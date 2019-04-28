@@ -5,70 +5,70 @@ import groovy.transform.EqualsAndHashCode
 import org.jadira.usertype.dateandtime.joda.PersistentDateTime
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
-import org.restapidoc.annotation.*
-import org.textup.type.AuthorType
-import org.textup.validator.Author
+import org.textup.structure.*
+import org.textup.type.*
+import org.textup.util.*
+import org.textup.util.domain.*
+import org.textup.validator.*
 
 @EqualsAndHashCode
-@RestApiObject(
-    name        = "RecordNoteRevision",
-    description = "Previous versions of the note.")
-class RecordNoteRevision implements ReadOnlyRecordNoteRevision, WithId {
+class RecordNoteRevision implements ReadOnlyRecordNoteRevision, WithId, CanSave<RecordNoteRevision> {
 
-    @RestApiObjectField(
-        description    = "When this revision happened",
-        allowedType    = "DateTime",
-        useForCreation = false)
-	DateTime whenChanged
+    // Need to declare id for it to be considered in equality operator
+    // see: https://stokito.wordpress.com/2014/12/19/equalsandhashcode-on-grails-domains/
+    Long id
 
-    @RestApiObjectField(
-        description    = "Location this revision is associated with",
-        allowedType    = "Location",
-        useForCreation = true)
-	Location location
-
-    @RestApiObjectField(
-        description    = "Author of this entry.",
-        useForCreation = false)
-	String authorName
-    @RestApiObjectField(
-        description    = "Id of the author of this entry.",
-        allowedType    = "Number",
-        useForCreation = false)
-	Long authorId
-    @RestApiObjectField(
-        description    = "Type of author for this item",
-        allowedType    = "AuthorType",
-        useForCreation = false)
-	AuthorType authorType
-
-    @RestApiObjectField(
-        description    = "Text of the note",
-        allowedType    = "String",
-        useForCreation = true)
+    AuthorType authorType
+    DateTime whenChanged
+    Location location
+    Long authorId
+    String authorName
+    MediaInfo media
     String noteContents
 
-    @RestApiObjectField(
-        description    = "Media associated with this revision",
-        allowedType    = "MediaInfo",
-        useForCreation = false)
-    MediaInfo media
-
-	static belongsTo = [note:RecordNote]
+	static belongsTo = [note: RecordNote]
+    static mapping = {
+        whenChanged type: PersistentDateTime
+        noteContents type: "text"
+        location fetch: "join", cascade: "save-update"
+        media fetch: "join", cascade: "save-update"
+    }
     static constraints = {
     	importFrom RecordItem
     	importFrom RecordNote
     }
-    static mapping = {
-    	whenChanged type: PersistentDateTime
-        noteContents type: "text"
-        location lazy: false, cascade: "save-update"
-        media lazy: false, cascade: "save-update"
+
+    static Result<RecordNoteRevision> tryCreate(RecordNote rNote1) {
+        RecordNoteRevision rev1 = new RecordNoteRevision(
+            authorName: rNote1?.getPersistentValue("authorName"),
+            authorId: rNote1?.getPersistentValue("authorId"),
+            authorType: rNote1?.getPersistentValue("authorType"),
+            whenChanged: rNote1?.getPersistentValue("whenChanged"),
+            noteContents: rNote1?.getPersistentValue("noteContents"))
+        Object originalLoc = rNote1?.getPersistentValue("location")
+        if (originalLoc instanceof Location) {
+            rev1.location = originalLoc.tryDuplicatePersistentState()
+        }
+        Object originalMedia = rNote1?.getPersistentValue("media")
+        if (originalMedia instanceof MediaInfo) {
+            rev1.media = originalMedia.tryDuplicatePersistentState()
+        }
+        rNote1?.addToRevisions(rev1)
+        DomainUtils.trySave(rev1, ResultStatus.CREATED)
+            .ifFailAndPreserveError {
+                rNote1?.removeFromRevisions(rev1)
+                rev1.discard()
+            }
     }
 
+    // Properties
+    // ----------
+
     @GrailsTypeChecked
+    @Override
     ReadOnlyLocation getReadOnlyLocation() { location }
 
     @GrailsTypeChecked
+    @Override
     ReadOnlyMediaInfo getReadOnlyMedia() { media }
 }

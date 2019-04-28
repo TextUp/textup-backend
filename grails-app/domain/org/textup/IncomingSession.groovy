@@ -2,102 +2,63 @@ package org.textup
 
 import grails.compiler.GrailsTypeChecked
 import groovy.transform.EqualsAndHashCode
-import groovy.util.logging.Log4j
 import org.jadira.usertype.dateandtime.joda.PersistentDateTime
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
-import org.restapidoc.annotation.*
-import org.textup.type.AuthorType
-import org.textup.validator.Author
-import org.textup.validator.BasePhoneNumber
-import org.textup.validator.PhoneNumber
+import org.textup.structure.*
+import org.textup.type.*
+import org.textup.util.*
+import org.textup.util.domain.*
+import org.textup.validator.*
 
-@GrailsTypeChecked
-@Log4j
 @EqualsAndHashCode
-class IncomingSession implements WithId {
+@GrailsTypeChecked
+class IncomingSession implements WithId, CanSave<IncomingSession> {
 
+    // Need to declare id for it to be considered in equality operator
+    // see: https://stokito.wordpress.com/2014/12/19/equalsandhashcode-on-grails-domains/
+    Long id
+
+    Boolean isSubscribedToCall = false
+    Boolean isSubscribedToText = false
+    DateTime lastSentInstructions = JodaUtils.utcNow().minusDays(2)
+    DateTime whenCreated = JodaUtils.utcNow()
     Phone phone
     String numberAsString
 
-    @RestApiObjectField(
-        description    = "Date this session was created",
-        allowedType    = "DateTime",
-        useForCreation = false)
-    DateTime whenCreated = DateTime.now(DateTimeZone.UTC)
-    // initialize last sent in past so that we send instructions when the user
-    // first tests in, if needed
-    @RestApiObjectField(
-        description    = "When instructions were last sent via text",
-        allowedType    = "DateTime",
-        useForCreation = false)
-    DateTime lastSentInstructions = DateTime.now(DateTimeZone.UTC).minusDays(2)
-    @RestApiObjectField(
-        description    = "If this session is subscribed to texts",
-        allowedType    = "Boolean",
-        useForCreation = true)
-    Boolean isSubscribedToText = false
-    @RestApiObjectField(
-        description    = "If this session is subscribed to calls",
-        allowedType    = "Boolean",
-        useForCreation = true)
-    Boolean isSubscribedToCall = false
-
-    @RestApiObjectFields(params=[
-        @RestApiObjectField(
-            apiFieldName= "number",
-            description = "Number of this session",
-            allowedType =  "String",
-            useForCreation = true),
-        @RestApiObjectField(
-            apiFieldName= "shouldSendInstructions",
-            description = "if we should send text instructions next time this \
-                number texts in",
-            allowedType =  "Boolean",
-            useForCreation = false),
-        @RestApiObjectField(
-            apiFieldName= "staff",
-            description = "Id of the staff that this session belongs to, if any",
-            allowedType =  "Number",
-            useForCreation = false),
-        @RestApiObjectField(
-            apiFieldName= "team",
-            description = "Id of the team that this session belongs to, if any",
-            allowedType =  "Number",
-            useForCreation = false)
-    ])
     static transients = ["number"]
     static mapping = {
-        whenCreated type:PersistentDateTime
-        lastSentInstructions type:PersistentDateTime
+        whenCreated type: PersistentDateTime
+        lastSentInstructions type: PersistentDateTime
+    }
+    static constraints = {
+        numberAsString phoneNumber: true
     }
 
-    /*
-    Has many:
-        AnnouncementReceipt
-     */
+    static Result<IncomingSession> tryCreate(Phone p1, BasePhoneNumber bNum) {
+        IncomingSession is1 = new IncomingSession(phone: p1, number: bNum)
+        DomainUtils.trySave(is1, ResultStatus.CREATED)
+    }
 
-    // Instructions
-    // ------------
+    // Methods
+    // -------
 
     void updateLastSentInstructions() {
-        this.lastSentInstructions = DateTime.now(DateTimeZone.UTC)
+        lastSentInstructions = JodaUtils.utcNow()
     }
 
-    // Property Access
-    // ---------------
-
-    Author toAuthor() {
-        new Author(id:this.id, type:AuthorType.SESSION, name:this.numberAsString)
-    }
+    // Properties
+    // ----------
 
     boolean getShouldSendInstructions() {
-        this.lastSentInstructions.isBefore(DateTime.now().withTimeAtStartOfDay())
+        lastSentInstructions.isBefore(DateTime.now().withTimeAtStartOfDay())
     }
+
     void setNumber(BasePhoneNumber pNum) {
-        this.numberAsString = pNum?.number
+        numberAsString = pNum?.number
     }
+
     PhoneNumber getNumber() {
-        new PhoneNumber(number:this.numberAsString)
+        PhoneNumber.create(numberAsString)
     }
 }

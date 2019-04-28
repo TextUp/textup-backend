@@ -3,6 +3,7 @@ package org.textup.test
 import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
 import org.textup.*
+import org.textup.annotation.*
 import org.textup.util.*
 
 @GrailsTypeChecked

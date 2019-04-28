@@ -1,442 +1,296 @@
 package org.textup
 
-import grails.plugin.springsecurity.SpringSecurityService
-import grails.test.mixin.gorm.Domain
-import grails.test.mixin.hibernate.HibernateTestMixin
-import grails.test.mixin.TestFor
-import grails.test.mixin.TestMixin
+import grails.test.mixin.*
+import grails.test.mixin.gorm.*
+import grails.test.mixin.hibernate.*
+import grails.test.mixin.support.*
 import grails.test.mixin.web.ControllerUnitTestMixin
-import grails.test.runtime.FreshRuntime
-import grails.validation.ValidationErrors
-import org.codehaus.groovy.grails.commons.GrailsApplication
-import org.hibernate.Session
-import org.joda.time.DateTime
-import org.joda.time.DateTimeZone
-import org.springframework.context.MessageSource
+import grails.test.runtime.*
+import grails.validation.*
+import org.joda.time.*
+import org.textup.rest.*
+import org.textup.structure.*
 import org.textup.test.*
 import org.textup.type.*
 import org.textup.util.*
+import org.textup.util.domain.*
 import org.textup.validator.*
-import spock.lang.Shared
+import spock.lang.*
 
+@Domain([AnnouncementReceipt, ContactNumber, CustomAccountDetails, FeaturedAnnouncement,
+    FutureMessage, GroupPhoneRecord, IncomingSession, IndividualPhoneRecord, Location, MediaElement,
+    MediaElementVersion, MediaInfo, Organization, OwnerPolicy, Phone, PhoneNumberHistory,
+    PhoneOwnership, PhoneRecord, PhoneRecordMembers, Record, RecordCall, RecordItem,
+    RecordItemReceipt, RecordNote, RecordNoteRevision, RecordText, Role, Schedule,
+    SimpleFutureMessage, Staff, StaffRole, Team, Token])
 @TestFor(TokenService)
-@Domain([CustomAccountDetails, Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
-    RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
-    Schedule, Location, WeeklySchedule, PhoneOwnership, Token, Role, StaffRole, NotificationPolicy,
-    MediaInfo, MediaElement, MediaElementVersion])
 @TestMixin([HibernateTestMixin, ControllerUnitTestMixin])
-class TokenServiceSpec extends CustomSpec {
+class TokenServiceSpec extends Specification {
 
     static doWithSpring = {
         resultFactory(ResultFactory)
     }
 
     def setup() {
-        setupData()
-        service.resultFactory = TestUtils.getResultFactory(grailsApplication)
+        TestUtils.standardMockSetup()
     }
 
-    def cleanup() {
-        cleanupData()
-    }
-
-    // Helpers
-    // -------
-
-    void "test generating new token"() {
-        when: "try to generate a password reset token"
-        Result<Token> res = service.generate(TokenType.PASSWORD_RESET, [toBeResetId:88L])
-
-        then:
-        res.success == true
-        res.status == ResultStatus.OK
-        res.payload instanceof Token
-
-        when: "try to generate a verify number token"
-        PhoneNumber pNum = new PhoneNumber(number:'1112223333')
-        assert pNum.validate()
-        res = service.generate(TokenType.VERIFY_NUMBER, [toVerifyNumber:pNum.number])
-
-        then:
-        res.success == true
-        res.status == ResultStatus.OK
-        res.payload instanceof Token
-
-        when: "try to generate but invalid"
-        res = service.generate(TokenType.VERIFY_NUMBER, [randomStuff: 123])
-
-        then:
-        res.success == false
-        res.status == ResultStatus.UNPROCESSABLE_ENTITY
-        res.errorMessages.size() == 1
-    }
-
-    void "test finding token"() {
-        given: "saved reset and verify tokens"
-        Token reset = new Token(type:TokenType.PASSWORD_RESET),
-            verify = new Token(type:TokenType.VERIFY_NUMBER)
-        reset.data = [toBeResetId:88L]
-        verify.data = [toVerifyNumber:"1112223333"]
-        assert reset.save(failOnError:true)
-        assert verify.save(failOnError:true, flush:true)
-
-        when: "looking for an existing password reset token"
-        Result<Token> res = service.findToken(TokenType.PASSWORD_RESET, reset.token)
-
-        then:
-        res.success == true
-        res.status == ResultStatus.OK
-        res.payload == reset
-
-        when: "looking for an existing verify number token"
-        res = service.findToken(TokenType.VERIFY_NUMBER, verify.token)
-
-        then:
-        res.success == true
-        res.status == ResultStatus.OK
-        res.payload == verify
-
-        when: "looking for a nonexistent token"
-        res = service.findToken(TokenType.PASSWORD_RESET, 'nonexistent')
-
-        then:
-        res.success == false
-        res.status == ResultStatus.NOT_FOUND
-        res.errorMessages[0] == "tokenService.tokenNotFound"
-
-        when: 'looking for an expired token'
-        reset.maxNumAccess = 1
-        reset.timesAccessed = 2
-        reset.save(failOnError:true, flush:true)
-        res = service.findToken(TokenType.PASSWORD_RESET, reset.token)
-
-        then:
-        res.success == false
-        res.status == ResultStatus.BAD_REQUEST
-        res.errorMessages[0] == "tokenService.tokenExpired"
-    }
-
-    // Verify number
-    // -------------
-
-    void "test requesting number verification"() {
+    void "test creating TokenType.CALL_DIRECT_MESSAGE"() {
         given:
-        PhoneNumber validNum = new PhoneNumber(number:"1112223333")
-        PhoneNumber invalidNum = new PhoneNumber(number:"123901")
-        assert validNum.validate()
-        assert invalidNum.validate() == false
-        int tBaseline = Token.count()
+        String text1 = TestUtils.randString()
+        Staff s1 = TestUtils.buildStaff()
+        Phone p1 = TestUtils.buildStaffPhone(s1)
+        IndividualPhoneRecord ipr1 = TestUtils.buildIndPhoneRecord(p1)
+        VoiceLanguage lang1 = VoiceLanguage.values()[0]
 
-        when: "invalid number to validate"
-        Result<Staff> res = service.generateVerifyNumber(invalidNum)
+        RecordItemType type = RecordItemType.CALL
+        Recipients r1 = Recipients.tryCreate([ipr1], lang1, 10).payload
+        TempRecordItem temp1 = TempRecordItem.tryCreate(text1, null, null).payload
 
-        then: "verification happens in calling service"
+        int tokBaseline = Token.count()
+
+        when:
+        Result res = service.tryBuildAndPersistCallToken(null, null, null)
+
+        then:
         res.status == ResultStatus.OK
-        res.payload instanceof Token
-        res.payload.type == TokenType.VERIFY_NUMBER
-        res.payload.maxNumAccess == null
-        Token.count() == tBaseline + 1
-
-        when: "validating a valid number"
-        res = service.generateVerifyNumber(validNum)
-
-        then:
-        res.success == true
-        res.status == ResultStatus.OK
-        res.payload instanceof Token
-        res.payload.type == TokenType.VERIFY_NUMBER
-        res.payload.maxNumAccess == null
-        Token.count() == tBaseline + 2
-    }
-
-    void "test completing number verification"() {
-        given: "valid verify token"
-        PhoneNumber pNum = new PhoneNumber(number:"1112223333"),
-            pNum2 = new PhoneNumber(number:'1029990000')
-        assert pNum.validate()
-        assert pNum2.validate()
-        Token token = new Token(type:TokenType.VERIFY_NUMBER)
-        token.data = [toVerifyNumber:pNum.number]
-        token.save(flush:true, failOnError:true)
-
-        when: "number does not match number associated with token"
-        Result res = service.verifyNumber(token.token, pNum2)
-
-        then:
-        res.success == false
-        res.status == ResultStatus.NOT_FOUND
-        res.errorMessages[0] == "tokenService.verifyNumber.numbersNoMatch"
-
-        when: "token found and numbers match"
-        res = service.verifyNumber(token.token, pNum)
-
-        then:
-        res.success == true
-        res.status == ResultStatus.NO_CONTENT
         res.payload == null
-
-        when: "stored number to validate is invalid"
-        token.data = [toVerifyNumber: "invalid number"]
-        token.save(flush:true, failOnError:true)
-        res = service.verifyNumber(token.token, pNum)
-
-        then:
-        res.status == ResultStatus.INTERNAL_SERVER_ERROR
-        res.errorMessages[0] == "tokenService.verifyNumber.couldNotComplete"
-    }
-
-    // Password reset
-    // --------------
-
-    void "test requesting password reset"() {
-        given:
-        int tBaseline = Token.count()
-
-        when: "nonexisting username"
-        long invalidId = -88
-        Result<Token> res = service.generatePasswordReset(invalidId)
-
-        then: "username validation in calling service"
-        res.status == ResultStatus.OK
-        res.payload instanceof Token
-        res.payload.maxNumAccess == 1
-        Token.count() == tBaseline + 1
-        Token.list().last().data.toBeResetId == invalidId
+        Token.count() == tokBaseline
 
         when:
-        res = service.generatePasswordReset(s1.id)
+        res = service.tryBuildAndPersistCallToken(type, r1, temp1)
 
         then:
-        res.status == ResultStatus.OK
-        res.payload instanceof Token
+        temp1.supportsCall()
+        res.status == ResultStatus.CREATED
+        res.payload.type == TokenType.CALL_DIRECT_MESSAGE
         res.payload.maxNumAccess == 1
-        Token.count() == tBaseline + 2
-        Token.list().last().data.toBeResetId == s1.id
+        res.payload.data[TokenType.PARAM_CDM_IDENT] == s1.name
+        res.payload.data[TokenType.PARAM_CDM_MESSAGE] == text1
+        res.payload.data[TokenType.PARAM_CDM_LANG] == lang1.toString()
+        res.payload.data[TokenType.PARAM_CDM_MEDIA] == null
+        Token.count() == tokBaseline  + 1
     }
 
-    void "test completing password reset"() {
-        given: "tokens"
-        Integer maxNumAccess = 1
-        Token tok1 = new Token(type:TokenType.PASSWORD_RESET, maxNumAccess:maxNumAccess),
-            tok2 = new Token(type:TokenType.PASSWORD_RESET, maxNumAccess:maxNumAccess),
-            expiredTok = new Token(type: TokenType.PASSWORD_RESET,
-                expires:DateTime.now().minusDays(1))
-        tok1.data = [toBeResetId: s1.id]
-        tok2.data = [toBeResetId: -88]
-        expiredTok.data = [toBeResetId: s1.id]
-        [tok1, tok2, expiredTok]*.save(flush:true, failOnError:true)
+    void "test redeeming TokenType.CALL_DIRECT_MESSAGE"() {
+        given:
+        String str1 = TestUtils.randString()
+        MediaElement el1 = TestUtils.buildMediaElement()
+        el1.sendVersion.type = MediaType.AUDIO_MP3
+        MediaInfo mInfo1 = TestUtils.buildMediaInfo(el1)
 
-        when: "request with invalid token"
-        Result<Staff> res = service.findPasswordResetStaff("whatisthis")
+        TypeMap data1 = TypeMap.create((TokenType.PARAM_CDM_IDENT): TestUtils.randString(),
+            (TokenType.PARAM_CDM_MESSAGE): TestUtils.randString(),
+            (TokenType.PARAM_CDM_LANG): VoiceLanguage.values()[0])
+        TypeMap data2 = TypeMap.create((TokenType.PARAM_CDM_MEDIA): mInfo1.id,
+            (TokenType.PARAM_CDM_IDENT): TestUtils.randString(),
+            (TokenType.PARAM_CDM_MESSAGE): TestUtils.randString(),
+            (TokenType.PARAM_CDM_LANG): VoiceLanguage.values()[0])
+
+        Token mockToken = GroovyMock() { asBoolean() >> true }
+        MockedMethod mustFindActiveForType = MockedMethod.create(Tokens, "mustFindActiveForType") {
+            Result.createSuccess(mockToken)
+        }
+        MockedMethod directMessage = MockedMethod.create(CallTwiml, "directMessage") {
+            Result.createSuccess(null)
+        }
+
+        when:
+        Result res = service.buildDirectMessageCall(str1)
 
         then:
-        res.success == false
-        res.status == ResultStatus.NOT_FOUND
-        res.errorMessages[0] == "tokenService.tokenNotFound"
-
-        when: "request with valid token but expired"
-        res = service.findPasswordResetStaff(expiredTok.token)
-
-        then:
-        res.success == false
-        res.status == ResultStatus.BAD_REQUEST
-        res.errorMessages[0] == "tokenService.tokenExpired"
-
-        when: "valid token, invalid password"
-        res = service.findPasswordResetStaff(tok1.token)
-
-        then: "token not yet expired"
-        res.success == true
+        mustFindActiveForType.latestArgs == [TokenType.CALL_DIRECT_MESSAGE, str1]
+        1 * mockToken.setTimesAccessed(*_)
+        mockToken.save() >> mockToken
+        1 * mockToken.data >> data1
+        directMessage.latestArgs == [data1[TokenType.PARAM_CDM_IDENT],
+            data1[TokenType.PARAM_CDM_LANG],
+            data1[TokenType.PARAM_CDM_MESSAGE],
+            []]
         res.status == ResultStatus.OK
-        res.payload instanceof Staff
 
-        when: "try to reuse the same reset token"
-        res = service.findPasswordResetStaff(tok1.token)
-
-        then: "one-time use only"
-        res.status == ResultStatus.BAD_REQUEST
-        res.errorMessages[0] == "tokenService.tokenExpired"
-
-        when: "token has a nonexistent staff id"
-        res = service.findPasswordResetStaff(tok2.token)
+        when:
+        res = service.buildDirectMessageCall(str1)
 
         then:
-        res.status == ResultStatus.INTERNAL_SERVER_ERROR
-        res.errorMessages[0] == "tokenService.resetPassword.couldNotComplete"
+        mustFindActiveForType.latestArgs == [TokenType.CALL_DIRECT_MESSAGE, str1]
+        1 * mockToken.setTimesAccessed(*_)
+        mockToken.save() >> mockToken
+        1 * mockToken.data >> data2
+        directMessage.latestArgs == [data2[TokenType.PARAM_CDM_IDENT],
+            data2[TokenType.PARAM_CDM_LANG],
+            data2[TokenType.PARAM_CDM_MESSAGE],
+            [el1.sendVersion.link]]
+
+        cleanup:
+        mustFindActiveForType?.restore()
+        directMessage?.restore()
     }
 
-    // Notify staff
-    // ------------
+    void "test creating TokenType.PASSWORD_RESET"() {
+        given:
+        Long staffId = TestUtils.randIntegerUpTo(88)
+        int tokBaseline = Token.count()
 
-    void "test create notification"() {
-        given: "no tokens"
-        int tBaseline = Token.count()
-
-        when: "staff without personal phone number"
-        Result<Token> res = service.generateNotification(null)
+        when:
+        Result res = service.generatePasswordReset(null)
 
         then:
         res.status == ResultStatus.UNPROCESSABLE_ENTITY
-        Token.count() == tBaseline
-
-        when: "staff with a personal phone number"
-        res = service.generateNotification(recordId: 1, phoneId: 2, contents: 3, outgoing: 4)
-
-        then: "notification created"
-        Token.count() == tBaseline + 1
-        res.status == ResultStatus.OK
-        res.payload instanceof Token
-        Constants.MAX_NUM_ACCESS_NOTIFICATION_TOKEN == res.payload.maxNumAccess
-    }
-
-    void "test claim notification"() {
-        given: "about-to-expire valid token and expired token"
-        Integer maxNumAccess = 1
-        Token tok = new Token(type:TokenType.NOTIFY_STAFF, maxNumAccess:maxNumAccess),
-            expiredTok = new Token(type:TokenType.NOTIFY_STAFF,
-                maxNumAccess:maxNumAccess, timesAccessed:maxNumAccess * 4)
-        Map data = [phoneId:p1.id, recordId:c1.record.id, contents:"hi", outgoing:true]
-        tok.data = data
-        expiredTok.data = data
-        [tok, expiredTok]*.save(flush:true, failOnError:true)
-
-        when: "nonexistent token"
-        Result<Notification> res = service.findNotification("nonexistent")
-
-        then:
-        res.success == false
-        res.status == ResultStatus.NOT_FOUND
-        res.errorMessages[0] == "tokenService.tokenNotFound"
-
-        when: "expired token"
-        res = service.findNotification(expiredTok.token)
-
-        then:
-        res.success == false
-        res.status == ResultStatus.BAD_REQUEST
-        res.errorMessages[0] == "tokenService.tokenExpired"
-
-        when: "about-to-expire valid token"
-        int originalTimesAccessed = tok.timesAccessed
-        res = service.findNotification(tok.token)
-        Token.withSession { Session session -> session.flush() }
-
-        then: "valid"
-        res.status == ResultStatus.OK
-        res.payload instanceof Token
-        res.payload.id == tok.id
-        res.payload.timesAccessed == originalTimesAccessed + 1
-
-        when: "about-to-expire valid token again"
-        res = service.findNotification(tok.token)
-
-        then: "expired"
-        res.success == false
-        res.status == ResultStatus.BAD_REQUEST
-        res.errorMessages[0] == "tokenService.tokenExpired"
-    }
-
-    // Call direct message
-    // -------------------
-
-    void "test building call direct message token"() {
-        given:
-        MediaInfo mInfo = new MediaInfo()
-        mInfo.save(flush: true, failOnError: true)
-
-        when: "no input data"
-        Token tok1 = service.tryBuildAndPersistCallToken(null, null)
-
-        then: "null result"
-        tok1 == null
-
-        when: "message is of text type"
-        OutgoingMessage msg1 = new OutgoingMessage(message: "hi",
-            type: RecordItemType.TEXT,
-            language: VoiceLanguage.ENGLISH)
-        tok1 = service.tryBuildAndPersistCallToken("hi", msg1)
-
-        then: "no result because no need to build call token for text message"
-        tok1 == null
-
-        when: "valid call message without media"
-        msg1.type = RecordItemType.CALL
-        tok1 = service.tryBuildAndPersistCallToken("hi", msg1)
-
-        then: "token generated"
-        tok1 instanceof Token
-        tok1.data.identifier == "hi"
-        tok1.data.message == msg1.message
-        tok1.data.mediaId == null
-        tok1.data.language == msg1.language?.toString()
-
-        when: "valid call message with media"
-        msg1.type = RecordItemType.CALL
-        msg1.media = mInfo
-        tok1 = service.tryBuildAndPersistCallToken("hi", msg1)
-
-        then: "token generated"
-        tok1 instanceof Token
-        tok1.data.identifier == "hi"
-        tok1.data.message == msg1.message
-        tok1.data.mediaId == mInfo.id
-        tok1.data.language == msg1.language?.toString()
-    }
-
-    void "test do not build call token when is call but insufficent info"() {
-        given:
-        MediaInfo mInfo = new MediaInfo()
-        mInfo.save(flush: true, failOnError: true)
-        OutgoingMessage msg1 = new OutgoingMessage(type: RecordItemType.CALL, media: mInfo)
+        Token.count() == tokBaseline
 
         when:
-        Token tok1 = service.tryBuildAndPersistCallToken("hi", msg1)
+        res = service.generatePasswordReset(staffId)
 
-        then: "not returned because need a message or audio recording"
-        tok1 == null
+        then:
+        res.status == ResultStatus.CREATED
+        res.payload.type == TokenType.PASSWORD_RESET
+        res.payload.maxNumAccess == 1
+        Token.count() == tokBaseline + 1
     }
 
-    void "test building call direct message body from token"() {
+    void "test redeeming TokenType.PASSWORD_RESET"() {
         given:
-        Token tok1 = new Token(type:TokenType.CALL_DIRECT_MESSAGE, maxNumAccess: 1)
-        tok1.data = [
-            message: "hi",
-            identifier: "Kiki",
-            mediaId: null,
-            language: VoiceLanguage.ENGLISH.toString()
-        ]
-        tok1.save(flush: true, failOnError: true)
+        String str1 = TestUtils.randString()
+        Staff s1 = TestUtils.buildStaff()
 
-        when: "null token"
-        Result<Token> res = service.findDirectMessage(null)
+        Token mockToken = GroovyMock() { asBoolean() >> true }
+        MockedMethod mustFindActiveForType = MockedMethod.create(Tokens, "mustFindActiveForType") {
+            Result.createSuccess(mockToken)
+        }
 
-        then: "return null --> will trigger error in twimlBuilder"
-        res.status == ResultStatus.NOT_FOUND
-        res.errorMessages[0] == "tokenService.tokenNotFound"
+        when:
+        Result res = service.findPasswordResetStaff(str1)
 
-        when: "nonexistent token"
-        res = service.findDirectMessage("i don't exist")
+        then:
+        mustFindActiveForType.latestArgs == [TokenType.PASSWORD_RESET, str1]
+        1 * mockToken.setTimesAccessed(*_)
+        mockToken.save() >> mockToken
+        1 * mockToken.data >> TypeMap.create((TokenType.PARAM_PR_ID): s1.id )
+        res.status == ResultStatus.OK
+        res.payload == s1
 
-        then: "return null --> will trigger error in twimlBuilder"
-        res.status == ResultStatus.NOT_FOUND
-        res.errorMessages[0] == "tokenService.tokenNotFound"
+        cleanup:
+        mustFindActiveForType?.restore()
+    }
 
-        when: "existing token, but too many repeats"
-        int originalTimesAccessed = tok1.timesAccessed
-        res = service.findDirectMessage(tok1.token)
-        Token.withSession { Session session -> session.flush() }
+    void "test creating TokenType.VERIFY_NUMBER"() {
+        given:
+        PhoneNumber pNum1 = TestUtils.randPhoneNumber()
+        int tokBaseline = Token.count()
+
+        when:
+        Result res = service.generateVerifyNumber(null)
+
+        then:
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+        Token.count() == tokBaseline
+
+        when:
+        res = service.generateVerifyNumber(pNum1)
+
+        then:
+        res.status == ResultStatus.CREATED
+        res.payload.type == TokenType.VERIFY_NUMBER
+        res.payload.maxNumAccess == null
+        Token.count() == tokBaseline + 1
+    }
+
+    void "test redeeming TokenType.VERIFY_NUMBER"() {
+        given:
+        String str1 = TestUtils.randString()
+        PhoneNumber pNum1 = TestUtils.randPhoneNumber()
+
+        Token mockToken = GroovyMock() { asBoolean() >> true }
+        MockedMethod mustFindActiveForType = MockedMethod.create(Tokens, "mustFindActiveForType") {
+            Result.createSuccess(mockToken)
+        }
+
+        when:
+        Result res = service.findVerifyNumber(str1)
+
+        then:
+        mustFindActiveForType.latestArgs == [TokenType.VERIFY_NUMBER, str1]
+        1 * mockToken.data >> TypeMap.create((TokenType.PARAM_VN_NUM): pNum1.number)
+        res.status == ResultStatus.CREATED
+        res.payload == pNum1
+
+        cleanup:
+        mustFindActiveForType?.restore()
+    }
+
+    void "test creating TokenType.NOTIFY_STAFF"() {
+        given:
+        OwnerPolicy op1 = TestUtils.buildOwnerPolicy()
+        op1.shouldSendPreviewLink = false
+        OwnerPolicy op2 = TestUtils.buildOwnerPolicy()
+        op2.shouldSendPreviewLink = true
+        Notification notif1 = TestUtils.buildNotification()
+
+        Token.withSession { it.flush() }
+        int tokBaseline = Token.count()
+
+        when:
+        Result res = service.tryGeneratePreviewInfo(null, null)
+
+        then:
+        notThrown NullPointerException
+        res.status == ResultStatus.OK
+        res.payload == null
+        Token.count() == tokBaseline
+
+        when: "do not send preview link"
+        res = service.tryGeneratePreviewInfo(op1, notif1)
 
         then:
         res.status == ResultStatus.OK
-        res.payload instanceof Token
-        res.payload.id == tok1.id
-        res.payload.timesAccessed == originalTimesAccessed + 1
+        res.payload == null
+        Token.count() == tokBaseline
 
-        when:
-        res = service.findDirectMessage(tok1.token)
+        when: "send preview link"
+        res = service.tryGeneratePreviewInfo(op2, notif1)
 
         then:
-        res.status == ResultStatus.BAD_REQUEST
-        res.errorMessages[0] == "tokenService.tokenExpired"
+        res.status == ResultStatus.OK
+        res.payload.type == TokenType.NOTIFY_STAFF
+        res.payload.maxNumAccess == ValidationUtils.MAX_NUM_ACCESS_NOTIFICATION_TOKEN
+        res.payload.expires.isAfterNow()
+        res.payload.data[TokenType.PARAM_NS_STAFF] == op2.staff.id
+        res.payload.data[TokenType.PARAM_NS_ITEMS] == notif1.itemIds
+        res.payload.data[TokenType.PARAM_NS_PHONE] == notif1.mutablePhone.id
+        Token.count() == tokBaseline + 1
+    }
+
+    void "test redeeming TokenType.NOTIFY_STAFF"() {
+        given:
+        String str1 = TestUtils.randString()
+        Long staffId = TestUtils.randIntegerUpTo(88)
+        Notification notif1 = TestUtils.buildNotification()
+        TypeMap data = TypeMap.create((TokenType.PARAM_NS_PHONE): notif1.mutablePhone.id,
+            (TokenType.PARAM_NS_ITEMS): notif1.itemIds,
+            (TokenType.PARAM_NS_STAFF): staffId)
+
+        Token mockToken = GroovyMock() { asBoolean() >> true }
+        MockedMethod mustFindActiveForType = MockedMethod.create(Tokens, "mustFindActiveForType") {
+            Result.createSuccess(mockToken)
+        }
+
+        when:
+        Result res = service.tryFindPreviewInfo(str1)
+
+        then:
+        mustFindActiveForType.latestArgs == [TokenType.NOTIFY_STAFF, str1]
+        1 * mockToken.setTimesAccessed(*_)
+        mockToken.save() >> mockToken
+        1 * mockToken.data >> data
+        res.status == ResultStatus.OK
+        res.payload instanceof Tuple
+        res.payload.first == staffId
+        res.payload.second instanceof Notification
+        res.payload.second.mutablePhone == notif1.mutablePhone
+        res.payload.second.itemIds  == notif1.itemIds
+
+        cleanup:
+        mustFindActiveForType?.restore()
     }
 }

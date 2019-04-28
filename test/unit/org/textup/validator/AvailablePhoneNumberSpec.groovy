@@ -1,76 +1,115 @@
 package org.textup.validator
 
+import grails.test.mixin.*
+import grails.test.mixin.gorm.*
+import grails.test.mixin.hibernate.*
+import grails.test.mixin.support.*
+import grails.test.runtime.*
+import grails.validation.*
+import org.joda.time.*
+import org.textup.*
+import org.textup.structure.*
 import org.textup.test.*
-import com.twilio.type.PhoneNumber as TwilioPhoneNumber
-import grails.test.mixin.support.GrailsUnitTestMixin
-import grails.test.mixin.TestMixin
-import spock.lang.Shared
-import spock.lang.Specification
-import spock.lang.Unroll
+import org.textup.type.*
+import org.textup.util.*
+import spock.lang.*
 
 @TestMixin(GrailsUnitTestMixin)
 class AvailablePhoneNumberSpec extends Specification {
 
-	void "test constraints"() {
-		when: "empty"
-		AvailablePhoneNumber aNum = new AvailablePhoneNumber()
-
-		then:
-		aNum.validate() == false
-		aNum.errors.errorCount >= 3
-		aNum.errors.getFieldError("number").code == "nullable"
-		aNum.errors.getFieldError("info").code == "nullable"
-		aNum.errors.getFieldError("infoType").code == "nullable"
-
-		when: "invalid phone number"
-		aNum.phoneNumber = "I am an 123123 *&^invalid phone number"
-
-		then:
-		aNum.validate() == false
-		aNum.errors.errorCount >= 3
-		aNum.errors.getFieldError("number").code == "format"
-		aNum.errors.getFieldError("info").code == "nullable"
-		aNum.errors.getFieldError("infoType").code == "nullable"
-
-		when: "invalid info type"
-		aNum.infoType = "invalid info type not in list"
-
-		then:
-		aNum.validate() == false
-		aNum.errors.errorCount >= 3
-		aNum.errors.getFieldError("number").code == "format"
-		aNum.errors.getFieldError("infoType").code == "not.inList"
-		aNum.errors.getFieldError("info").code == "nullable"
-
-		when: "all valid"
-		aNum.phoneNumber = "111 222 &*(&^%^ 3333"
-		aNum.infoType = "sid"
-		aNum.info = "a valid sid here"
-
-		then:
-		aNum.validate() == true
+	static doWithSpring = {
+		resultFactory(ResultFactory)
 	}
 
-	void "test setting info via provided setters"() {
-		given: "a valid available phone number"
-		AvailablePhoneNumber aNum = new AvailablePhoneNumber(phoneNumber:"111@222 3333",
-			infoType:"region", info:"i am a valid region here")
-		assert aNum.validate() == true
-
-		String val = "i am a valid info value"
-
-		when: "setting for sid"
-		aNum.setSid(val)
-
-		then:
-		aNum.infoType == "sid"
-		aNum.info == val
-
-		when: "setting for region"
-		aNum.setRegion(val)
-
-		then:
-		aNum.infoType == "region"
-		aNum.info == val
+	def setup() {
+		TestUtils.standardMockSetup()
 	}
+
+	void "test creating existing"() {
+		given:
+		String num = TestUtils.randPhoneNumber()
+		String sid = TestUtils.randString()
+
+		when:
+		Result res = AvailablePhoneNumber.tryCreateExisting(null, null)
+
+		then:
+		res.status == ResultStatus.UNPROCESSABLE_ENTITY
+		res.errorMessages.size() > 0
+
+		when:
+		res = AvailablePhoneNumber.tryCreateExisting(num, sid)
+
+		then:
+		res.status == ResultStatus.CREATED
+		res.payload instanceof AvailablePhoneNumber
+		res.payload.infoType == AvailablePhoneNumber.TYPE_EXISTING
+		res.payload.info == sid
+		res.payload.number == PhoneNumber.create(num).number
+	}
+
+	void "test creating new"() {
+		given:
+		String num = TestUtils.randPhoneNumber()
+		String country = TestUtils.randString()
+		String region = TestUtils.randString()
+
+		when:
+		Result res = AvailablePhoneNumber.tryCreateNew(null, null, null)
+
+		then:
+		res.status == ResultStatus.UNPROCESSABLE_ENTITY
+		res.errorMessages.size() > 0
+
+		when:
+		res = AvailablePhoneNumber.tryCreateNew(num, country, null)
+
+		then:
+		res.status == ResultStatus.CREATED
+		res.payload instanceof AvailablePhoneNumber
+		res.payload.infoType == AvailablePhoneNumber.TYPE_NEW
+		res.payload.info == country
+		res.payload.number == PhoneNumber.create(num).number
+
+		when:
+		res = AvailablePhoneNumber.tryCreateNew(num, country, region)
+
+		then:
+		res.status == ResultStatus.CREATED
+		res.payload instanceof AvailablePhoneNumber
+		res.payload.infoType == AvailablePhoneNumber.TYPE_NEW
+		res.payload.info == "${region}, ${country}"
+		res.payload.number == PhoneNumber.create(num).number
+	}
+
+	void "test equality + hash code"() {
+        given:
+        String num = TestUtils.randPhoneNumber()
+		String sid = TestUtils.randString()
+		String country = TestUtils.randString()
+		String region = TestUtils.randString()
+		AvailablePhoneNumber aNum1 = AvailablePhoneNumber.tryCreateExisting(num, sid).payload
+		AvailablePhoneNumber aNum2 = AvailablePhoneNumber.tryCreateExisting(num, sid).payload
+		AvailablePhoneNumber aNum3 = AvailablePhoneNumber.tryCreateNew(num, country, region).payload
+		AvailablePhoneNumber aNum4 = AvailablePhoneNumber.tryCreateNew(num, country, region).payload
+
+        expect:
+        [aNum1, aNum2, aNum3, aNum4].every { it == it && it.hashCode() == it.hashCode() }
+
+        aNum1 == aNum2
+        aNum1.hashCode() == aNum2.hashCode()
+
+        aNum3 == aNum4
+        aNum3.hashCode() == aNum4.hashCode()
+
+        aNum1 != aNum3
+        aNum1.hashCode() != aNum3.hashCode()
+        aNum1 != aNum4
+        aNum1.hashCode() != aNum4.hashCode()
+
+        aNum2 != aNum3
+        aNum2.hashCode() != aNum3.hashCode()
+        aNum2 != aNum4
+        aNum2.hashCode() != aNum4.hashCode()
+    }
 }

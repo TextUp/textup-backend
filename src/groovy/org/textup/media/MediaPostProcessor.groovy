@@ -2,6 +2,7 @@ package org.textup.media
 
 import grails.compiler.GrailsTypeChecked
 import org.textup.*
+import org.textup.structure.*
 import org.textup.type.*
 import org.textup.validator.*
 import org.textup.util.*

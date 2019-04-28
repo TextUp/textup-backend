@@ -1,62 +1,35 @@
 package org.textup.rest
 
 import grails.compiler.GrailsTypeChecked
-import org.restapidoc.annotation.*
-import org.restapidoc.pojo.*
+import grails.transaction.Transactional
 import org.springframework.security.access.annotation.Secured
 import org.textup.*
+import org.textup.structure.*
+import org.textup.type.*
+import org.textup.util.*
+import org.textup.util.domain.*
+import org.textup.validator.*
 
 @GrailsTypeChecked
-@RestApi(name="PasswordReset", description = "Password reset")
 @Secured("permitAll")
+@Transactional
 class PasswordResetController extends BaseController {
-
-    // this utility endpoint is NOT namespaced, namespace is therefore NULL not empty string
-    static String namespace = null
-	static allowedMethods = [index:"GET", requestReset:"POST", resetPassword:"PUT", delete:"DELETE"]
 
 	PasswordResetService passwordResetService
 
     @Override
-    protected String getNamespaceAsString() { namespace }
-
-    def index() { notAllowed() }
-    def delete() { notAllowed() }
-
-    @RestApiMethod(description="Request a password reset")
-    @RestApiResponseObject(objectIdentifier = "[passwordResetRequest]")
-    @RestApiErrors(apierrors=[
-        @RestApiError(code="400", description="Malformed JSON in request or \
-            could not send email."),
-        @RestApiError(code="404", description="Staff with passed-in username \
-            not found or has no email."),
-    ])
-    def requestReset() {
-        Map info = getJsonPayload(request)
-        if (info == null) { return }
-        if (!info.username) {
-            badRequest()
-        }
-        else { respondWithResult(Void, passwordResetService.start(info.username as String)) }
+    def save() {
+        RequestUtils.tryGetJsonBody(request)
+            .then { TypeMap body -> passwordResetService.start(body.string("username")) }
+            .alwaysEnd { Result<?> res -> respondWithResult(res) }
     }
 
-    @RestApiMethod(description="Reset password with a valid reset tokentoken")
-    @RestApiResponseObject(objectIdentifier = "[newPasswordRequest]")
-    @RestApiErrors(apierrors=[
-        @RestApiError(code="400", description="Malformed JSON in request or expired token."),
-        @RestApiError(code="404", description="Could not find token"),
-        @RestApiError(code="422", description="The new password is invalid.")
-    ])
-    def resetPassword() {
-        Map info = getJsonPayload(request)
-        if (info == null) { return }
-        if (!info.token || !info.password) {
-            return badRequest()
-        }
-        Result<Staff> res = passwordResetService.finish(info.token as String, info.password as String)
-        if (res.success) {
-            noContent()
-        }
-        else { respondWithResult(Staff, res) }
+    @Override
+    def update() {
+        RequestUtils.tryGetJsonBody(request)
+            .then { TypeMap body ->
+                passwordResetService.finish(body.string("token"), body.string("password"))
+            }
+            .alwaysEnd { Result<?> res -> respondWithResult(res) }
     }
 }

@@ -1,68 +1,51 @@
+import org.textup.*
+import org.textup.rest.*
+import org.textup.test.*
+import org.textup.type.*
+import org.textup.util.*
+import org.textup.util.domain.*
+import org.textup.validator.*
+
 class UrlMappings {
 
-    /*
-    NOTE: any mapping updates here need to be reflected in the `resolveClassToResourceName`
-    method in BaseController to ensure working url link rendering in the API output
-     */
-
 	static mappings = {
-        "/$controller/$action?/$id?(.$format)?"{
-            constraints {
-                // apply constraints here
-            }
-        }
+        "/$controller/$action?/$id?(.$format)?"()
 
-        //login endpoint is /login (provided by Spring Security REST)
-        "/"(controller:"doc", action:"displayDoc")
-        "500"(view:'/error')
-
-        // validate both login credentials and lock codes
-        "/validate"(resources:"validate") { format = "json" }
-
-        //password reset option. index and delete not allowed
-        "/reset"(controller:"passwordReset", action:"index", method:"GET") { format = "json" }
-        "/reset"(controller:"passwordReset", action:"delete", method:"DELETE") { format = "json" }
-        "/reset"(controller:"passwordReset", action:"resetPassword", method:"PUT") { format = "json" }
-        "/reset"(controller:"passwordReset", action:"requestReset", method:"POST") { format = "json" }
+        //login endpoint is `/login` (provided by Spring Security REST)
+        "/"(redirect: [controller: "super", permanent: true])
+        "500"(view: "/error")
 
         group("/v1") {
 
-	        ////////////////
-        	// Public API //
-	        ////////////////
+        	// Public
+	        // ------
 
-	        "/public/organizations"(resources:"publicOrganization", namespace:"v1") { format = "json" }
-            "/public/staff"(resources:"publicStaff", namespace:"v1") { format = "json" }
-            //for webhook requests from Twilio
-            "/public/records"(resources:"publicRecord", namespace:"v1") { format = "json" }
-            // GET for looking up details about a notification
-            "/public/notifications"(resources:"notify", namespace:"v1") { format = "json" }
+            "/public/notifications"(resources: "notify")
+            "/public/organizations"(resources: "organization")
+            "/public/records"(resources: "publicRecord")
+            "/public/reset"(resources: "passwordReset")
+            "/public/staff"(resources: "staff")
 
-            ////////////////////////////
-            // Restricted Utility API //
-            ////////////////////////////
+            // Restricted utilities
+            // --------------------
 
-            //authenticating private channels with Pusher
-            "/sockets"(resources:"socket", namespace:"v1") { format = "json" }
-            //GET (index) for looking up available TextUp numbers from twilio
-            //GET (show) for determining validity of provided phone number
-            //POST for validating ownership of phone numbers
-            "/numbers"(resources:"number", namespace:"v1") { format = "json" }
+            "/duplicates"(resources: "duplicate")
+            "/numbers"(resources: "number")
+            "/sockets"(resources: "socket")
+            "/validate"(resources: "validate")
 
-	        ////////////////////
-	        // Restricted API //
-	        ////////////////////
+            // Restricted
+            // ----------
 
-        	"/organizations"(resources:"organization", namespace:"v1") { format = "json" }
-            "/staff"(resources:"staff", namespace:"v1") { format = "json" }
-            "/teams"(resources:"team", namespace:"v1") { format = "json" }
-            // took out the json format closure because we need to support both json and pdf here
-            "/records"(resources:"record", namespace:"v1")
-            "/future-messages"(resources:"futureMessage", namespace:"v1") { format = "json" }
-            "/contacts"(resources:"contact", namespace:"v1") { format = "json" }
-            "/tags"(resources:"tag", namespace:"v1") { format = "json" }
-            "/sessions"(resources:"session", namespace:"v1") { format = "json" }
-            "/announcements"(resources:"announcement", namespace:"v1") { format = "json" }
+            "/announcements"(resources: RestUtils.RESOURCE_ANNOUNCEMENT)
+            "/contacts"(resources: RestUtils.RESOURCE_CONTACT)
+            "/future-messages"(resources: RestUtils.RESOURCE_FUTURE_MESSAGE)
+            "/organizations"(resources: RestUtils.RESOURCE_ORGANIZATION)
+            "/records"(resources: RestUtils.RESOURCE_RECORD_ITEM)
+            "/sessions"(resources: RestUtils.RESOURCE_SESSION)
+            "/staff"(resources: RestUtils.RESOURCE_STAFF)
+            "/tags"(resources: RestUtils.RESOURCE_TAG)
+            "/teams"(resources: RestUtils.RESOURCE_TEAM)
         }
 	}
 }

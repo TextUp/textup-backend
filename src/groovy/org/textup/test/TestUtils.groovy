@@ -23,6 +23,7 @@ import org.textup.media.*
 import org.textup.type.*
 import org.textup.util.*
 import org.textup.validator.*
+import org.textup.validator.action.*
 
 @GrailsTypeChecked
 @Log4j
@@ -38,8 +39,13 @@ class TestUtils {
     // Display
     // -------
 
-    static Map jsonToMap(JSON json) {
-        DataFormatUtils.jsonToObject(json.toString()) as Map
+    // [NOTE] use `new JSON()` instead of `as JSON` because the case is only implemented for domain objects
+    // see: https://stackoverflow.com/a/30989508
+    @GrailsTypeChecked(TypeCheckingMode.SKIP)
+    static Map objToJsonMap(Object obj) {
+        JSON.use(MarshallerUtils.MARSHALLER_DEFAULT) {
+            DataFormatUtils.jsonToObject(new JSON(obj).toString()) as Map
+        }
     }
 
     @GrailsTypeChecked(TypeCheckingMode.SKIP)
@@ -51,6 +57,11 @@ class TestUtils {
     }
 
     static GPathResult buildXmlTransformOutput(GrailsApplication grailsApplication, RecordItemRequest iReq) {
+        // [IMPORTANT] here are testing the XSL transform from our marshalled XML to a format
+        // XSL-FO understands. Before we marshall, we need to make sure we set the phone id
+        // on the request for the marshallers as we do in `pdfService`
+        RequestUtils.trySet(RequestUtils.PHONE_ID, iReq.mutablePhone.id)
+
         String xmlString = DataFormatUtils.toXmlString(DataFormatUtils.jsonToObject(iReq))
         StringWriter writer = new StringWriter()
 
@@ -64,7 +75,11 @@ class TestUtils {
     // Utilities
     // ---------
 
-    static String randPhoneNumber() {
+    static PhoneNumber randPhoneNumber() {
+        PhoneNumber.tryCreate(TestUtils.randPhoneNumberString()).payload
+    }
+
+    static String randPhoneNumberString() {
         String randNumber = generatePhoneNumber()
         while (GENERATED_NUMBERS.contains(randNumber)) {
             randNumber = generatePhoneNumber()
@@ -72,6 +87,7 @@ class TestUtils {
         GENERATED_NUMBERS.add(randNumber)
         randNumber
     }
+
     private static String generatePhoneNumber() {
         int randString = TestUtils.randIntegerUpTo(Math.pow(10, 10) as Integer)
         "${TestConstants.TEST_DEFAULT_AREA_CODE}${randString}".padRight(10, "0")[0..9]
@@ -82,13 +98,17 @@ class TestUtils {
         (ensurePositive && rand <= 0) ? 1 : rand
     }
 
-    static String randString() {
-        UUID.randomUUID().toString()
-    }
+    static String randString() { UUID.randomUUID().toString() }
 
-    static String randUrl() {
-        new URI("https://www.example.com/${TestUtils.randString()}")
-    }
+    static URI randUri() { new URI("https://www.example.com/${TestUtils.randString()}") }
+
+    static URL randUrl() { TestUtils.randUri().toURL() }
+
+    static String randLinkString() { TestUtils.randUri().toString() }
+
+    static String randEmail() { "${TestUtils.randString()}@textup.org" }
+
+    static TypeMap randTypeMap() { TypeMap.create((TestUtils.randString()): TestUtils.randString()) }
 
     static String encodeBase64String(byte[] rawData) {
         Base64.encodeBase64String(rawData)
@@ -100,7 +120,7 @@ class TestUtils {
 
     static String buildVeryLongString() {
         StringBuilder sBuilder = new StringBuilder()
-        Constants.MAX_TEXT_COLUMN_SIZE.times { it -> sBuilder << it }
+        ValidationUtils.MAX_TEXT_COLUMN_SIZE.times { it -> sBuilder << it }
         sBuilder.toString()
     }
 
@@ -111,10 +131,15 @@ class TestUtils {
 
     static String getDateTimeOffsetString(String tzId) {
         int offsetInHours = TestUtils.getOffsetInHours(tzId)
-        String sign = offsetInHours >= 0 ? "+" : "-",
-            offsetString = "${Math.abs(offsetInHours)}:00"
-        offsetString = offsetString.startsWith("0") ? offsetString : "0${offsetString}"
-        sign + offsetString
+        if (offsetInHours == 0) {
+            "Z"
+        }
+        else {
+            String sign = offsetInHours > 0 ? "+" : "-",
+                offsetString = "${Math.abs(offsetInHours)}:00"
+            offsetString = offsetString.startsWith("0") ? offsetString : "0${offsetString}"
+            sign + offsetString
+        }
     }
 
     // Media
@@ -147,7 +172,7 @@ class TestUtils {
         byte[] data = TestUtils.getSampleDataForMimeType(type)
         String encodedData = TestUtils.encodeBase64String(data)
         [
-            action: Constants.MEDIA_ACTION_ADD,
+            action: MediaAction.ADD,
             mimeType: type.mimeType,
             data: encodedData,
             checksum: TestUtils.getChecksum(encodedData)
@@ -198,6 +223,14 @@ class TestUtils {
     // --------------------
 
     @GrailsTypeChecked(TypeCheckingMode.SKIP)
+    static void standardMockSetup() {
+        MockedMethod.force(AuthUtils, "encodeSecureString") { it }
+        IOCUtils.metaClass."static".getLinkGenerator = { -> TestUtils.mockLinkGenerator() }
+        IOCUtils.metaClass."static".getMessageSource = { -> TestUtils.mockMessageSource() }
+        TestUtils.mockJsonToString()
+    }
+
+    @GrailsTypeChecked(TypeCheckingMode.SKIP)
     protected static <T> T getBean(GrailsApplication grailsApplication, Class<T> beanName) {
         grailsApplication.mainContext.getBean(beanName)
     }
@@ -219,7 +252,7 @@ class TestUtils {
     }
 
     static LinkGenerator mockLinkGenerator() {
-        [link: { Map m -> (m.params ?: [:]).toString() }] as LinkGenerator
+        [link: { Map m -> (m ?: [:]).toString() }] as LinkGenerator
     }
 
     static LinkGenerator mockLinkGeneratorWithDomain(String domain = "https://www.example.com") {
@@ -237,74 +270,245 @@ class TestUtils {
         MESSAGE_SOURCE
     }
 
+    // [NOTE] may need to also mix in `ControllerUnitTestMixin` via `@TestMixin` for as JSON casting to work
+    // see https://stackoverflow.com/a/15485593
+    // [NOTE] use `new JSON()` instead of `as JSON` because the case is only implemented for domain objects
+    // see: https://stackoverflow.com/a/30989508
     @GrailsTypeChecked(TypeCheckingMode.SKIP)
     static void mockJsonToString() {
         // in unit tests, don't have custom `default` marshallers so replace with simple JSON cast
-        DataFormatUtils.metaClass."static".toJsonString = { it ? (it as JSON).toString() : "" }
+        DataFormatUtils.metaClass."static".toJsonString = { it ? new JSON(it).toString() : "" }
     }
 
     // Object generators
     // -----------------
 
+    static Author buildAuthor() {
+        Author.create(TestUtils.randIntegerUpTo(88, true) as Long,
+            TestUtils.randString(),
+            AuthorType.STAFF)
+    }
+
+    static Role buildRole() {
+        new Role(authority: TestUtils.randString()).save(flush: true, failOnError: true)
+    }
+
     static Location buildLocation() {
-        Location loc1 = new Location(address:"Testing Address", lat:0G, lon:0G)
+        Location loc1 = new Location(address: TestUtils.randString(),
+            lat: TestUtils.randIntegerUpTo(90),
+            lng: TestUtils.randIntegerUpTo(180))
         loc1.save(flush:true, failOnError:true)
     }
 
+    static Organization buildOrg(OrgStatus status = OrgStatus.PENDING) {
+        new Organization(name: TestUtils.randString(), location: TestUtils.buildLocation(), status: status)
+            .save(flush: true, failOnError: true)
+    }
+
+    static Staff buildStaff(Organization org1 = null) {
+        Staff s1 = new Staff(name: TestUtils.randString(),
+            username: TestUtils.randString(),
+            password: TestUtils.randString(),
+            email: TestUtils.randEmail(),
+            personalNumber: TestUtils.randPhoneNumber(),
+            status: StaffStatus.STAFF,
+            org: org1 ?: TestUtils.buildOrg())
+        s1.save(flush: true, failOnError: true)
+    }
+
+    static Team buildTeam(Organization org1 = null) {
+        Team t1 = Team.tryCreate(org1 ?: TestUtils.buildOrg(),
+            TestUtils.randString(),
+            TestUtils.buildLocation())
+            .logFail("buildTeam")
+            .payload as Team
+        t1.save(flush: true, failOnError: true)
+    }
+
+    static OwnerPolicy buildOwnerPolicy(PhoneOwnership thisOwner = null, Staff thisStaff = null) {
+        PhoneOwnership own1 = thisOwner ?: TestUtils.buildActiveStaffPhone().owner
+        Staff s1 = thisStaff ?: TestUtils.buildStaff()
+        OwnerPolicy op1 = OwnerPolicy.tryCreate(own1, s1.id)
+            .logFail("buildOwnerPolicy")
+            .payload as OwnerPolicy
+        op1.save(flush: true, failOnError: true)
+    }
+
+    static Phone buildTeamPhone(Team thisTeam = null) {
+        Team t1 = thisTeam ?: TestUtils.buildTeam()
+        Phone p1 = Phone.tryCreate(t1.id, PhoneOwnershipType.GROUP)
+            .logFail("buildTeamPhone")
+            .payload as Phone
+        p1.save(flush: true, failOnError: true)
+    }
+
+    static Phone buildActiveTeamPhone(Team thisTeam = null) {
+        Phone p1 = TestUtils.buildTeamPhone(thisTeam)
+        p1.tryActivate(TestUtils.randPhoneNumber(), TestUtils.randString())
+        p1.save(flush: true, failOnError: true)
+    }
+
+    static Phone buildStaffPhone(Staff thisStaff = null) {
+        Staff s1 = thisStaff ?: TestUtils.buildStaff()
+        Phone p1 = Phone.tryCreate(s1.id, PhoneOwnershipType.INDIVIDUAL)
+            .logFail("buildStaffPhone")
+            .payload as Phone
+        p1.save(flush: true, failOnError: true)
+    }
+
+    static Phone buildActiveStaffPhone(Staff thisStaff = null) {
+        Phone p1 = TestUtils.buildStaffPhone(thisStaff)
+        p1.tryActivate(TestUtils.randPhoneNumber(), TestUtils.randString())
+        p1.save(flush: true, failOnError: true)
+    }
+
+    static IncomingSession buildSession(Phone thisPhone = null) {
+        Phone p1 = thisPhone ?: TestUtils.buildActiveStaffPhone()
+        IncomingSession is1 = IncomingSession.tryCreate(p1, TestUtils.randPhoneNumber())
+            .logFail("buildSession")
+            .payload as IncomingSession
+        is1.save(flush: true, failOnError: true)
+    }
+
+    static FeaturedAnnouncement buildAnnouncement(Phone thisPhone = null) {
+        Phone p1 = thisPhone ?: TestUtils.buildActiveStaffPhone()
+        FeaturedAnnouncement fa1 = FeaturedAnnouncement
+            .tryCreate(p1, DateTime.now().plusDays(2), TestUtils.randString())
+            .logFail("buildAnnouncement")
+            .payload as FeaturedAnnouncement
+        fa1.save(flush: true, failOnError: true)
+    }
+
+    static AnnouncementReceipt buildAnnouncementReceipt(FeaturedAnnouncement thisAnnounce = null) {
+        FeaturedAnnouncement fa1 = thisAnnounce ?: TestUtils.buildAnnouncement()
+        IncomingSession is1 = TestUtils.buildSession(fa1.phone)
+        AnnouncementReceipt aRpt1 = AnnouncementReceipt.tryCreate(fa1, is1, RecordItemType.CALL)
+            .logFail("buildAnnouncementReceipt")
+            .payload as AnnouncementReceipt
+        aRpt1.save(flush: true, failOnError: true)
+    }
+
+    static PhoneRecord buildSharedPhoneRecord(PhoneRecord recToShare = null, Phone sWith = null) {
+        PhoneRecord toShare = recToShare ?: TestUtils.buildIndPhoneRecord()
+        Phone p1 = sWith ?: TestUtils.buildActiveStaffPhone()
+        PhoneRecord pr1 = PhoneRecord.tryCreate(SharePermission.DELEGATE, toShare, p1)
+            .logFail("buildSharedPhoneRecord")
+            .payload as PhoneRecord
+        pr1.save(flush: true, failOnError: true)
+    }
+
+    static IndividualPhoneRecord buildIndPhoneRecord(Phone thisPhone = null, boolean addNumber = true) {
+        Phone p1 = thisPhone ?: TestUtils.buildActiveStaffPhone()
+        IndividualPhoneRecord ipr1 = IndividualPhoneRecord.tryCreate(p1)
+            .logFail("buildIndPhoneRecord")
+            .payload as IndividualPhoneRecord
+        ipr1.name = TestUtils.randString()
+        if (addNumber) {
+            ipr1.mergeNumber(TestUtils.randPhoneNumber(), 0)
+                .logFail("buildIndPhoneRecord")
+        }
+        ipr1.save(flush: true, failOnError: true)
+    }
+
+    static GroupPhoneRecord buildGroupPhoneRecord(Phone thisPhone = null) {
+        Phone p1 = thisPhone ?: TestUtils.buildActiveStaffPhone()
+        GroupPhoneRecord gpr1 = GroupPhoneRecord.tryCreate(p1, TestUtils.randString())
+            .logFail("buildGroupPhoneRecord")
+            .payload as GroupPhoneRecord
+        gpr1.name = TestUtils.randString()
+        gpr1.save(flush: true, failOnError: true)
+    }
+
+    static MediaInfo buildMediaInfo(MediaElement el1 = null) {
+        MediaInfo mInfo1 = new MediaInfo()
+        if (el1) {
+            mInfo1.addToMediaElements(el1)
+        }
+        mInfo1.save(flush: true, failOnError: true)
+    }
+
     static MediaElement buildMediaElement(BigDecimal sendSize = 88) {
-        MediaElement e1 = new MediaElement()
-        e1.sendVersion = TestUtils.buildMediaElementVersion(sendSize)
-        assert e1.validate()
-        e1
+        MediaElement el1 = new MediaElement()
+        el1.sendVersion = TestUtils.buildMediaElementVersion(sendSize)
+        el1.save(flush: true, failOnError: true)
     }
 
     static UploadItem buildUploadItem(MediaType type = MediaType.AUDIO_MP3) {
-        UploadItem uItem = new UploadItem(type: type, data: getSampleDataForMimeType(type))
-        assert uItem.validate()
-        uItem
+        UploadItem.tryCreate(type, getSampleDataForMimeType(type)).payload
     }
 
     static MediaElementVersion buildMediaElementVersion(BigDecimal sendSize = 88) {
         MediaElementVersion mVers1 = new MediaElementVersion(type: MediaType.IMAGE_JPEG,
-            versionId: UUID.randomUUID().toString(),
+            versionId: TestUtils.randString(),
             sizeInBytes: sendSize.longValue(),
             widthInPixels: 888)
-        assert mVers1.validate()
-        mVers1
+        mVers1.save(flush: true, failOnError: true)
+    }
+
+    static Record buildRecord() {
+        new Record().save(flush: true, failOnError: true)
+    }
+
+    static SimpleFutureMessage buildFutureMessage(Record thisRecord = null) {
+        Record rec1 = thisRecord ?: TestUtils.buildRecord()
+        SimpleFutureMessage sMsg1 = SimpleFutureMessage
+            .tryCreate(rec1, FutureMessageType.TEXT, TestUtils.randString(), null)
+            .logFail("buildFutureMessage")
+            .payload as SimpleFutureMessage
+        sMsg1.save(flush: true, failOnError: true)
+    }
+
+    static RecordItem buildRecordItem(Record thisRecord = null) {
+        Record rec1 = thisRecord ?: TestUtils.buildRecord()
+        new RecordItem(record: rec1).save(flush: true, failOnError: true)
+    }
+
+    static RecordCall buildRecordCall(Record thisRecord = null, boolean shouldAddRpt = true) {
+        Record rec1 = thisRecord ?: TestUtils.buildRecord()
+        RecordCall rCall1 = RecordCall.tryCreate(rec1)
+            .logFail("buildRecordCall")
+            .payload as RecordCall
+        if (shouldAddRpt) {
+            rCall1.addReceipt(TestUtils.buildTempReceipt(ReceiptStatus.SUCCESS)) // for duration
+        }
+        rCall1.save(flush: true, failOnError: true)
+    }
+
+    static RecordText buildRecordText(Record thisRecord = null) {
+        Record rec1 = thisRecord ?: TestUtils.buildRecord()
+        RecordText rText1 = RecordText.tryCreate(rec1, TestUtils.randString())
+            .logFail("buildRecordText")
+            .payload as RecordText
+        rText1.save(flush: true, failOnError: true)
+    }
+
+    static RecordNote buildRecordNote(Record thisRecord = null) {
+        Record rec1 = thisRecord ?: TestUtils.buildRecord()
+        RecordNote rNote1 = RecordNote.tryCreate(rec1,
+                TestUtils.randString(),
+                TestUtils.buildMediaInfo(),
+                TestUtils.buildLocation())
+            .logFail("buildRecordNote")
+            .payload as RecordNote
+        rNote1.save(flush: true, failOnError: true)
     }
 
     static RecordItemReceipt buildReceipt(ReceiptStatus status = ReceiptStatus.PENDING) {
-        RecordItemReceipt rpt = new RecordItemReceipt(status: status,
-            contactNumberAsString: TestUtils.randPhoneNumber(),
-            apiId: UUID.randomUUID().toString())
-        rpt
+        RecordItemReceipt rpt1 = new RecordItemReceipt(status: status,
+            contactNumberAsString: TestUtils.randPhoneNumberString(),
+            apiId: TestUtils.randString(),
+            item: TestUtils.buildRecordItem())
+        rpt1.save(flush: true, failOnError: true)
     }
 
     static TempRecordReceipt buildTempReceipt(ReceiptStatus status = ReceiptStatus.PENDING) {
-        TempRecordReceipt rpt = new TempRecordReceipt(status: status,
-            contactNumberAsString: TestUtils.randPhoneNumber(),
-            apiId: UUID.randomUUID().toString(),
-            numSegments: TestUtils.randIntegerUpTo(10))
-        assert rpt.validate()
-        rpt
-    }
-
-    static OutgoingMessage buildOutgoingMessage(Phone p1, String message = "hi") {
-        OutgoingMessage text = new OutgoingMessage(message: message,
-            contacts: new ContactRecipients(phone: p1),
-            sharedContacts: new SharedContactRecipients(phone: p1),
-            tags: new ContactTagRecipients(phone: p1))
-        assert text.validate()
-        text
-    }
-
-    static RecordItemRequest buildRecordItemRequest(Phone p1) {
-        RecordItemRequest iReq = new RecordItemRequest(phone: p1,
-            contacts: new ContactRecipients(phone: p1),
-            sharedContacts: new SharedContactRecipients(phone: p1),
-            tags: new ContactTagRecipients(phone: p1))
-        assert iReq.validate()
-        iReq
+        TempRecordReceipt rpt1 = TempRecordReceipt
+            .tryCreate(TestUtils.randString(), TestUtils.randPhoneNumber())
+            .payload
+        rpt1.status = status
+        rpt1.numBillable = TestUtils.randIntegerUpTo(10, true)
+        assert rpt1.validate()
+        rpt1
     }
 
     static CustomAccountDetails buildCustomAccountDetails() {
@@ -313,20 +517,53 @@ class TestUtils {
         cad1.save(flush: true, failOnError: true)
     }
 
+    static Token buildToken() {
+        Map data = TokenType.passwordResetData(TestUtils.randIntegerUpTo(88) as Long)
+        Token tok1 = Token.tryCreate(TokenType.PASSWORD_RESET, data).payload
+        tok1.save(flush: true, failOnError: true)
+    }
+
+    static Notification buildNotification(Phone thisPhone = null) {
+        Phone p1 = thisPhone ?: TestUtils.buildActiveStaffPhone()
+        IndividualPhoneRecord ipr1 = TestUtils.buildIndPhoneRecord(p1)
+        GroupPhoneRecord gpr1 = TestUtils.buildGroupPhoneRecord(p1)
+
+        NotificationDetail nd1 = NotificationDetail.tryCreate(ipr1.toWrapper()).payload
+        NotificationDetail nd2 = NotificationDetail.tryCreate(gpr1.toWrapper()).payload
+
+        RecordItem rItem1 = TestUtils.buildRecordItem(ipr1.record)
+        nd1.items << rItem1
+        RecordItem rItem2 = TestUtils.buildRecordItem(gpr1.record)
+        nd2.items << rItem2
+
+        Notification notif1 = Notification.tryCreate(p1).payload
+        notif1.addDetail(nd1)
+        notif1.addDetail(nd2)
+
+        assert notif1.validate()
+        notif1
+    }
+
+    static NotificationInfo buildNotificationInfo() {
+        new NotificationInfo(TestUtils.randString(),
+            TestUtils.randPhoneNumber(),
+            TestUtils.randIntegerUpTo(88, true),
+            TestUtils.randIntegerUpTo(88, true),
+            TestUtils.randIntegerUpTo(88, true),
+            TestUtils.randString(),
+            TestUtils.randIntegerUpTo(88, true),
+            TestUtils.randIntegerUpTo(88, true),
+            TestUtils.randString())
+    }
+
+    static TempRecordItem buildTempRecordItem() {
+        TempRecordItem
+            .tryCreate(TestUtils.randString(), TestUtils.buildMediaInfo(), TestUtils.buildLocation())
+            .payload
+    }
+
     // Mocking
     // -------
-
-    static MockedMethod mock(Object obj, String methodName, Closure action = null) {
-        new MockedMethod(obj, methodName, action)
-    }
-    static MockedMethod forceMock(Object obj, String methodName, Closure action = null) {
-        try {
-            new MockedMethod(obj, methodName, action, true)
-        }
-        catch (IllegalArgumentException e) {
-            log.info("TestUtils.forceMock: ${e.message}")
-        }
-    }
 
     static ByteArrayOutputStream captureAllStreamsReturnStdOut() {
         OUTPUT_CAPTOR.capture().first

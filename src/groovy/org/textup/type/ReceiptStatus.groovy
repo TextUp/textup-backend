@@ -15,14 +15,14 @@ enum ReceiptStatus {
 	BUSY(["busy", "no-answer"], 3),
 	FAILED(["failed", "undelivered"], 4)
 
-
 	private final Collection<String> statuses
 	private final int sequenceNumber
+
 	ReceiptStatus(Collection<String> thisStatuses, int thisNum) {
-		this.statuses = thisStatuses
-		this.sequenceNumber = thisNum
+		statuses = thisStatuses
+		sequenceNumber = thisNum
 	}
-	Collection<String> getStatuses() { Collections.unmodifiableCollection(this.statuses) }
+	Collection<String> getStatuses() { Collections.unmodifiableCollection(statuses) }
 
 	static ReceiptStatus translate(String status) {
 		if (!status) {
@@ -44,6 +44,6 @@ enum ReceiptStatus {
 	}
 
 	boolean isEarlierInSequenceThan(ReceiptStatus comparisonStatus) {
-		this.sequenceNumber < comparisonStatus?.sequenceNumber
+		sequenceNumber < comparisonStatus?.sequenceNumber
 	}
 }

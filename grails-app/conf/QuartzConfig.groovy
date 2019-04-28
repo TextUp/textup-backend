@@ -7,10 +7,8 @@
 // send to possibly many unintended recipients.
 //
 
-def shouldEnable = System.getenv("TEXTUP_BACKEND_ENABLE_QUARTZ") ?: System.getProperty("TEXTUP_BACKEND_ENABLE_QUARTZ")
-
 quartz {
-    autoStartup = shouldEnable
+    autoStartup = System.getenv("TEXTUP_BACKEND_ENABLE_QUARTZ") ?: System.getProperty("TEXTUP_BACKEND_ENABLE_QUARTZ")
     jdbcStore = false
     waitForJobsToCompleteOnShutdown = true
     exposeSchedulerInRepository = false
@@ -31,16 +29,16 @@ environments {
             jdbcStore = true
 
             props {
-                threadPool.'class' = 'org.quartz.simpl.SimpleThreadPool'
-                threadPool.threadCount = 10
+                threadPool."class" = "org.quartz.simpl.SimpleThreadPool"
+                threadPool.threadCount = 5
 
-                jobStore.'class' = 'org.quartz.impl.jdbcjobstore.JobStoreTX'
-                jobStore.driverDelegateClass = 'org.quartz.impl.jdbcjobstore.StdJDBCDelegate'
+                jobStore."class" = "org.quartz.impl.jdbcjobstore.JobStoreTX"
+                jobStore.driverDelegateClass = "org.quartz.impl.jdbcjobstore.StdJDBCDelegate"
 
                 jobStore.useProperties = false
-                jobStore.tablePrefix = 'QRTZ_'
+                jobStore.tablePrefix = "QRTZ_"
 
-                plugin.shutdownhook.'class' = 'org.quartz.plugins.management.ShutdownHookPlugin'
+                plugin.shutdownhook."class" = "org.quartz.plugins.management.ShutdownHookPlugin"
                 plugin.shutdownhook.cleanShutdown = true
             }
         }

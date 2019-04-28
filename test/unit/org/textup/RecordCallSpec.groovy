@@ -1,44 +1,81 @@
 package org.textup
 
+import grails.test.mixin.*
+import grails.test.mixin.gorm.*
+import grails.test.mixin.hibernate.*
+import grails.test.mixin.support.*
+import grails.test.runtime.*
+import grails.validation.*
+import org.joda.time.*
+import org.textup.structure.*
 import org.textup.test.*
-import grails.test.mixin.gorm.Domain
-import grails.test.mixin.hibernate.HibernateTestMixin
-import grails.test.mixin.TestMixin
-import org.textup.type.ReceiptStatus
+import org.textup.type.*
 import org.textup.util.*
-import spock.lang.Ignore
-import spock.lang.Shared
-import spock.lang.Specification
+import org.textup.validator.*
+import spock.lang.*
 
-@Domain([CustomAccountDetails, Record, RecordItem, RecordText, RecordCall, RecordItemReceipt, Organization, Location,
-    MediaInfo, MediaElement, MediaElementVersion])
+@Domain([AnnouncementReceipt, ContactNumber, CustomAccountDetails, FeaturedAnnouncement,
+    FutureMessage, GroupPhoneRecord, IncomingSession, IndividualPhoneRecord, Location, MediaElement,
+    MediaElementVersion, MediaInfo, Organization, OwnerPolicy, Phone, PhoneNumberHistory,
+    PhoneOwnership, PhoneRecord, PhoneRecordMembers, Record, RecordCall, RecordItem,
+    RecordItemReceipt, RecordNote, RecordNoteRevision, RecordText, Role, Schedule,
+    SimpleFutureMessage, Staff, StaffRole, Team, Token])
 @TestMixin(HibernateTestMixin)
 class RecordCallSpec extends Specification {
 
-    void "test constraints"() {
+    static doWithSpring = {
+        resultFactory(ResultFactory)
+    }
+
+    def setup() {
+        TestUtils.standardMockSetup()
+    }
+
+    void "test constraints + static creator"() {
         given:
-        Record rec1 = new Record()
-        rec1.save(flush:true, failOnError:true)
+        Record rec1 = TestUtils.buildRecord()
 
         when: "empty"
-        RecordCall rCall1 = new RecordCall()
+        Result res = RecordCall.tryCreate(null)
 
         then: "invalid"
-        rCall1.validate() == false
-        rCall1.errors.errorCount == 1
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
 
         when: "with record"
-        rCall1.record = rec1
+        res = RecordCall.tryCreate(TestUtils.buildRecord())
 
         then: "valid"
-        rCall1.validate() == true
+        res.status == ResultStatus.CREATED
+    }
+
+    void "test try updating for voicemail"() {
+        given:
+        Integer duration = TestUtils.randIntegerUpTo(88, true)
+        MediaElement el1 = TestUtils.buildMediaElement()
+
+        when:
+        RecordCall rCall1 = RecordCall.tryCreate(TestUtils.buildRecord()).payload
+
+        then:
+        rCall1.media == null
+        rCall1.hasAwayMessage == false
+        rCall1.voicemailInSeconds == 0
+
+        when:
+        DateTime dt = rCall1.record.lastRecordActivity
+        Result res = RecordCall.tryUpdateVoicemail(rCall1, duration, [el1])
+
+        then:
+        res.status == ResultStatus.OK
+        res.payload.media instanceof MediaInfo
+        el1 in res.payload.media.mediaElements
+        res.payload.hasAwayMessage == true
+        res.payload.voicemailInSeconds == duration
     }
 
     void "test getting duration in seconds and excluding receipt with longest duration"() {
         given: "a valid record call"
-        Record rec = new Record()
-        assert rec.save(flush:true, failOnError:true)
-        RecordCall call = new RecordCall(record:rec)
+        RecordCall call = TestUtils.buildRecordCall(null, false)
 
         when: "no receipts"
         assert call.receipts == null
@@ -86,9 +123,7 @@ class RecordCallSpec extends Specification {
 
     void "test grouping receipts by status for incoming versus outgoing"() {
         given: "a valid record call with multiple receipts with varying numBillable"
-        Record rec = new Record()
-        assert rec.save(flush:true, failOnError:true)
-        RecordCall call = new RecordCall(record:rec)
+        RecordCall call = TestUtils.buildRecordCall(null, false)
         RecordItemReceipt rpt1 = TestUtils.buildReceipt(ReceiptStatus.PENDING),
             rpt2 = TestUtils.buildReceipt(ReceiptStatus.PENDING),
             rpt3 = TestUtils.buildReceipt(ReceiptStatus.PENDING)

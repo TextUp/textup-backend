@@ -1,38 +1,34 @@
 package org.textup
 
+import grails.test.mixin.*
+import grails.test.mixin.gorm.*
+import grails.test.mixin.hibernate.*
+import grails.test.mixin.support.*
+import grails.test.runtime.*
+import grails.validation.*
+import org.joda.time.*
+import org.textup.structure.*
 import org.textup.test.*
-import grails.gorm.DetachedCriteria
-import grails.test.mixin.gorm.Domain
-import grails.test.mixin.hibernate.HibernateTestMixin
-import grails.test.mixin.TestMixin
-import java.util.concurrent.TimeUnit
-import org.joda.time.DateTime
-import org.joda.time.DateTimeZone
-import org.textup.type.FutureMessageType
-import org.textup.type.RecordItemType
-import org.textup.type.VoiceLanguage
-import org.textup.validator.OutgoingMessage
-import spock.lang.Ignore
-import spock.lang.Shared
+import org.textup.type.*
+import org.textup.util.*
+import org.textup.validator.*
+import spock.lang.*
 
-@Domain([CustomAccountDetails, Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
-	RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization, Schedule,
-	Location, WeeklySchedule, PhoneOwnership, FeaturedAnnouncement, IncomingSession,
-	AnnouncementReceipt, Role, StaffRole, FutureMessage, NotificationPolicy,
-    MediaInfo, MediaElement, MediaElementVersion])
+@Domain([AnnouncementReceipt, ContactNumber, CustomAccountDetails, FeaturedAnnouncement,
+    FutureMessage, GroupPhoneRecord, IncomingSession, IndividualPhoneRecord, Location, MediaElement,
+    MediaElementVersion, MediaInfo, Organization, OwnerPolicy, Phone, PhoneNumberHistory,
+    PhoneOwnership, PhoneRecord, PhoneRecordMembers, Record, RecordCall, RecordItem,
+    RecordItemReceipt, RecordNote, RecordNoteRevision, RecordText, Role, Schedule,
+    SimpleFutureMessage, Staff, StaffRole, Team, Token])
 @TestMixin(HibernateTestMixin)
-class FutureMessageSpec extends CustomSpec {
+class FutureMessageSpec extends Specification {
 
 	static doWithSpring = {
-		resultFactory(ResultFactory)
-	}
-
-    def setup() {
-    	setupData()
+        resultFactory(ResultFactory)
     }
 
-    def cleanup() {
-    	cleanupData()
+    def setup() {
+        TestUtils.standardMockSetup()
     }
 
     void "test constraints"() {
@@ -49,8 +45,8 @@ class FutureMessageSpec extends CustomSpec {
 
     	when: "all required fields filled out"
     	fMsg.type = FutureMessageType.TEXT
-    	fMsg.record = c1.record
-    	fMsg.message = "hi"
+    	fMsg.record = TestUtils.buildRecord()
+    	fMsg.message = TestUtils.randString()
 
     	then: "ok -- requires either media or message or both"
     	fMsg.validate() == true
@@ -78,92 +74,6 @@ class FutureMessageSpec extends CustomSpec {
     	then:
     	fMsg.validate() == false
     	fMsg.errors.getFieldErrorCount("endDate") == 1
-    }
-
-    void "test converting to outgoing message for record"() {
-    	given: "a valid future message"
-    	def owner = (type == "contact") ? c1 : tag1
-        MediaInfo mInfo = new MediaInfo()
-        mInfo.save(flush: true, failOnError: true)
-    	FutureMessage fMsg = new FutureMessage(
-            type:FutureMessageType.CALL,
-    		record:owner.record,
-            message:"hi"
-        )
-    	assert fMsg.validate()
-
-    	when: "message is a text without media"
-    	fMsg.type = FutureMessageType.TEXT
-        fMsg.language = VoiceLanguage.CHINESE
-        fMsg.media = null
-    	OutgoingMessage msg = fMsg.tryGetOutgoingMessage().payload
-    	Collection hasMembers, noMembers
-    	if (type == "contact") {
-			hasMembers = msg.contacts.recipients
-			noMembers = msg.tags.recipients
-    	}
-    	else {
-    		hasMembers = msg.tags.recipients
-			noMembers = msg.contacts.recipients
-    	}
-
-    	then: "make outgoing message without flushing"
-    	msg.type == RecordItemType.TEXT
-        msg.media == null
-        msg.language == VoiceLanguage.CHINESE
-    	msg.message == fMsg.message
-		noMembers.isEmpty()
-    	hasMembers.size() == 1
-    	hasMembers[0].id == owner.id
-
-    	when: "message is a call with media"
-    	fMsg.type = FutureMessageType.CALL
-        fMsg.language = VoiceLanguage.ITALIAN
-        fMsg.media = mInfo
-    	msg = fMsg.tryGetOutgoingMessage().payload
-    	if (type == "contact") {
-			hasMembers = msg.contacts.recipients
-			noMembers = msg.tags.recipients
-    	}
-    	else {
-    		hasMembers = msg.tags.recipients
-			noMembers = msg.contacts.recipients
-    	}
-
-    	then: "make outgoing message without flushing"
-    	msg.type == RecordItemType.CALL
-        msg.media == mInfo
-        msg.language == VoiceLanguage.ITALIAN
-    	msg.message == fMsg.message
-    	noMembers.isEmpty()
-    	hasMembers.size() == 1
-    	hasMembers[0].id == owner.id
-
-    	where:
-		type      | _
-		"contact" | _
-		"tag"     | _
-    }
-
-    void "test building detached criteria for records"() {
-        given: "valid record items"
-        Record rec = new Record()
-        rec.save(flush:true, failOnError:true)
-        FutureMessage fm1 = new FutureMessage(type:FutureMessageType.TEXT, message:"hi", record:rec),
-            fm2 = new FutureMessage(type:FutureMessageType.TEXT, message:"hi", record:rec)
-        [fm1, fm2].each { FutureMessage fMsg ->
-            fMsg.metaClass.refreshTrigger = { -> }
-            fMsg.save(flush:true, failOnError:true)
-        }
-
-        when: "build detached criteria for these items"
-        DetachedCriteria<FutureMessage> detachedCrit = FutureMessage.forRecords([rec])
-        List<FutureMessage> fMsgList = detachedCrit.list()
-        Collection<Long> targetIds = [fm1, fm2]*.id
-
-        then: "we are able to fetch these items back from the db"
-        fMsgList.size() == 2
-        fMsgList.every { it.id in targetIds }
     }
 
     void "test checking for daylight savings time adjustment"() {

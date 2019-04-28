@@ -107,16 +107,19 @@ See the `script` section of `.travis.yml` for the tests. Note that the command i
 
 ## Development tips
 
+* If you are seeing the `grails` command hang and are using an institution's wifi, it may be because you are behind a proxy. Try running `grails` commands with the `--offline` flag.
 * For classes with the Validateable annotation, public getters with no properties and no defined field are treated like fields during validation. Making these getters protected or overloading the method stops these from being treated as constrainted properties. Therefore, in this special case, if we don't want these methods to be called during validation, we need to (1) rename the method, (2) make the method protected, or (3) overload the method. If we are all right with the getter being called but we want to apply custom constraints on it, then we need to declare it as a static final field to make the constraints pass type checking.
 * Run all tests from command line before sending to CI via:
 ```shell
-{ grails test-app "unit:" org.textup.A* org.textup.B* org.textup.C* org.textup.D* org.textup.E* org.textup.F* org.textup.G* org.textup.H* ;grails test-app "unit:" org.textup.I* org.textup.J* org.textup.K* org.textup.L* org.textup.M* org.textup.N* org.textup.O* org.textup.P* org.textup.Q* ;grails test-app "unit:" org.textup.R* org.textup.S* org.textup.T* org.textup.U* org.textup.V* org.textup.W* org.textup.X* org.textup.Y* org.textup.Z* ;grails test-app "unit:" org.textup.job.* org.textup.validator.* org.textup.validator.action.* org.textup.type.* org.textup.util.* org.textup.cache.* ;grails test-app "unit:" org.textup.media.* ;grails test-app "unit:" org.textup.rest.* org.textup.test.* ;grails test-app "integration:" org.textup.rest.marshaller.* org.textup.util.* ;grails test-app "integration:" org.textup.* ;grails test-app "functional:" }  > test-output.txt
+{ grails --offline test-app "unit:" org.textup.action.* org.textup.cache.* org.textup.constraint.* org.textup.job.* org.textup.override.* org.textup.test.* org.textup.type.* org.textup.media.* ; grails --offline test-app "unit:" org.textup.util.* org.textup.util.domain.* ; grails --offline test-app "unit:" org.textup.rest.* ; grails --offline test-app "unit:" org.textup.validator.* org.textup.validator.action.* ; grails --offline test-app "unit:" org.textup.A* org.textup.B* org.textup.C* org.textup.D* org.textup.E* org.textup.F* org.textup.G* org.textup.H* org.textup.I* org.textup.J* org.textup.K* org.textup.L* org.textup.M* org.textup.N* org.textup.O* ; grails --offline test-app "unit:" org.textup.P* org.textup.Q* org.textup.R* org.textup.S* org.textup.T* org.textup.U* org.textup.V* org.textup.W* org.textup.X* org.textup.Y* org.textup.Z* ; grails --offline test-app "integration:" org.textup.action.* org.textup.annotation.* org.textup.override.* org.textup.util.* org.textup.rest.marshaller.* ; grails --offline test-app "integration:" org.textup.* ; grails --offline test-app "functional:" }  > test-output.txt
 ```
 * If possible, don't import our own classes into config files because no type-checking happens in these config files. A "class not found error" can silently fail and cause the config file to not be read.
+* The `@Sortable` annotation on Grails domain classes seems to trigger an errors duration in the canonicalization phase of compilation when used with the `@GrailsTypeChecked` annotation. Need to manually implement the `Comparable` interface. `@Sortable` seems to be fine when applied to `@Validateable` classes
+* No static inner classes when you apply `@GrailsTypeChecked` to a validateable class or else will have canonicalization compilation errors. This includes both domain classes and classes with the `@Validateable` annotation.
 
 ## License
 
-Copyright 2018 TextUp
+Copyright 2019 TextUp
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.

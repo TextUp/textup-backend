@@ -1,7 +1,7 @@
 package org.textup.type
 
-import spock.lang.*
 import org.textup.test.*
+import spock.lang.*
 
 class ReceiptStatusSpec extends Specification {
 

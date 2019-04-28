@@ -1,22 +1,60 @@
 package org.textup
 
+import grails.test.mixin.*
+import grails.test.mixin.gorm.*
+import grails.test.mixin.hibernate.*
+import grails.test.mixin.support.*
+import grails.test.runtime.*
+import grails.validation.*
+import org.joda.time.*
+import org.textup.structure.*
 import org.textup.test.*
-import grails.test.mixin.gorm.Domain
-import grails.test.mixin.hibernate.HibernateTestMixin
-import grails.test.mixin.TestMixin
+import org.textup.type.*
 import org.textup.util.*
 import org.textup.validator.*
 import spock.lang.*
 
-@Domain([CustomAccountDetails, Record, RecordItem, RecordText, RecordCall, RecordItemReceipt,
-    MediaInfo, MediaElement, MediaElementVersion])
+@Domain([AnnouncementReceipt, ContactNumber, CustomAccountDetails, FeaturedAnnouncement,
+    FutureMessage, GroupPhoneRecord, IncomingSession, IndividualPhoneRecord, Location, MediaElement,
+    MediaElementVersion, MediaInfo, Organization, OwnerPolicy, Phone, PhoneNumberHistory,
+    PhoneOwnership, PhoneRecord, PhoneRecordMembers, Record, RecordCall, RecordItem,
+    RecordItemReceipt, RecordNote, RecordNoteRevision, RecordText, Role, Schedule,
+    SimpleFutureMessage, Staff, StaffRole, Team, Token])
 @TestMixin(HibernateTestMixin)
 @Unroll
 class RecordTextSpec extends Specification {
 
+    static doWithSpring = {
+        resultFactory(ResultFactory)
+    }
+
+    def setup() {
+        TestUtils.standardMockSetup()
+    }
+
+    void "test static creation"() {
+        given:
+        Record rec1 = TestUtils.buildRecord()
+        String contents = TestUtils.randString()
+
+        when:
+        Result res = RecordText.tryCreate(null, null)
+
+        then:
+        res.status == ResultStatus.UNPROCESSABLE_ENTITY
+
+        when:
+        res = RecordText.tryCreate(rec1, contents)
+
+        then:
+        res.status == ResultStatus.CREATED
+        res.payload.record == rec1
+        res.payload.contents == contents
+    }
+
     void "test contents length constraint"() {
     	when: "we have a record text"
-    	Record rec = new Record()
+    	Record rec = TestUtils.buildRecord()
     	RecordText rText = new RecordText(record:rec, contents:"hi")
 
     	then:
@@ -51,7 +89,7 @@ class RecordTextSpec extends Specification {
 
     void "test calculating number of segments"() {
         when: "no receipts"
-        Record rec = new Record()
+        Record rec = TestUtils.buildRecord()
         RecordText rText = new RecordText(record:rec, contents:"hi")
         assert rText.validate()
 
@@ -61,7 +99,7 @@ class RecordTextSpec extends Specification {
 
         when: "some receipts all without segments"
         TempRecordReceipt temp1 = TestUtils.buildTempReceipt()
-        temp1.numSegments = null
+        temp1.numBillable = null
         rText.addReceipt(temp1)
 
         then: "no segments"
@@ -70,7 +108,7 @@ class RecordTextSpec extends Specification {
 
         when: "some receipts with segments"
         TempRecordReceipt temp2 = TestUtils.buildTempReceipt()
-        temp2.numSegments = 88
+        temp2.numBillable = 88
         rText.addReceipt(temp2)
 
         then: "has number of segments greater than 0"

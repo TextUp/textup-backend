@@ -6,7 +6,9 @@ import grails.plugin.springsecurity.SpringSecurityUtils
 import grails.transaction.Transactional
 import org.springframework.security.access.annotation.Secured
 import org.springframework.security.authentication.encoding.PasswordEncoder
-import org.textup.type.OrgStatus
+import org.textup.type.*
+import org.textup.util.*
+import org.textup.util.domain.*
 
 @GrailsTypeChecked
 @Secured("ROLE_ADMIN")
@@ -14,51 +16,49 @@ import org.textup.type.OrgStatus
 class SuperController {
 
     MailService mailService
-    PasswordEncoder passwordEncoder
-    SpringSecurityService springSecurityService
 
     // Page handlers
     // -------------
 
     def index() {
         flash.previousPage = "index"
-        [unverifiedOrgs:Organization.findAllByStatus(OrgStatus.PENDING)]
+        [unverifiedOrgs: Organization.findAllByStatus(OrgStatus.PENDING)]
     }
 
     def approved() {
         flash.previousPage = "approved"
-        [orgs:Organization.findAllByStatus(OrgStatus.APPROVED)]
+        [orgs: Organization.findAllByStatus(OrgStatus.APPROVED)]
     }
 
     def rejected() {
         flash.previousPage = "rejected"
-        [orgs:Organization.findAllByStatus(OrgStatus.REJECTED)]
+        [orgs: Organization.findAllByStatus(OrgStatus.REJECTED)]
     }
 
     def settings() {
-        [staff:springSecurityService.currentUser]
+        [staff: IOCUtils.security.currentUser]
     }
 
     def updateSettings() {
-        String newPassword = params.newPassword
-        if (newPassword && newPassword != params.confirmNewPassword) {
+        TypeMap qParams = TypeMap.create(params)
+        String newPassword = qParams.newPassword
+        if (newPassword && newPassword != qParams.confirmNewPassword) {
             flash.messages = ["New passwords must match."]
-            return redirect(action: "settings")
+            redirect(action: "settings")
+            return
         }
-
-        Staff s1 = springSecurityService.currentUser as Staff
+        Staff s1 = IOCUtils.security.currentUser as Staff
         String oldUsername = s1.username
-
         // if wanting to change password, need to validate current password first
         if (newPassword) {
-            if (params.currentPassword &&
-                passwordEncoder.isPasswordValid(s1.password, params.currentPassword as String, null)) {
-
+            if (qParams.currentPassword &&
+                AuthUtils.isSecureStringValid(s1.password, qParams.string("currentPassword"))) {
                 s1.password = newPassword
             }
             else {
                 flash.messages = ["Could not update password. Current password is either blank or incorrect."]
-                return redirect(action: "settings")
+                redirect(action: "settings")
+                return
             }
         }
         // update other properties
@@ -69,70 +69,68 @@ class SuperController {
             }
         }
         // save new settings
-        if (s1.save()) {
-            springSecurityService.reauthenticate(oldUsername)
-            flash.messages = ["Successfully updated settings."]
-        }
-        else {
-            flash.errorObj = s1
-            s1.discard()
-        }
+        DomainUtils.trySave(s1)
+            .ifFailAndPreserveError { Result<?> failRes ->
+                flash.errorObj = s1
+                s1.discard()
+            }
+            .thenEnd {
+                IOCUtils.security.reauthenticate(oldUsername)
+                flash.messages = ["Successfully updated settings."]
+            }
         redirect(action: "settings")
     }
 
     // Actions
     // -------
 
-    def logout() {
-        // '/j_spring_security_logout'
+    def logout() { // '/j_spring_security_logout'
         redirect uri: (SpringSecurityUtils.securityConfig.logout as Map).filterProcessesUrl
     }
 
     def rejectOrg() {
-        Organization org = Organization.get(params.long("id"))
-        if (org && org.getAdmins()[0]) {
-            org.status = OrgStatus.REJECTED
-            if (org.save()) {
-                flash.messages = ["Successfully rejected ${org.name}"]
-                Result res = mailService.notifyRejection(org.getAdmins()[0])
-                if (!res.success) {
-                    log.error("SuperController.rejectOrg: could not notify \
-                        $org of rejection: ${res.payload}")
-                    flash.messages = res.errorMessages
+        Organizations.mustFindForId(params.long("id"))
+            .ifFailAndPreserveError { Result<?> failRes -> flash.messages = failRes.errorMessages }
+            .thenEnd { Organization org1 ->
+                Staff admin = Staffs.buildForOrgIdAndOptions(org1.id, null, [StaffStatus.ADMIN])
+                    .list(max: 1)[0]
+                if (admin) {
+                    org1.status = OrgStatus.REJECTED
+                    DomainUtils.trySave(org1)
+                        .then {
+                            flash.messages = ["Successfully rejected ${org1.name}"]
+                            mailService.notifyRejection(admin)
+                        }
+                        .ifFailAndPreserveError("rejectOrg") { Result<?> failRes ->
+                            flash.messages = failRes.errorMessages
+                            org1.discard()
+                        }
                 }
+                else { flash.messages = ["Could not find admins for ${org1.name}."] }
             }
-            else {
-                flash.errorObj = org
-                org.discard()
-            }
-        }
-        else {
-            flash.messages = ["Could not find organization or admin."]
-        }
-        flash.previousPage ? redirect(action:flash.previousPage) : redirect(action:"index")
+        flash.previousPage ? redirect(action: flash.previousPage) : redirect(action: "index")
     }
 
     def approveOrg() {
-        Organization org = Organization.get(params.long("id"))
-        if (org && org.getAdmins()[0]) {
-            org.status = OrgStatus.APPROVED
-            if (org.save()) {
-                flash.messages = ["Successfully approved ${org.name}"]
-                Result res = mailService.notifyApproval(org.getAdmins()[0])
-                if (!res.success) {
-                    log.error("SuperController.approveOrg: could not notify \
-                        $org of approval: ${res.payload}")
-                    flash.messages = res.errorMessages
+        Organizations.mustFindForId(params.long("id"))
+            .ifFailAndPreserveError { Result<?> failRes -> flash.messages = failRes.errorMessages }
+            .thenEnd { Organization org1 ->
+                Staff admin = Staffs.buildForOrgIdAndOptions(org1.id, null, [StaffStatus.ADMIN])
+                    .list(max: 1)[0]
+                if (admin) {
+                    org1.status = OrgStatus.APPROVED
+                    DomainUtils.trySave(org1)
+                        .then {
+                            flash.messages = ["Successfully approved ${org1.name}"]
+                            mailService.notifyApproval(admin)
+                        }
+                        .ifFailAndPreserveError("approveOrg") { Result<?> failRes ->
+                            flash.messages = failRes.errorMessages
+                            org1.discard()
+                        }
                 }
+                else { flash.messages = ["Could not find admins for ${org1.name}."] }
             }
-            else {
-                flash.errorObj = org
-                org.discard()
-            }
-        }
-        else {
-            flash.messages = ["Could not find organization or admin."]
-        }
-        flash.previousPage ? redirect(action:flash.previousPage) : redirect(action:"index")
+        flash.previousPage ? redirect(action: flash.previousPage) : redirect(action: "index")
     }
 }

@@ -1,208 +1,152 @@
 package org.textup.rest
 
-import grails.test.mixin.gorm.Domain
-import grails.test.mixin.hibernate.HibernateTestMixin
-import grails.test.mixin.TestFor
-import grails.test.mixin.TestMixin
-import org.springframework.context.MessageSource
+import grails.gorm.DetachedCriteria
+import grails.test.mixin.*
+import grails.test.mixin.gorm.*
+import grails.test.mixin.hibernate.*
 import org.textup.*
+import org.textup.structure.*
 import org.textup.test.*
 import org.textup.type.*
 import org.textup.util.*
-import spock.lang.Shared
-import static javax.servlet.http.HttpServletResponse.*
+import org.textup.util.domain.*
+import org.textup.validator.*
+import spock.lang.*
 
+@Domain([AnnouncementReceipt, ContactNumber, CustomAccountDetails, FeaturedAnnouncement,
+    FutureMessage, GroupPhoneRecord, IncomingSession, IndividualPhoneRecord, Location, MediaElement,
+    MediaElementVersion, MediaInfo, Organization, OwnerPolicy, Phone, PhoneNumberHistory,
+    PhoneOwnership, PhoneRecord, PhoneRecordMembers, Record, RecordCall, RecordItem,
+    RecordItemReceipt, RecordNote, RecordNoteRevision, RecordText, Role, Schedule,
+    SimpleFutureMessage, Staff, StaffRole, Team, Token])
 @TestFor(SessionController)
-@Domain([CustomAccountDetails, Contact, Phone, ContactTag, ContactNumber, Record, RecordItem, RecordText,
-    RecordCall, RecordItemReceipt, SharedContact, Staff, Team, Organization,
-    Schedule, Location, WeeklySchedule, PhoneOwnership, Role, StaffRole,
-    IncomingSession, FeaturedAnnouncement, AnnouncementReceipt, NotificationPolicy,
-    MediaInfo, MediaElement, MediaElementVersion])
 @TestMixin(HibernateTestMixin)
-class SessionControllerSpec extends CustomSpec {
+class SessionControllerSpec extends Specification {
 
     static doWithSpring = {
         resultFactory(ResultFactory)
     }
+
     def setup() {
-        setupData()
-    }
-    def cleanup() {
-        cleanupData()
+        TestUtils.standardMockSetup()
     }
 
-    // List
-    // ----
+    void "test index"() {
+        given:
+        Long teamId = TestUtils.randIntegerUpTo(88)
+        Long pId = TestUtils.randIntegerUpTo(88)
 
-    protected void mockForList() {
-		controller.authService = [
-			hasPermissionsForTeam:{ Long tId -> true },
-			getLoggedInAndActive: { -> s1 }
-		] as AuthService
-    }
+        DetachedCriteria crit1 = GroovyMock()
+        MockedMethod tryGetPhoneId = MockedMethod.create(ControllerUtils, "tryGetPhoneId") {
+            Result.createSuccess(pId)
+        }
+        MockedMethod buildForPhoneIdWithOptions = MockedMethod.create(IncomingSessions, "buildForPhoneIdWithOptions") {
+            crit1
+        }
+        MockedMethod respondWithCriteria = MockedMethod.create(controller, "respondWithCriteria")
 
-    void "test list with no id"() {
-    	given:
-    	mockForList()
-    	IncomingSession sess1 = new IncomingSession(phone:p1,
-    		numberAsString:"1112223333")
-    	sess1.save(flush:true, failOnError:true)
+        when:
+        params.subscribedToCall = false
+        params.subscribedToText = true
+        params.teamId = teamId
+        controller.index()
 
-    	when:
-    	request.method = "GET"
-    	controller.index()
-    	Staff loggedIn = Staff.findByUsername(loggedInUsername)
-        List<Long> ids = TypeConversionUtils.allTo(Long, loggedIn.phone.sessions*.id)
+        then:
+        tryGetPhoneId.latestArgs == [teamId]
+        buildForPhoneIdWithOptions.latestArgs == [pId, false, true]
+        respondWithCriteria.latestArgs == [crit1, params, null, MarshallerUtils.KEY_SESSION]
 
-    	then: "implicit staff"
-        response.status == SC_OK
-        response.json.size() == ids.size()
-        response.json*.id.every { ids.contains(it as Long) }
-    }
-
-    void "test with team id"() {
-    	given:
-    	mockForList()
-    	IncomingSession sess1 = new IncomingSession(phone:t1.phone,
-    		numberAsString:"1112223333")
-    	sess1.save(flush:true, failOnError:true)
-
-    	when:
-    	params.teamId = t1.id
-    	request.method = "GET"
-    	controller.index()
-        List<Long> ids = TypeConversionUtils.allTo(Long, t1.phone.sessions*.id)
-
-    	then:
-        response.status == SC_OK
-        response.json.size() == ids.size()
-        response.json*.id.every { ids.contains(it as Long) }
-    }
-
-    // Show
-    // ----
-
-    void "test show nonexistent id"() {
-    	when:
-    	params.id = "nonexistent"
-    	request.method = "GET"
-    	controller.show()
-
-    	then:
-    	response.status == SC_NOT_FOUND
-    }
-
-    void "test show forbidden session"() {
-    	given:
-    	controller.authService = [
-			hasPermissionsForSession:{ Long id -> false }
-		] as AuthService
-		IncomingSession sess1 = new IncomingSession(phone:t1.phone,
-    		numberAsString:"1112223333")
-    	sess1.save(flush:true, failOnError:true)
-
-    	when:
-    	params.id = sess1.id
-    	request.method = "GET"
-    	controller.show()
-
-    	then:
-        response.status == SC_FORBIDDEN
+        cleanup:
+        tryGetPhoneId?.restore()
+        buildForPhoneIdWithOptions?.restore()
+        respondWithCriteria?.restore()
     }
 
     void "test show"() {
-    	given:
-    	controller.authService = [
-			hasPermissionsForSession:{ Long id -> true }
-		] as AuthService
-		IncomingSession sess1 = new IncomingSession(phone:t1.phone,
-    		numberAsString:"1112223333")
-    	sess1.save(flush:true, failOnError:true)
+        given:
+        Long id = TestUtils.randIntegerUpTo(88)
 
-    	when:
-    	params.id = sess1.id
-    	request.method = "GET"
-    	controller.show()
+        MockedMethod doShow = MockedMethod.create(controller, "doShow")
+        MockedMethod isAllowed = MockedMethod.create(IncomingSessions, "isAllowed")
+        MockedMethod mustFindForId = MockedMethod.create(IncomingSessions, "mustFindForId")
 
-    	then:
-    	response.status == SC_OK
-        response.json.id == sess1.id
+        when:
+        params.id = id
+        controller.show()
+
+        then:
+        doShow.latestArgs[0] instanceof Closure
+        doShow.latestArgs[1] instanceof Closure
+
+        when:
+        doShow.latestArgs[0].call()
+        doShow.latestArgs[1].call()
+
+        then:
+        isAllowed.latestArgs == [id]
+        mustFindForId.latestArgs == [id]
+
+        cleanup:
+        doShow?.restore()
+        isAllowed?.restore()
+        mustFindForId?.restore()
     }
 
-    // Save
-    // ----
+    void "test save"() {
+        given:
+        Long teamId = TestUtils.randIntegerUpTo(88)
 
-    void "test save without id"() {
-    	given:
-    	controller.authService = [getIsActive:{ -> true }] as AuthService
-    	controller.sessionService = [createForStaff: { Map body ->
-    		new Result(status:ResultStatus.CREATED, payload:body)
-		}] as SessionService
+        controller.sessionService = GroovyMock(SessionService)
+        MockedMethod doSave = MockedMethod.create(controller, "doSave")
+        MockedMethod tryGetPhoneId = MockedMethod.create(ControllerUtils, "tryGetPhoneId")
 
-		when:
-		request.json = "{'session':{ 'hello':'okay' }}"
-		request.method = "POST"
-		controller.save()
+        when:
+        params.teamId = teamId
+        controller.save()
 
-    	then: "implicit staff"
-    	response.status == SC_CREATED
-        response.json.hello == "okay"
+        then:
+        doSave.latestArgs[0] == MarshallerUtils.KEY_SESSION
+        doSave.latestArgs[1] == request
+        doSave.latestArgs[2] == controller.sessionService
+        doSave.latestArgs[3] instanceof Closure
+
+        when:
+        doSave.latestArgs[3].call()
+
+        then:
+        tryGetPhoneId.latestArgs == [teamId]
+
+        cleanup:
+        doSave?.restore()
+        tryGetPhoneId?.restore()
     }
-
-    void "test save team id"() {
-    	given:
-    	controller.authService = [
-    		exists:{ clazz, id -> true },
-    		hasPermissionsForTeam:{ Long id -> true }
-		] as AuthService
-    	controller.sessionService = [createForTeam: { Long id, Map body ->
-    		new Result(status:ResultStatus.CREATED, payload:body)
-		}] as SessionService
-
-		when:
-		request.json = "{'session':{ 'hello':'okay' }}"
-		request.method = "POST"
-		params.teamId = t1.id
-		controller.save()
-
-    	then:
-    	response.status == SC_CREATED
-        response.json.hello == "okay"
-    }
-
-    // Update
-    // ------
 
     void "test update"() {
-    	given:
-    	controller.authService = [
-    		exists:{ clazz, id -> true },
-    		hasPermissionsForSession:{ Long id -> true }
-		] as AuthService
-    	controller.sessionService = [update: { Long id, Map body ->
-    		new Result(status:ResultStatus.OK, payload:body)
-		}] as SessionService
+        given:
+        Long id = TestUtils.randIntegerUpTo(88)
 
-		when:
-		request.json = "{'session':{ 'hello':'okay' }}"
-		request.method = "PUT"
-		params.id = 123L
-		controller.update()
+        controller.sessionService = GroovyMock(SessionService)
+        MockedMethod doUpdate = MockedMethod.create(controller, "doUpdate")
+        MockedMethod isAllowed = MockedMethod.create(IncomingSessions, "isAllowed")
 
-		then:
-		response.status == SC_OK
-        response.json.hello == "okay"
-    }
+        when:
+        params.id = id
+        controller.update()
 
-    // Delete
-    // ------
+        then:
+        doUpdate.latestArgs[0] == MarshallerUtils.KEY_SESSION
+        doUpdate.latestArgs[1] == request
+        doUpdate.latestArgs[2] == controller.sessionService
+        doUpdate.latestArgs[3] instanceof Closure
 
-    void "test delete"() {
-    	when:
-    	request.method = "DELETE"
-    	controller.delete()
+        when:
+        doUpdate.latestArgs[3].call()
 
-    	then:
-    	response.status == SC_METHOD_NOT_ALLOWED
+        then:
+        isAllowed.latestArgs == [id]
+
+        cleanup:
+        doUpdate?.restore()
+        isAllowed?.restore()
     }
 }

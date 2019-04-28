@@ -2,86 +2,57 @@ package org.textup.validator
 
 import grails.compiler.GrailsTypeChecked
 import grails.validation.Validateable
+import groovy.transform.EqualsAndHashCode
+import groovy.transform.TupleConstructor
 import org.textup.*
+import org.textup.structure.*
+import org.textup.type.*
 import org.textup.util.*
+import org.textup.util.domain.*
 
+@EqualsAndHashCode
 @GrailsTypeChecked
+@TupleConstructor(includeFields = true)
 @Validateable
-class MergeGroup {
+class MergeGroup implements CanValidate {
 
-	Long targetContactId
-	Collection<MergeGroupItem> possibleMerges = []
-
-	final Contact targetContact
+	final Long targetId
+	final Collection<MergeGroupItem> possibleMerges
 
 	static constraints = {
-		targetContact nullable: true
-		targetContactId validator:{ Long id ->
-			if (id && !Utils.<Boolean>doWithoutFlush({ Contact.exists(id) })) {
+		targetId validator: { Long id ->
+			if (id && !Utils.<Boolean>doWithoutFlush { IndividualPhoneRecord.exists(id) }) {
 				["doesNotExist"]
 			}
 		}
-		possibleMerges minSize:1, validator:{ Collection<MergeGroupItem> val, MergeGroup obj ->
-			// shortcircuit custom validation if no possible merges
-			if (!val) { return }
-			// check that all items contain unique ids
-			HashSet<Long> alreadySeenIds = new HashSet<>([obj.targetContactId])
-			HashSet<Long> allToBeMerged = new HashSet<Long>()
-			for (MergeGroupItem i1 in val) {
-				Collection<Long> cIds = i1.contactIds
-				allToBeMerged.addAll(cIds)
-				for (cId in cIds) {
-					if (alreadySeenIds.contains(cId)) {
-						return ["overlappingId", cId]
+		possibleMerges cascadeValidation: true, minSize: 1,
+			validator: { Collection<MergeGroupItem> val, MergeGroup obj ->
+				if (val) {
+					Collection<Long> uniqueMergeIds = CollectionUtils.mergeUnique(val*.mergeIds)
+					// check for no self merge
+					if (uniqueMergeIds.contains(obj.targetId)) {
+						return ["cannotMergeWithSelf", obj.targetId]
 					}
-					alreadySeenIds.add(cId)
+					// check for no overlapping ids in suggested merges
+					Collection<Long> allIds = [val*.mergeIds].flatten() as Collection<Long>
+					Map<Long, Collection<Long>> invalidIds = MapUtils
+						.<Long, Long>buildManyNonUniqueObjectsMap(allIds) { Long id -> id }
+						.findAll { Long k, Collection<Long> v -> v.size() > 1 }
+					if (invalidIds) {
+						return ["overlappingIds", invalidIds.keySet()]
+					}
 				}
 			}
-			// batch check existence
-			Collection<Contact> found = Utils.<Collection<Contact>>doWithoutFlush({
-				Contact
-					.getAll(allToBeMerged as Iterable<Serializable>)
-					.findAll { Contact c1 -> c1 != null }
-			})
-			if (found.size() != allToBeMerged.size()) {
-				return ["someDoNotExist", allToBeMerged - found*.id]
-			}
-		}
 	}
 
-	// Validation
-	// ----------
-
-	boolean deepValidate() {
-		boolean isAllSuccess = this.validate()
-		Collection<String> errorMessages = []
-		this.possibleMerges.each { MergeGroupItem i1 ->
-			if (!i1.validate()) {
-				isAllSuccess = false
-				errorMessages += IOCUtils.resultFactory.failWithValidationErrors(i1.errors).errorMessages
-			}
-		}
-		if (errorMessages) {
-			this.errors.rejectValue("possibleMerges", "mergeGroup.possibleMerges.invalidItems",
-				errorMessages as Object[], "Invalid possible merges")
-		}
-		isAllSuccess
+	static Result<MergeGroup> tryCreate(Long tId, Collection<MergeGroupItem> merges) {
+		Collection<MergeGroupItem> possibleMerges = merges ?: new ArrayList<MergeGroupItem>()
+		MergeGroup mGroup = new MergeGroup(tId, Collections.unmodifiableCollection(possibleMerges))
+		DomainUtils.tryValidate(mGroup, ResultStatus.CREATED)
 	}
 
 	// Methods
 	// -------
 
-	MergeGroup add(PhoneNumber mergeGroupNumber, Collection<Long> contactIds) {
-		Collection<Long> itemIds = new ArrayList<Long>(contactIds)
-		itemIds.remove(this.targetContactId)
-		possibleMerges << new MergeGroupItem(number:mergeGroupNumber, contactIds:itemIds)
-		this
-	}
-
-	// Property access
-	// ---------------
-
-	Contact getTargetContact() {
-		Contact.get(this.targetContactId)
-	}
+	IndividualPhoneRecord buildTarget() { targetId ? IndividualPhoneRecord.get(targetId) : null }
 }
