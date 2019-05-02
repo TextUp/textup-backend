@@ -16,8 +16,8 @@ import spock.lang.Specification
 @TestFor(MarketingMailService)
 class MarketingMailServiceSpec extends Specification {
 
-    String pwd
     String generalUpdatesId
+    String pwd
     String usersId
 
     static doWithSpring = {
@@ -41,10 +41,9 @@ class MarketingMailServiceSpec extends Specification {
     }
 
     void "test request object is built correctly"() {
+        given:
         String email = TestUtils.randEmail()
         String listId = TestUtils.randString()
-
-        given:
         MockedMethod executeRequest = MockedMethod.create(HttpUtils, "executeRequest")
 
         when:
@@ -64,13 +63,12 @@ class MarketingMailServiceSpec extends Specification {
     }
 
     void "test building accurateness of generated basic auth header"() {
+        given:
+        Integer statusCode
         String email = TestUtils.randEmail()
         String listId = TestUtils.randString()
-
-        given:
         String root = TestConstants.TEST_HTTP_ENDPOINT
         String user = "user"
-        Integer statusCode
 
         MockedMethod executeRequest = MockedMethod.create(HttpUtils, "executeRequest")
 
@@ -105,6 +103,35 @@ class MarketingMailServiceSpec extends Specification {
 
         cleanup:
         getApiUri?.restore()
+    }
 
+    void "test correct list id and email used"() {
+        given:
+        String email = TestUtils.randEmail()
+        String emailUsed
+        String listIdUsed
+
+        MockedMethod addEmailToList = MockedMethod.create(service, "addEmailToList")
+
+        when:
+        service.addEmailToGeneralUpdatesList(email)
+        listIdUsed = addEmailToList.latestArgs[1]
+        emailUsed = addEmailToList.latestArgs[0]
+
+        then:
+        listIdUsed == generalUpdatesId
+        emailUsed == email
+
+        when:
+        service.addEmailToUsersList(email)
+        listIdUsed = addEmailToList.latestArgs[1]
+        emailUsed = addEmailToList.latestArgs[0]
+
+        then:
+        listIdUsed == usersId
+        emailUsed == email
+
+        cleanup:
+        addEmailToList?.restore()
     }
 }
