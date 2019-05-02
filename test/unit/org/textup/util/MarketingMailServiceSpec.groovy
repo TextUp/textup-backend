@@ -44,6 +44,7 @@ class MarketingMailServiceSpec extends Specification {
         given:
         String email = TestUtils.randEmail()
         String listId = TestUtils.randString()
+        
         MockedMethod executeRequest = MockedMethod.create(HttpUtils, "executeRequest")
 
         when: "adding email to list"
@@ -64,11 +65,11 @@ class MarketingMailServiceSpec extends Specification {
 
     void "test building accurateness of generated basic auth header"() {
         given:
-        Integer statusCode
         String email = TestUtils.randEmail()
         String listId = TestUtils.randString()
         String root = TestConstants.TEST_HTTP_ENDPOINT
         String user = "user"
+        Integer statusCode
 
         MockedMethod executeRequest = MockedMethod.create(HttpUtils, "executeRequest")
 
