@@ -46,12 +46,12 @@ class MarketingMailServiceSpec extends Specification {
         String listId = TestUtils.randString()
         MockedMethod executeRequest = MockedMethod.create(HttpUtils, "executeRequest")
 
-        when:
+        when: "adding email to list"
         service.addEmailToList(email, listId)
         HttpUriRequest request = executeRequest.latestArgs[0]
         String body = IOUtils.toString(request.entity.content)
 
-        then:
+        then: "request should be a post method with specific properties"
         executeRequest.callCount == 1
         request.method == "POST"
         request.URI == new URI("https://us11.api.mailchimp.com/3.0/lists/${listId}/members")
@@ -76,15 +76,15 @@ class MarketingMailServiceSpec extends Specification {
             "${root}/basic-auth/user/${pwd}"
         }
 
-        when:
+        when: "adding email to list"
         service.addEmailToList(email, listId)
         def header = executeRequest.latestArgs[0].allHeaders[0]
 
-        then:
+        then: "authorization should be basic"
         header.getName() == "Authorization"
         header.getValue().contains("Basic")
 
-        when:
+        when: "request is made with API key"
         executeRequest?.restore()
         HttpUriRequest request = RequestBuilder
             .get()
@@ -97,7 +97,7 @@ class MarketingMailServiceSpec extends Specification {
             Result.void()
         }
 
-        then:
+        then: "Basic auth should match API key"
         res.status == ResultStatus.NO_CONTENT
         statusCode < 400
 
@@ -113,21 +113,21 @@ class MarketingMailServiceSpec extends Specification {
 
         MockedMethod addEmailToList = MockedMethod.create(service, "addEmailToList")
 
-        when:
+        when: "adding to general updates list"
         service.addEmailToGeneralUpdatesList(email)
         listIdUsed = addEmailToList.latestArgs[1]
         emailUsed = addEmailToList.latestArgs[0]
 
-        then:
+        then: "general updates list ID from environment should be used"
         listIdUsed == generalUpdatesId
         emailUsed == email
 
-        when:
+        when: "adding to users list"
         service.addEmailToUsersList(email)
         listIdUsed = addEmailToList.latestArgs[1]
         emailUsed = addEmailToList.latestArgs[0]
 
-        then:
+        then: "users list ID from environment should be used"
         listIdUsed == usersId
         emailUsed == email
 
