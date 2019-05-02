@@ -212,7 +212,7 @@ class StaffServiceSpec extends Specification {
 
     void "test finishing create"() {
         given:
-        TypeMap body = TypeMap.create(password: TestUtils.randString(), lockCode: TestUtils.randString())
+        TypeMap body = TypeMap.create(password: TestUtils.randString(), lockCode: TestUtils.randString(), shouldAddToGeneralUpdatesList: true)
 
         Organization org1 = TestUtils.buildOrg()
         Staff authUser = TestUtils.buildStaff(org1)
@@ -232,6 +232,7 @@ class StaffServiceSpec extends Specification {
 
         Staff.withSession { it.flush() }
 
+        service.threadService = GroovyMock(ThreadService)
         service.mailService = GroovyMock(MailService)
         MockedMethod tryGetActiveAuthUser = MockedMethod.create(AuthUtils, "tryGetActiveAuthUser") {
             Result.createSuccess(authUser)
@@ -242,6 +243,7 @@ class StaffServiceSpec extends Specification {
 
         then:
         1 * service.mailService.notifyAboutPendingOrg(s1.org) >> Result.void()
+        0 * service.threadService.submit(!null)
         res.status == ResultStatus.CREATED
         res.payload == s1
 
@@ -250,6 +252,7 @@ class StaffServiceSpec extends Specification {
 
         then:
         1 * service.mailService.notifyAboutPendingStaff(s2, [authUser]) >> Result.void()
+        0 * service.threadService.submit(!null)
         res.status == ResultStatus.CREATED
         res.payload == s2
 
@@ -258,6 +261,7 @@ class StaffServiceSpec extends Specification {
 
         then:
         1 * service.mailService.notifyInvitation(authUser, s3, body.password, body.lockCode) >> Result.void()
+        1 * service.threadService.submit(!null)
         res.status == ResultStatus.CREATED
         res.payload == s3
 
@@ -266,8 +270,63 @@ class StaffServiceSpec extends Specification {
 
         then:
         0 * service.mailService._
+        0 * service.threadService.submit(!null)
         res.status == ResultStatus.CREATED
         res.payload == s4
+
+        cleanup:
+        tryGetActiveAuthUser?.restore()
+    }
+
+    void "test correct information sent to marketing mail service"() {
+        given:
+        TypeMap body = TypeMap.create(password: TestUtils.randString(), lockCode: TestUtils.randString(), shouldAddToGeneralUpdatesList: true)
+
+        Organization org1 = TestUtils.buildOrg()
+        Staff authUser = TestUtils.buildStaff(org1)
+        authUser.status = StaffStatus.ADMIN
+
+        Staff s3 = TestUtils.buildStaff()
+        s3.org.status = OrgStatus.APPROVED
+        s3.status = StaffStatus.STAFF
+        String email = s3.email
+        String submittedEmail
+
+        service.mailService = GroovyMock(MailService)
+        service.marketingMailService = GroovyMock(MarketingMailService)
+        service.threadService = GroovyMock(ThreadService)
+
+        MockedMethod tryGetActiveAuthUser = MockedMethod.create(AuthUtils, "tryGetActiveAuthUser") {
+            Result.createSuccess(authUser)
+        }
+
+        when: "user added with shouldAddToGeneralUpdatesList true"
+        Result res = service.finishCreate(s3, body)
+
+        then: "both addEmailToGeneralUpdatesList and addEmailToUsersList are called"
+        service.mailService.notifyInvitation(*_) >> Result.void()
+        1 * service.threadService.submit(_) >> {arguments -> arguments[0].call(); null; }
+        1 * service.marketingMailService.addEmailToGeneralUpdatesList(_) >> { arguments ->
+            assert email == arguments[0]
+            Result.void()
+        }
+        1 * service.marketingMailService.addEmailToUsersList(_) >> { arguments ->
+            assert email == arguments[0]
+            Result.void()
+        }
+
+        when: "user added with shouldAddToGeneralUpdatesList false"
+        body.shouldAddToGeneralUpdatesList = false
+        res = service.finishCreate(s3, body)
+
+        then: "only addEmailToUsersList is called"
+        service.mailService.notifyInvitation(*_) >> Result.void()
+        1 * service.threadService.submit(_) >> {arguments -> arguments[0].call(); null; }
+        0 * service.marketingMailService.addEmailToGeneralUpdatesList(_)
+        1 * service.marketingMailService.addEmailToUsersList(_) >> { arguments ->
+            assert arguments[0] == email
+            Result.void()
+        }
 
         cleanup:
         tryGetActiveAuthUser?.restore()
