@@ -43,7 +43,7 @@ class ValidateControllerSpec extends Specification {
         MockedMethod tryGetJsonBody = MockedMethod.create(RequestUtils, "tryGetJsonBody") {
             Result.createSuccess(body1)
         }
-        MockedMethod tryGetActiveAuthUser = MockedMethod.create(AuthUtils, "tryGetActiveAuthUser") {
+        MockedMethod tryGetAnyAuthUser = MockedMethod.create(AuthUtils, "tryGetAnyAuthUser") {
             Result.createSuccess(s1)
         }
         MockedMethod isValidCredentials = MockedMethod.create(AuthUtils, "isValidCredentials") {
@@ -71,10 +71,13 @@ class ValidateControllerSpec extends Specification {
         tryGetJsonBody.latestArgs == [request, null]
         isSecureStringValid.latestArgs == [s1.lockCode, lockCode]
         response.status == ResultStatus.FORBIDDEN.intStatus
+        response.json.errors.size() == 1
+        response.json.errors[0].statusCode == ResultStatus.FORBIDDEN.intStatus
+        response.json.errors[0].message == "validateController.invalidCredentials"
 
         cleanup:
         tryGetJsonBody?.restore()
-        tryGetActiveAuthUser?.restore()
+        tryGetAnyAuthUser?.restore()
         isValidCredentials?.restore()
         isSecureStringValid?.restore()
     }

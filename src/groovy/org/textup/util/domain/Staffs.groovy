@@ -82,7 +82,7 @@ class Staffs {
                 shareCandidates.addAll(staffWitPhones)
             }
         }
-        // exclude the staff members we are finding share candidates for
+        // exclude the staff member we are finding share candidates for
         shareCandidates.findAll { Staff s1 -> s1.id != shareWithStaffId }
     }
 

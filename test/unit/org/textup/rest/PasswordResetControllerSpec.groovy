@@ -52,8 +52,8 @@ class PasswordResetControllerSpec extends Specification {
 
     void "test update"() {
         given:
-        TypeMap body = TypeMap.create(token: TestUtils.randString(),
-            password: TestUtils.randString())
+        String token = TestUtils.randString()
+        TypeMap body = TypeMap.create(password: TestUtils.randString())
 
         controller.passwordResetService = GroovyMock(PasswordResetService)
         MockedMethod tryGetJsonBody = MockedMethod.create(RequestUtils, "tryGetJsonBody") {
@@ -61,10 +61,11 @@ class PasswordResetControllerSpec extends Specification {
         }
 
         when:
+        params.id = token
         controller.update()
 
         then:
-        1 * controller.passwordResetService.finish(body.token, body.password) >> Result.void()
+        1 * controller.passwordResetService.finish(token, body.password) >> Result.void()
         response.status == ResultStatus.NO_CONTENT.intStatus
 
         cleanup:

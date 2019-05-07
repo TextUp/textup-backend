@@ -18,7 +18,7 @@ class ValidateController extends BaseController {
     @Override
 	def save() {
         RequestUtils.tryGetJsonBody(request)
-            .then { TypeMap body -> AuthUtils.tryGetActiveAuthUser().curry(body) }
+            .then { TypeMap body -> AuthUtils.tryGetAnyAuthUser().curry(body) }
             .ifFailAndPreserveError { Result<?> failRes -> respondWithResult(failRes) }
             .thenEnd { TypeMap body, Staff authUser ->
                 boolean isValid = body.password ?
@@ -26,7 +26,8 @@ class ValidateController extends BaseController {
                     AuthUtils.isSecureStringValid(authUser.lockCode, body.string("lockCode"))
                 isValid ?
                     renderStatus(ResultStatus.NO_CONTENT) :
-                    renderStatus(ResultStatus.FORBIDDEN)
+                    respondWithResult(IOCUtils.resultFactory.failWithCodeAndStatus(
+                        "validateController.invalidCredentials", ResultStatus.FORBIDDEN))
             }
 	}
 }

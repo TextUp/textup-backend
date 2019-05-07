@@ -26,9 +26,10 @@ class PasswordResetController extends BaseController {
 
     @Override
     def update() {
+        TypeMap qParams = TypeMap.create(params)
         RequestUtils.tryGetJsonBody(request)
             .then { TypeMap body ->
-                passwordResetService.finish(body.string("token"), body.string("password"))
+                passwordResetService.finish(qParams.string("id"), body.string("password"))
             }
             .alwaysEnd { Result<?> res -> respondWithResult(res) }
     }

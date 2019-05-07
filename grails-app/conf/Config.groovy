@@ -191,12 +191,6 @@ grails.plugin.springsecurity.controllerAnnotations.staticRules = [
     '/dbconsole/**':                  ['ROLE_USER', 'ROLE_ADMIN'],
     "/console/**":                    ['ROLE_USER', 'ROLE_ADMIN'],
     "/plugins/console*/**":           ['ROLE_USER', 'ROLE_ADMIN'],
-    '/restApiDoc':                    ['permitAll'],
-    '/restApiDoc/**':                 ['permitAll'],
-    '/reset':                         ['permitAll'],
-    '/reset/**':                      ['permitAll'],
-    '/validate':                      ['permitAll'],
-    '/validate/**':                   ['permitAll'],
 ]
 grails.plugin.springsecurity.filterChain.chainMap = [
     '/v1/public/**': 'anonymousAuthenticationFilter,restTokenValidationFilter,restExceptionTranslationFilter,filterInvocationInterceptor',

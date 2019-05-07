@@ -30,7 +30,8 @@ class CallbackStatusService {
         if (callId) {
             ReceiptStatus status = ReceiptStatus.translate(params.string(TwilioUtils.STATUS_CALL))
             Integer duration = params.int(TwilioUtils.CALL_DURATION)
-            if (status && duration) {
+            // duration may be 0 if call is ended immediately
+            if (status && duration != null) {
                 String parentId = params.string(TwilioUtils.ID_PARENT_CALL)
                 if (parentId) {
                     PhoneNumber.tryUrlDecode(params.string(CallbackUtils.PARAM_CHILD_CALL_NUMBER))

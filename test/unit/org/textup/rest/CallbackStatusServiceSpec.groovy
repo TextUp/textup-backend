@@ -247,19 +247,19 @@ class CallbackStatusServiceSpec extends Specification {
         sendAfterDelay?.restore()
     }
 
-    void "test processing overall"() {
+    void "test processing overall + duration is allowed to be zero"() {
         given:
         ReceiptStatus stat1 = ReceiptStatus.values()[0]
         ReceiptStatus stat2 = ReceiptStatus.values()[1]
         ReceiptStatus stat3 = ReceiptStatus.values()[2]
         TypeMap params1 = TypeMap.create((TwilioUtils.ID_CALL): TestUtils.randString(),
             (TwilioUtils.STATUS_CALL): stat1.statuses[0],
-            (TwilioUtils.CALL_DURATION): TestUtils.randIntegerUpTo(88),
+            (TwilioUtils.CALL_DURATION): 0,
             (TwilioUtils.ID_PARENT_CALL): TestUtils.randString(),
             (CallbackUtils.PARAM_CHILD_CALL_NUMBER): TestUtils.randPhoneNumber())
         TypeMap params2 = TypeMap.create((TwilioUtils.ID_CALL): TestUtils.randString(),
             (TwilioUtils.STATUS_CALL): stat2.statuses[0],
-            (TwilioUtils.CALL_DURATION): TestUtils.randIntegerUpTo(88))
+            (TwilioUtils.CALL_DURATION): 0)
         TypeMap params3 = TypeMap.create((TwilioUtils.ID_TEXT): TestUtils.randString(),
             (TwilioUtils.STATUS_TEXT): stat3.statuses[0])
 
