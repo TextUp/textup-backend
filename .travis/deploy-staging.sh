@@ -10,6 +10,7 @@ echo "export TEXTUP_BACKEND_DB_USERNAME=\"${STAGING_DB_USERNAME}\"" >> .travis/e
 echo "export TEXTUP_BACKEND_EXEC_USERNAME=\"${STAGING_EXEC_USERNAME}\"" >> .travis/env-variables/staging.sh
 echo "export TEXTUP_BACKEND_FFMPEG_COMMAND=\"${STAGING_FFMPEG_COMMAND}\"" >> .travis/env-variables/staging.sh
 echo "export TEXTUP_BACKEND_FFMPEG_DIRECTORY=\"${STAGING_FFMPEG_DIRECTORY}\"" >> .travis/env-variables/staging.sh
+echo "export TEXTUP_BACKEND_MAILCHIMP_API_KEY=\"${STAGING_MAILCHIMP_API_KEY}\"" >> .travis/env-variables/staging.sh
 echo "export TEXTUP_BACKEND_PUSHER_API_KEY=\"${STAGING_PUSHER_API_KEY}\"" >> .travis/env-variables/staging.sh
 echo "export TEXTUP_BACKEND_PUSHER_API_SECRET=\"${STAGING_PUSHER_API_SECRET}\"" >> .travis/env-variables/staging.sh
 echo "export TEXTUP_BACKEND_SENDGRID_API_KEY=\"${STAGING_SENDGRID_API_KEY}\"" >> .travis/env-variables/staging.sh

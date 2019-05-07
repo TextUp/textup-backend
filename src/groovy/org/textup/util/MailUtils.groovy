@@ -18,6 +18,8 @@ import org.textup.validator.*
 @GrailsTypeChecked
 class MailUtils {
 
+    static final String NO_OP_BASIC_AUTH_USERNAME = "user"
+
     private static final ENDPOINT = "mail/send"
     private static final String TEMPLATE_CONFIG_ROOT = "textup.apiKeys.sendGrid.templateIds"
 

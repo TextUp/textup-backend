@@ -51,7 +51,8 @@ Make sure user and group for this folder are both `tomcat7`: `sudo chown -R tomc
 
 ### Shared environment variables
 
-See any of the files in `.travis/env-variables/` for a comprehensive list of environment variables. These environment variables used in [staging](https://dev.textup.org) and [production](https://v2.textup.org) are common to all environments with the following exceptions grouped by environment:
+* Note that `TEXTUP_BACKEND_URL_NOTIFY_MESSAGE` and `TEXTUP_BACKEND_URL_PASSWORD_RESET` will not have a trailing slash appended because they expect that the URL will end in a query parameter
+* See any of the files in `.travis/env-variables/` for a comprehensive list of environment variables. These environment variables used in [staging](https://dev.textup.org) and [production](https://v2.textup.org) are common to all environments with the following exceptions grouped by environment:
 
 #### Development (local)
 

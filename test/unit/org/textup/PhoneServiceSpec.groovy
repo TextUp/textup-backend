@@ -36,7 +36,7 @@ class PhoneServiceSpec extends Specification {
         TestUtils.standardMockSetup()
     }
 
-    void "test finding active given owner"() {
+    void "test finding or creating active given owner + creating customer support contact"() {
         given:
         Team t1 = TestUtils.buildTeam()
         int pBaseline = Phone.count()
@@ -50,9 +50,9 @@ class PhoneServiceSpec extends Specification {
         res.status == ResultStatus.CREATED
         Phone.count() == pBaseline + 1
         IndividualPhoneRecord.count() == iprBaseline + 1
-        IndividualPhoneRecord.last().name == PhoneService.CUSTOMER_SUPPORT_NAME
+        IndividualPhoneRecord.last().name == PhoneUtils.CUSTOMER_SUPPORT_NAME
         IndividualPhoneRecord.last().numbers.size() == 1
-        IndividualPhoneRecord.last().numbers[0].number == PhoneService.CUSTOMER_SUPPORT_NUMBER.number
+        IndividualPhoneRecord.last().numbers[0].number == PhoneUtils.CUSTOMER_SUPPORT_NUMBER.number
         newPhone != null
         newPhone.isActive() == false
         res.hasErrorBeenHandled == false

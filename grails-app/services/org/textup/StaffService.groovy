@@ -15,9 +15,9 @@ import org.textup.validator.*
 class StaffService implements ManagesDomain.Updater<Staff> {
 
     MailService mailService
+    MarketingMailService marketingMailService
     OrganizationService organizationService
     PhoneService phoneService
-    MarketingMailService marketingMailService
     ThreadService threadService
 
     // [NOTE] `tryCreate` can be called by anybody
@@ -69,11 +69,10 @@ class StaffService implements ManagesDomain.Updater<Staff> {
                 .then { Staff authUser ->
                     threadService.submit {
                         marketingMailService.addEmailToUsersList(s1.email)
-                            .logFail("StaffService.finishCreate adding to users list")
+                            .logFail("StaffService.finishCreate: users list")
                         if (body.boolean("shouldAddToGeneralUpdatesList")) {
-                            // TODO : add shouldAddToGeneralUpdatesList to body
                             marketingMailService.addEmailToGeneralUpdatesList(s1.email)
-                                .logFail("StaffService.finishCreate adding to users list")
+                                .logFail("StaffService.finishCreate: general updates list")
                         }
                     }
                     mailService.notifyInvitation(authUser,

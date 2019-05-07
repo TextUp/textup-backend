@@ -27,6 +27,30 @@ class HttpUtilsSpec extends Specification {
         TestUtils.standardMockSetup()
     }
 
+    void "test executing an arbitrary request"() {
+        given:
+        String root = TestConstants.TEST_HTTP_ENDPOINT
+        ResultStatus failStatus = ResultStatus.UNPROCESSABLE_ENTITY
+        ResultStatus successStatus = ResultStatus.OK
+        HttpGet failRequest = new HttpGet("${root}/status/${failStatus.intStatus}")
+        HttpGet successRequest = new HttpGet("${root}/status/${successStatus.intStatus}")
+
+        when: "failure"
+        Result res = HttpUtils.executeRequest(failRequest) { Result.void() }
+
+        then:
+        res.status == failStatus
+
+        when: "success"
+        res = HttpUtils.executeRequest(successRequest) { HttpResponse resp ->
+            Result.createSuccess(ResultStatus.convert(resp.statusLine.statusCode))
+        }
+
+        then:
+        res.status == ResultStatus.OK
+        res.payload == successStatus
+    }
+
     void "test executing basic auth request"() {
         given:
         ByteArrayOutputStream stdErr = TestUtils.captureAllStreamsReturnStdErr()
@@ -37,7 +61,7 @@ class HttpUtilsSpec extends Specification {
         Integer statusCode
 
         when: "body throws an exception"
-        Result<?> res = HttpUtils.executeBasicAuthRequest(null, null, request) { }
+        Result res = HttpUtils.executeBasicAuthRequest(null, null, request) { }
 
         then: "exception is gracefully handled"
         res.status == ResultStatus.INTERNAL_SERVER_ERROR
@@ -46,7 +70,7 @@ class HttpUtilsSpec extends Specification {
         when: "invalid credentials"
         stdErr.reset()
         res = HttpUtils.executeBasicAuthRequest("incorrect", "incorrect", request) { HttpResponse resp ->
-            new Result()
+            Result.void()
         }
 
         then:

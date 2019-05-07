@@ -30,7 +30,7 @@ class StaffJsonMarshallerIntegrationSpec extends Specification {
         json.phone.id == p1.id
         json.status == s1.status.toString()
         json.username == s1.username
-        json.channelName == null
+        json.channelName == SocketUtils.channelName(s1)
         json.email == null
         json.org == null
         json.personalNumber == null

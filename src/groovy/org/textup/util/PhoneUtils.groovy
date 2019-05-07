@@ -13,6 +13,9 @@ import org.textup.validator.*
 @Log4j
 class PhoneUtils {
 
+    static final String CUSTOMER_SUPPORT_NAME = "TextUp Customer Support"
+    static final PhoneNumber CUSTOMER_SUPPORT_NUMBER = PhoneNumber.tryCreate("4015197932").payload
+
     static Result<Phone> tryAddChangeToHistory(Phone p1, BasePhoneNumber bNum) {
         DateTime dt = JodaUtils.utcNow()
         PhoneNumberHistory.tryCreate(dt, bNum)

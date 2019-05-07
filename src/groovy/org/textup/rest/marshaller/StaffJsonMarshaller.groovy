@@ -15,18 +15,18 @@ class StaffJsonMarshaller extends JsonNamedMarshaller {
     static final Closure marshalClosure = { ReadOnlyStaff rs1 ->
         Map json = [:]
         json.with {
-            id       = rs1.id
-            links    = MarshallerUtils.buildLinks(RestUtils.RESOURCE_STAFF, rs1.id)
-            name     = rs1.name
-            phone    = IOCUtils.phoneCache.findPhone(rs1.id, PhoneOwnershipType.INDIVIDUAL, true)
-            status   = rs1.status.toString()
-            username = rs1.username
+            channelName = SocketUtils.channelName(rs1)
+            id          = rs1.id
+            links       = MarshallerUtils.buildLinks(RestUtils.RESOURCE_STAFF, rs1.id)
+            name        = rs1.name
+            phone       = IOCUtils.phoneCache.findPhone(rs1.id, PhoneOwnershipType.INDIVIDUAL, true)
+            status      = rs1.status.toString()
+            username    = rs1.username
         }
 
         Staffs.isAllowed(rs1.id)
             .thenEnd {
                 json.with {
-                    channelName    = SocketUtils.channelName(rs1)
                     email          = rs1.email
                     org            = rs1.readOnlyOrg
                     personalNumber = rs1.hasPersonalNumber() ? rs1.personalNumber : null

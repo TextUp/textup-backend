@@ -30,6 +30,14 @@ class PhoneUtilsSpec extends Specification {
         TestUtils.standardMockSetup()
     }
 
+    void "test that customer support constants are not null"() {
+        expect:
+        PhoneUtils.CUSTOMER_SUPPORT_NAME != null
+        PhoneUtils.CUSTOMER_SUPPORT_NAME instanceof String
+        PhoneUtils.CUSTOMER_SUPPORT_NUMBER != null
+        PhoneUtils.CUSTOMER_SUPPORT_NUMBER instanceof BasePhoneNumber
+    }
+
     void "test adding change to number history"() {
         given:
         Phone p1 = TestUtils.buildStaffPhone()

@@ -10,6 +10,7 @@ echo "export TEXTUP_BACKEND_DB_USERNAME=\"${PROD_DB_USERNAME}\"" >> .travis/env-
 echo "export TEXTUP_BACKEND_EXEC_USERNAME=\"${PROD_EXEC_USERNAME}\"" >> .travis/env-variables/production.sh
 echo "export TEXTUP_BACKEND_FFMPEG_COMMAND=\"${PROD_FFMPEG_COMMAND}\"" >> .travis/env-variables/production.sh
 echo "export TEXTUP_BACKEND_FFMPEG_DIRECTORY=\"${PROD_FFMPEG_DIRECTORY}\"" >> .travis/env-variables/production.sh
+echo "export TEXTUP_BACKEND_MAILCHIMP_API_KEY=\"${PROD_MAILCHIMP_API_KEY}\"" >> .travis/env-variables/production.sh
 echo "export TEXTUP_BACKEND_PUSHER_API_KEY=\"${PROD_PUSHER_API_KEY}\"" >> .travis/env-variables/production.sh
 echo "export TEXTUP_BACKEND_PUSHER_API_SECRET=\"${PROD_PUSHER_API_SECRET}\"" >> .travis/env-variables/production.sh
 echo "export TEXTUP_BACKEND_SENDGRID_API_KEY=\"${PROD_SENDGRID_API_KEY}\"" >> .travis/env-variables/production.sh

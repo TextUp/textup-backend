@@ -35,8 +35,9 @@ class MarketingMailService {
 
     // adds one email to marketing mail list
     protected Result<Void> addEmailToList(String email, String listId) {
-        String apiKey = grailsApplication.flatConfig["textup.apiKeys.mailChimp.apiKey"]
-        String encodedAuthKey = Base64.encodeBase64String("user:${apiKey}".bytes)
+        String username = MailUtils.NO_OP_BASIC_AUTH_USERNAME
+        String pwd = grailsApplication.flatConfig["textup.apiKeys.mailChimp.apiKey"]
+        String encodedAuthKey = Base64.encodeBase64String("${username}:${pwd}".bytes)
         StringEntity body = new StringEntity(
             DataFormatUtils.toJsonString(email_address: email, status: "subscribed"),
             ContentType.APPLICATION_JSON);

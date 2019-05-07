@@ -16,35 +16,19 @@ import spock.lang.Specification
 @TestFor(MarketingMailService)
 class MarketingMailServiceSpec extends Specification {
 
-    String generalUpdatesId
-    String pwd
-    String usersId
-
     static doWithSpring = {
         resultFactory(ResultFactory)
     }
 
     def setup() {
         TestUtils.standardMockSetup()
-
-        pwd = TestUtils.randString()
-        generalUpdatesId = TestUtils.randString()
-        usersId = TestUtils.randString()
-
-        service.grailsApplication = GroovyStub(GrailsApplication) {
-            getFlatConfig() >> [
-                "textup.apiKeys.mailChimp.apiKey": pwd,
-                "textup.apiKeys.mailChimp.listIds.generalUpdates": generalUpdatesId,
-                "textup.apiKeys.mailChimp.listIds.users": usersId
-            ]
-        }
     }
 
     void "test request object is built correctly"() {
         given:
         String email = TestUtils.randEmail()
         String listId = TestUtils.randString()
-        
+
         MockedMethod executeRequest = MockedMethod.create(HttpUtils, "executeRequest")
 
         when: "adding email to list"
@@ -63,18 +47,19 @@ class MarketingMailServiceSpec extends Specification {
         executeRequest?.restore()
     }
 
-    void "test building accurateness of generated basic auth header"() {
+    void "test accurateness of generated basic auth header"() {
         given:
         String email = TestUtils.randEmail()
         String listId = TestUtils.randString()
         String root = TestConstants.TEST_HTTP_ENDPOINT
-        String user = "user"
-        Integer statusCode
+        String pwd = TestUtils.randString()
 
         MockedMethod executeRequest = MockedMethod.create(HttpUtils, "executeRequest")
-
         MockedMethod getApiUri = MockedMethod.create(service, "getApiUri") {
-            "${root}/basic-auth/user/${pwd}"
+            "${root}/basic-auth/${MailUtils.NO_OP_BASIC_AUTH_USERNAME}/${pwd}"
+        }
+        service.grailsApplication = GroovyStub(GrailsApplication) {
+            getFlatConfig() >> ["textup.apiKeys.mailChimp.apiKey": pwd]
         }
 
         when: "adding email to list"
@@ -89,18 +74,16 @@ class MarketingMailServiceSpec extends Specification {
         executeRequest?.restore()
         HttpUriRequest request = RequestBuilder
             .get()
-            .setUri("${root}/basic-auth/user/${pwd}")
+            .setUri("${root}/basic-auth/${MailUtils.NO_OP_BASIC_AUTH_USERNAME}/${pwd}")
             .setHeader(header)
             .build()
 
-        Result<?> res = HttpUtils.executeRequest(request) { HttpResponse resp ->
-            statusCode = resp.statusLine.statusCode
-            Result.void()
+        Result res = HttpUtils.executeRequest(request) { HttpResponse resp ->
+            Result.createSuccess(ResultStatus.convert(resp.statusLine.statusCode))
         }
 
         then: "Basic auth should match API key"
-        res.status == ResultStatus.NO_CONTENT
-        statusCode < 400
+        res.payload.isSuccess
 
         cleanup:
         getApiUri?.restore()
@@ -109,28 +92,28 @@ class MarketingMailServiceSpec extends Specification {
     void "test correct list id and email used"() {
         given:
         String email = TestUtils.randEmail()
-        String emailUsed
-        String listIdUsed
+        String generalUpdatesId = TestUtils.randString()
+        String usersId = TestUtils.randString()
 
         MockedMethod addEmailToList = MockedMethod.create(service, "addEmailToList")
+        service.grailsApplication = GroovyStub(GrailsApplication) {
+            getFlatConfig() >> [
+                "textup.apiKeys.mailChimp.listIds.generalUpdates": generalUpdatesId,
+                "textup.apiKeys.mailChimp.listIds.users": usersId
+            ]
+        }
 
         when: "adding to general updates list"
         service.addEmailToGeneralUpdatesList(email)
-        listIdUsed = addEmailToList.latestArgs[1]
-        emailUsed = addEmailToList.latestArgs[0]
 
         then: "general updates list ID from environment should be used"
-        listIdUsed == generalUpdatesId
-        emailUsed == email
+        addEmailToList.latestArgs == [email, generalUpdatesId]
 
         when: "adding to users list"
         service.addEmailToUsersList(email)
-        listIdUsed = addEmailToList.latestArgs[1]
-        emailUsed = addEmailToList.latestArgs[0]
 
         then: "users list ID from environment should be used"
-        listIdUsed == usersId
-        emailUsed == email
+        addEmailToList.latestArgs == [email, usersId]
 
         cleanup:
         addEmailToList?.restore()
