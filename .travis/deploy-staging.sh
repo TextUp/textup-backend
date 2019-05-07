@@ -12,7 +12,6 @@ echo "export TEXTUP_BACKEND_FFMPEG_COMMAND=\"${STAGING_FFMPEG_COMMAND}\"" >> .tr
 echo "export TEXTUP_BACKEND_FFMPEG_DIRECTORY=\"${STAGING_FFMPEG_DIRECTORY}\"" >> .travis/env-variables/staging.sh
 echo "export TEXTUP_BACKEND_PUSHER_API_KEY=\"${STAGING_PUSHER_API_KEY}\"" >> .travis/env-variables/staging.sh
 echo "export TEXTUP_BACKEND_PUSHER_API_SECRET=\"${STAGING_PUSHER_API_SECRET}\"" >> .travis/env-variables/staging.sh
-echo "export TEXTUP_BACKEND_RECAPTCHA_SECRET=\"${STAGING_RECAPTCHA_SECRET}\"" >> .travis/env-variables/staging.sh
 echo "export TEXTUP_BACKEND_SENDGRID_API_KEY=\"${STAGING_SENDGRID_API_KEY}\"" >> .travis/env-variables/staging.sh
 echo "export TEXTUP_BACKEND_TEMP_DIRECTORY=\"${STAGING_TEMP_DIRECTORY}\"" >> .travis/env-variables/staging.sh
 echo "export TEXTUP_BACKEND_TWILIO_AUTH=\"${STAGING_TWILIO_AUTH}\"" >> .travis/env-variables/staging.sh

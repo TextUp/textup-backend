@@ -11,7 +11,8 @@ cache:
   - "$HOME/.m2"
 env:
   - TEST_SCOPE='"unit:" org.textup.action.* org.textup.cache.* org.textup.constraint.* org.textup.job.* org.textup.override.* org.textup.test.* org.textup.type.* org.textup.media.*'
-  - TEST_SCOPE='"unit:" org.textup.util.* org.textup.util.domain.*'
+  - TEST_SCOPE='"unit:" org.textup.util.*'
+  - TEST_SCOPE='"unit:" org.textup.util.domain.*'
   - TEST_SCOPE='"unit:" org.textup.rest.*'
   - TEST_SCOPE='"unit:" org.textup.validator.* org.textup.validator.action.*'
   - TEST_SCOPE='"unit:" org.textup.A* org.textup.B* org.textup.C* org.textup.D* org.textup.E* org.textup.F* org.textup.G* org.textup.H* org.textup.I* org.textup.J* org.textup.K* org.textup.L* org.textup.M* org.textup.N* org.textup.O*'

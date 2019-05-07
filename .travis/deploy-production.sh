@@ -12,7 +12,6 @@ echo "export TEXTUP_BACKEND_FFMPEG_COMMAND=\"${PROD_FFMPEG_COMMAND}\"" >> .travi
 echo "export TEXTUP_BACKEND_FFMPEG_DIRECTORY=\"${PROD_FFMPEG_DIRECTORY}\"" >> .travis/env-variables/production.sh
 echo "export TEXTUP_BACKEND_PUSHER_API_KEY=\"${PROD_PUSHER_API_KEY}\"" >> .travis/env-variables/production.sh
 echo "export TEXTUP_BACKEND_PUSHER_API_SECRET=\"${PROD_PUSHER_API_SECRET}\"" >> .travis/env-variables/production.sh
-echo "export TEXTUP_BACKEND_RECAPTCHA_SECRET=\"${PROD_RECAPTCHA_SECRET}\"" >> .travis/env-variables/production.sh
 echo "export TEXTUP_BACKEND_SENDGRID_API_KEY=\"${PROD_SENDGRID_API_KEY}\"" >> .travis/env-variables/production.sh
 echo "export TEXTUP_BACKEND_TEMP_DIRECTORY=\"${PROD_TEMP_DIRECTORY}\"" >> .travis/env-variables/production.sh
 echo "export TEXTUP_BACKEND_TWILIO_AUTH=\"${PROD_TWILIO_AUTH}\"" >> .travis/env-variables/production.sh
