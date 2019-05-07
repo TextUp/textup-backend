@@ -40,6 +40,7 @@ class PhoneServiceSpec extends Specification {
         given:
         Team t1 = TestUtils.buildTeam()
         int pBaseline = Phone.count()
+        int iprBaseline = IndividualPhoneRecord.count()
 
         when: "owner does not have phone"
         Result res = service.tryFindAnyIdOrCreateImmediatelyForOwner(t1.id, PhoneOwnershipType.GROUP)
@@ -48,6 +49,10 @@ class PhoneServiceSpec extends Specification {
         then:
         res.status == ResultStatus.CREATED
         Phone.count() == pBaseline + 1
+        IndividualPhoneRecord.count() == iprBaseline + 1
+        IndividualPhoneRecord.last().name == PhoneService.CUSTOMER_SUPPORT_NAME
+        IndividualPhoneRecord.last().numbers.size() == 1
+        IndividualPhoneRecord.last().numbers[0].number == PhoneService.CUSTOMER_SUPPORT_NUMBER.number
         newPhone != null
         newPhone.isActive() == false
         res.hasErrorBeenHandled == false
@@ -59,6 +64,7 @@ class PhoneServiceSpec extends Specification {
         res.status == ResultStatus.OK
         res.payload == newPhone.id
         Phone.count() == pBaseline + 1
+        IndividualPhoneRecord.count() == iprBaseline + 1
 
         when: "newly created phone is active"
         newPhone.tryActivate(TestUtils.randPhoneNumber(), TestUtils.randString())
@@ -70,6 +76,7 @@ class PhoneServiceSpec extends Specification {
         res.status == ResultStatus.OK
         res.payload == newPhone.id
         Phone.count() == pBaseline + 1
+        IndividualPhoneRecord.count() == iprBaseline + 1
     }
 
     void "test getting greeting call number"() {

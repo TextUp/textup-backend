@@ -17,6 +17,8 @@ class StaffService implements ManagesDomain.Updater<Staff> {
     MailService mailService
     OrganizationService organizationService
     PhoneService phoneService
+    MarketingMailService marketingMailService
+    ThreadService threadService
 
     // [NOTE] `tryCreate` can be called by anybody
     @RollbackOnResultFailure
@@ -65,6 +67,15 @@ class StaffService implements ManagesDomain.Updater<Staff> {
         else if (s1.status == StaffStatus.STAFF) {
             res = AuthUtils.tryGetActiveAuthUser()
                 .then { Staff authUser ->
+                    threadService.submit {
+                        marketingMailService.addEmailToUsersList(s1.email)
+                            .logFail("StaffService.finishCreate adding to users list")
+                        if (body.boolean("shouldAddToGeneralUpdatesList")) {
+                            // TODO : add shouldAddToGeneralUpdatesList to body
+                            marketingMailService.addEmailToGeneralUpdatesList(s1.email)
+                                .logFail("StaffService.finishCreate adding to users list")
+                        }
+                    }
                     mailService.notifyInvitation(authUser,
                         s1,
                         body.string("password"),

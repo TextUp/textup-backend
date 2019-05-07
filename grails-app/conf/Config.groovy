@@ -310,6 +310,13 @@ textup {
             apiKey    = System.getenv("TEXTUP_BACKEND_PUSHER_API_KEY") ?: System.getProperty("TEXTUP_BACKEND_PUSHER_API_KEY")
             apiSecret = System.getenv("TEXTUP_BACKEND_PUSHER_API_SECRET") ?: System.getProperty("TEXTUP_BACKEND_PUSHER_API_SECRET")
         }
+        mailChimp {
+            apiKey = System.getenv("TEXTUP_BACKEND_MAILCHIMP_API_KEY") ?: System.getProperty("TEXTUP_BACKEND_MAILCHIMP_API_KEY")
+            listIds {
+                generalUpdates = System.getenv("TEXTUP_BACKEND_MAILCHIMP_GENERAL_UPDATES_LIST") ?: System.getProperty("TEXTUP_BACKEND_MAILCHIMP_GENERAL_UPDATES_LIST")
+                users = System.getenv("TEXTUP_BACKEND_MAILCHIMP_USERS_LIST") ?: System.getProperty("TEXTUP_BACKEND_MAILCHIMP_USERS_LIST")
+            }
+        }
     }
     rest {
         marshallers {

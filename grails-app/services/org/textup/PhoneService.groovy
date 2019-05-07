@@ -21,6 +21,9 @@ class PhoneService {
     OwnerPolicyService ownerPolicyService
     PhoneActionService phoneActionService
 
+    static final String CUSTOMER_SUPPORT_NAME = "TextUp Customer Support"
+    static final PhoneNumber CUSTOMER_SUPPORT_NUMBER = PhoneNumber.tryCreate("4015197932").payload
+
     // `PhoneActionService` called in this service requires that even newly-created phones are
     // immediately findable via id. Therefore, this method requires a new transaction such that
     // after returning the newly-created phone will already have been persisted to the db.
@@ -36,11 +39,18 @@ class PhoneService {
             IOCUtils.resultFactory.success(p1.id)
         }
         else {
-            Phone.tryCreate(ownerId, type).then { Phone p2 ->
-                // associate owner with newly-created phone in the cache
-                IOCUtils.phoneCache.updateOwner(ownerId, type, p2.id)
-                IOCUtils.resultFactory.success(p2.id, ResultStatus.CREATED)
-            }
+            Phone.tryCreate(ownerId, type)
+                .then { Phone p2 -> IndividualPhoneRecord.tryCreate(p2).curry(p2) }
+                .then { Phone p2, IndividualPhoneRecord ipr1 ->
+                    ipr1.name = CUSTOMER_SUPPORT_NAME
+                    ipr1.mergeNumber(CUSTOMER_SUPPORT_NUMBER, 1)
+                    DomainUtils.trySave(ipr1).curry(p2)
+                }
+                .then { Phone p2 ->
+                    // associate owner with newly-created phone in the cache
+                    IOCUtils.phoneCache.updateOwner(ownerId, type, p2.id)
+                    IOCUtils.resultFactory.success(p2.id, ResultStatus.CREATED)
+                }
         }
     }
 
