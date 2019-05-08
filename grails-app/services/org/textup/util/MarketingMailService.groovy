@@ -13,21 +13,39 @@ import org.apache.http.impl.client.*
 import org.apache.http.util.EntityUtils
 import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.textup.*
+import org.textup.type.*
 
 @GrailsTypeChecked
 @Transactional
 class MarketingMailService {
 
     GrailsApplication grailsApplication
+    ThreadService threadService
 
-    Result<Void> addEmailToGeneralUpdatesList(String email) {
-        String listId = grailsApplication.flatConfig["textup.apiKeys.mailChimp.listIds.generalUpdates"]
-        addEmailToList(email, listId)
+    Result<Void> tryScheduleAddToGeneralUpdatesList(boolean shouldAdd, String email) {
+        if (shouldAdd && email) {
+            String listId = grailsApplication.flatConfig["textup.apiKeys.mailChimp.listIds.generalUpdates"]
+            threadService.submit {
+                addEmailToList(email, listId)
+                    .logFail("MarketingMailService.tryScheduleAddToGeneralUpdatesList")
+            }
+        }
+        Result.void()
     }
 
-    Result<Void> addEmailToUsersList(String email) {
-        String listId = grailsApplication.flatConfig["textup.apiKeys.mailChimp.listIds.users"]
-        addEmailToList(email, listId)
+    Result<Void> tryScheduleAddToUserTrainingList(Staff s1, StaffStatus oldStatus = null) {
+        if (s1) {
+            String email = s1.email
+            String listId = grailsApplication.flatConfig["textup.apiKeys.mailChimp.listIds.users"]
+            StaffStatus currentStatus = s1.status
+            if ((!oldStatus || oldStatus.isPending()) && currentStatus?.isActive()) {
+                threadService.submit {
+                    addEmailToList(email, listId)
+                        .logFail("MarketingMailService.tryScheduleAddToUserTrainingList for staff with id `${s1?.id}`")
+                }
+            }
+        }
+        Result.void()
     }
 
     // Helpers

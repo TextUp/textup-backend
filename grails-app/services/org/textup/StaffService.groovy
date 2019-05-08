@@ -18,7 +18,6 @@ class StaffService implements ManagesDomain.Updater<Staff> {
     MarketingMailService marketingMailService
     OrganizationService organizationService
     PhoneService phoneService
-    ThreadService threadService
 
     // [NOTE] `tryCreate` can be called by anybody
     @RollbackOnResultFailure
@@ -65,23 +64,20 @@ class StaffService implements ManagesDomain.Updater<Staff> {
             res = mailService.notifyAboutPendingStaff(s1, admins)
         }
         else if (s1.status == StaffStatus.STAFF) {
-            res = AuthUtils.tryGetActiveAuthUser()
-                .then { Staff authUser ->
-                    threadService.submit {
-                        marketingMailService.addEmailToUsersList(s1.email)
-                            .logFail("StaffService.finishCreate: users list")
-                        if (body.boolean("shouldAddToGeneralUpdatesList")) {
-                            marketingMailService.addEmailToGeneralUpdatesList(s1.email)
-                                .logFail("StaffService.finishCreate: general updates list")
-                        }
-                    }
-                    mailService.notifyInvitation(authUser,
-                        s1,
-                        body.string("password"),
-                        body.string("lockCode", Constants.DEFAULT_LOCK_CODE))
-                }
+            res = AuthUtils.tryGetActiveAuthUser().then { Staff authUser ->
+                mailService.notifyInvitation(authUser,
+                    s1,
+                    body.string("password"),
+                    body.string("lockCode", Constants.DEFAULT_LOCK_CODE))
+            }
         }
-        res.then { IOCUtils.resultFactory.success(s1, ResultStatus.CREATED) }
+        res
+            .then {
+                boolean shouldAdd = body.boolean("shouldAddToGeneralUpdatesList")
+                marketingMailService.tryScheduleAddToGeneralUpdatesList(shouldAdd, s1.email)
+            }
+            .then { marketingMailService.tryScheduleAddToUserTrainingList(s1) }
+            .then { IOCUtils.resultFactory.success(s1, ResultStatus.CREATED) }
     }
 
     protected Result<Staff> finishUpdate(Staff s1) {
@@ -93,7 +89,9 @@ class StaffService implements ManagesDomain.Updater<Staff> {
                 mailService.notifyApproval(s1) :
                 mailService.notifyRejection(s1)
         }
-        res.then { IOCUtils.resultFactory.success(s1) }
+        res
+            .then { marketingMailService.tryScheduleAddToUserTrainingList(s1, oldStatus) }
+            .then { IOCUtils.resultFactory.success(s1) }
     }
 
     protected Result<Staff> trySetFields(Staff s1, TypeMap body) {

@@ -89,30 +89,112 @@ class MarketingMailServiceSpec extends Specification {
         getApiUri?.restore()
     }
 
-    void "test correct list id and email used"() {
+    void "test adding to general updates list"() {
         given:
         String email = TestUtils.randEmail()
         String generalUpdatesId = TestUtils.randString()
-        String usersId = TestUtils.randString()
 
-        MockedMethod addEmailToList = MockedMethod.create(service, "addEmailToList")
         service.grailsApplication = GroovyStub(GrailsApplication) {
             getFlatConfig() >> [
                 "textup.apiKeys.mailChimp.listIds.generalUpdates": generalUpdatesId,
+            ]
+        }
+        service.threadService = GroovyMock(ThreadService)
+        MockedMethod addEmailToList = MockedMethod.create(service, "addEmailToList") { Result.void() }
+
+        when:
+        Result res = service.tryScheduleAddToGeneralUpdatesList(false, email)
+
+        then:
+        res.status == ResultStatus.NO_CONTENT
+        0 * service.threadService._
+        addEmailToList.notCalled
+
+        when:
+        res = service.tryScheduleAddToGeneralUpdatesList(true, email)
+
+        then:
+        res.status == ResultStatus.NO_CONTENT
+        1 * service.threadService.submit(*_) >> { args -> args[0].call(); null; }
+
+        and:
+        addEmailToList.latestArgs == [email, generalUpdatesId]
+
+        cleanup:
+        addEmailToList?.restore()
+    }
+
+    void "test adding to user training list"() {
+        given:
+        String email = TestUtils.randEmail()
+        String usersId = TestUtils.randString()
+
+        Staff s1 = GroovyMock() {
+            asBoolean() >> true
+            getEmail() >> email
+        }
+        service.grailsApplication = GroovyStub(GrailsApplication) {
+            getFlatConfig() >> [
                 "textup.apiKeys.mailChimp.listIds.users": usersId
             ]
         }
+        service.threadService = GroovyMock(ThreadService)
+        MockedMethod addEmailToList = MockedMethod.create(service, "addEmailToList") { Result.void() }
 
-        when: "adding to general updates list"
-        service.addEmailToGeneralUpdatesList(email)
+        when: "no staff passed in"
+        Result res = service.tryScheduleAddToUserTrainingList(null)
 
-        then: "general updates list ID from environment should be used"
-        addEmailToList.latestArgs == [email, generalUpdatesId]
+        then:
+        res.status == ResultStatus.NO_CONTENT
+        0 * service.threadService._
+        addEmailToList.notCalled
 
-        when: "adding to users list"
-        service.addEmailToUsersList(email)
+        when: "no prior status + staff is currently pending"
+        res = service.tryScheduleAddToUserTrainingList(s1)
 
-        then: "users list ID from environment should be used"
+        then:
+        res.status == ResultStatus.NO_CONTENT
+        s1.status >> StaffStatus.PENDING
+        0 * service.threadService._
+
+        when: "active prior status + staff is active"
+        res = service.tryScheduleAddToUserTrainingList(s1, StaffStatus.STAFF)
+
+        then:
+        res.status == ResultStatus.NO_CONTENT
+        s1.status >> StaffStatus.STAFF
+        0 * service.threadService._
+
+        when: "pending prior status + staff is NOT active"
+        res = service.tryScheduleAddToUserTrainingList(s1, StaffStatus.PENDING)
+
+        then:
+        res.status == ResultStatus.NO_CONTENT
+        s1.status >> StaffStatus.PENDING
+        0 * service.threadService._
+
+        when: "pending prior status + staff IS active"
+        res = service.tryScheduleAddToUserTrainingList(s1, StaffStatus.PENDING)
+
+        then: "will try to add to user training list"
+        res.status == ResultStatus.NO_CONTENT
+        s1.status >> StaffStatus.STAFF
+        1 * service.threadService.submit(*_) >> { args -> args[0].call(); null; }
+
+        and:
+        addEmailToList.callCount == 1
+        addEmailToList.latestArgs == [email, usersId]
+
+        when: "no old status + staff is active"
+        res = service.tryScheduleAddToUserTrainingList(s1)
+
+        then: "will try to add to user training list"
+        res.status == ResultStatus.NO_CONTENT
+        s1.status >> StaffStatus.STAFF
+        1 * service.threadService.submit(*_) >> { args -> args[0].call(); null; }
+
+        and:
+        addEmailToList.callCount == 2
         addEmailToList.latestArgs == [email, usersId]
 
         cleanup:

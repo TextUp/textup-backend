@@ -180,6 +180,7 @@ class StaffServiceSpec extends Specification {
 
         Staff.withSession { it.flush() }
 
+        service.marketingMailService = GroovyMock(MarketingMailService)
         service.mailService = GroovyMock(MailService)
 
         when: "pending -> active"
@@ -188,6 +189,7 @@ class StaffServiceSpec extends Specification {
 
         then:
         1 * service.mailService.notifyApproval(s1) >> Result.void()
+        1 * service.marketingMailService.tryScheduleAddToUserTrainingList(s1, StaffStatus.PENDING) >> Result.void()
         res.status == ResultStatus.OK
         res.payload == s1
 
@@ -197,11 +199,13 @@ class StaffServiceSpec extends Specification {
 
         then:
         1 * service.mailService.notifyRejection(s2) >> Result.void()
+        1 * service.marketingMailService.tryScheduleAddToUserTrainingList(s2, StaffStatus.PENDING) >> Result.void()
         res.status == ResultStatus.OK
         res.payload == s2
 
         when: "stays not pending"
         s3.status = StaffStatus.ADMIN
+        1 * service.marketingMailService.tryScheduleAddToUserTrainingList(s3, StaffStatus.STAFF) >> Result.void()
         res = service.finishUpdate(s3)
 
         then:
@@ -212,7 +216,9 @@ class StaffServiceSpec extends Specification {
 
     void "test finishing create"() {
         given:
-        TypeMap body = TypeMap.create(password: TestUtils.randString(), lockCode: TestUtils.randString(), shouldAddToGeneralUpdatesList: true)
+        TypeMap body = TypeMap.create(password: TestUtils.randString(),
+            lockCode: TestUtils.randString(),
+            shouldAddToGeneralUpdatesList: true)
 
         Organization org1 = TestUtils.buildOrg()
         Staff authUser = TestUtils.buildStaff(org1)
@@ -232,7 +238,7 @@ class StaffServiceSpec extends Specification {
 
         Staff.withSession { it.flush() }
 
-        service.threadService = GroovyMock(ThreadService)
+        service.marketingMailService = GroovyMock(MarketingMailService)
         service.mailService = GroovyMock(MailService)
         MockedMethod tryGetActiveAuthUser = MockedMethod.create(AuthUtils, "tryGetActiveAuthUser") {
             Result.createSuccess(authUser)
@@ -243,7 +249,8 @@ class StaffServiceSpec extends Specification {
 
         then:
         1 * service.mailService.notifyAboutPendingOrg(s1.org) >> Result.void()
-        0 * service.threadService.submit(*_)
+        1 * service.marketingMailService.tryScheduleAddToGeneralUpdatesList(true, s1.email) >> Result.void()
+        1 * service.marketingMailService.tryScheduleAddToUserTrainingList(s1) >> Result.void()
         res.status == ResultStatus.CREATED
         res.payload == s1
 
@@ -252,7 +259,8 @@ class StaffServiceSpec extends Specification {
 
         then:
         1 * service.mailService.notifyAboutPendingStaff(s2, [authUser]) >> Result.void()
-        0 * service.threadService.submit(*_)
+        1 * service.marketingMailService.tryScheduleAddToGeneralUpdatesList(true, s2.email) >> Result.void()
+        1 * service.marketingMailService.tryScheduleAddToUserTrainingList(s2) >> Result.void()
         res.status == ResultStatus.CREATED
         res.payload == s2
 
@@ -261,7 +269,8 @@ class StaffServiceSpec extends Specification {
 
         then:
         1 * service.mailService.notifyInvitation(authUser, s3, body.password, body.lockCode) >> Result.void()
-        1 * service.threadService.submit(*_)
+        1 * service.marketingMailService.tryScheduleAddToGeneralUpdatesList(true, s3.email) >> Result.void()
+        1 * service.marketingMailService.tryScheduleAddToUserTrainingList(s3) >> Result.void()
         res.status == ResultStatus.CREATED
         res.payload == s3
 
@@ -270,51 +279,10 @@ class StaffServiceSpec extends Specification {
 
         then:
         0 * service.mailService._
-        0 * service.threadService.submit(*_)
+        1 * service.marketingMailService.tryScheduleAddToGeneralUpdatesList(true, s4.email) >> Result.void()
+        1 * service.marketingMailService.tryScheduleAddToUserTrainingList(s4) >> Result.void()
         res.status == ResultStatus.CREATED
         res.payload == s4
-
-        cleanup:
-        tryGetActiveAuthUser?.restore()
-    }
-
-    void "test correct information sent to marketing mail service"() {
-        given:
-        TypeMap body = TypeMap.create(password: TestUtils.randString(), lockCode: TestUtils.randString(), shouldAddToGeneralUpdatesList: true)
-
-        Organization org1 = TestUtils.buildOrg()
-        Staff authUser = TestUtils.buildStaff(org1)
-        authUser.status = StaffStatus.ADMIN
-        Staff s1 = TestUtils.buildStaff()
-        s1.org.status = OrgStatus.APPROVED
-        s1.status = StaffStatus.STAFF
-        Staff.withSession { it.flush() }
-
-        service.mailService = GroovyMock(MailService)
-        service.marketingMailService = GroovyMock(MarketingMailService)
-        service.threadService = GroovyMock(ThreadService)
-        MockedMethod tryGetActiveAuthUser = MockedMethod.create(AuthUtils, "tryGetActiveAuthUser") {
-            Result.createSuccess(authUser)
-        }
-
-        when: "user added with `shouldAddToGeneralUpdatesList` true"
-        Result res = service.finishCreate(s1, body)
-
-        then: "both `addEmailToGeneralUpdatesList` and `addEmailToUsersList` are called"
-        service.mailService.notifyInvitation(*_) >> Result.void()
-        1 * service.threadService.submit(*_) >> { arguments -> arguments[0].call(); null; }
-        1 * service.marketingMailService.addEmailToGeneralUpdatesList(s1.email) >> Result.void()
-        1 * service.marketingMailService.addEmailToUsersList(s1.email) >> Result.void()
-
-        when: "user added with `shouldAddToGeneralUpdatesList` false"
-        body.shouldAddToGeneralUpdatesList = false
-        res = service.finishCreate(s1, body)
-
-        then: "only `addEmailToUsersList` is called"
-        service.mailService.notifyInvitation(*_) >> Result.void()
-        1 * service.threadService.submit(*_) >> { arguments -> arguments[0].call(); null; }
-        0 * service.marketingMailService.addEmailToGeneralUpdatesList(*_)
-        1 * service.marketingMailService.addEmailToUsersList(s1.email) >> Result.void()
 
         cleanup:
         tryGetActiveAuthUser?.restore()
