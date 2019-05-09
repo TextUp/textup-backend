@@ -249,33 +249,60 @@ class PhoneActionServiceSpec extends Specification {
         p1.number == pNum2
     }
 
-    void "test trying exchange phone owners"() {
+    void "test trying exchange phone another user that DOES own a phone already"() {
         given:
         Team t1 = TestUtils.buildTeam()
         Staff s1 = TestUtils.buildStaff()
 
-        Phone p1 = TestUtils.buildStaffPhone()
-        Phone p2 = TestUtils.buildStaffPhone(s1)
+        Phone p1 = TestUtils.buildStaffPhone(s1)
+        Phone tp1 = TestUtils.buildTeamPhone(t1)
+
+        MockedMethod updateOwner = MockedMethod.create(service.phoneCache, "updateOwner")
 
         when:
         Result res = service.tryExchangeOwners(p1, t1.id, PhoneOwnershipType.GROUP)
 
-        then:
+        then: "phones are switched"
         res.status == ResultStatus.NO_CONTENT
         p1.owner.ownerId == t1.id
         p1.owner.type == PhoneOwnershipType.GROUP
-        p2.owner.ownerId == s1.id
-        p2.owner.type == PhoneOwnershipType.INDIVIDUAL
+        tp1.owner.ownerId == s1.id
+        tp1.owner.type == PhoneOwnershipType.INDIVIDUAL
+
+        and:
+        updateOwner.allArgs.find { it == [t1.id, PhoneOwnershipType.GROUP, p1.id] }
+        updateOwner.allArgs.find { it == [s1.id, PhoneOwnershipType.INDIVIDUAL, tp1.id] }
+
+        cleanup:
+        updateOwner?.restore()
+    }
+
+    void "test trying exchange phone with another user that does NOT own a phone already"() {
+        given:
+        Team t1 = TestUtils.buildTeam()
+        Staff s1 = TestUtils.buildStaff()
+
+        Phone tp1 = TestUtils.buildTeamPhone(t1)
+
+        MockedMethod updateOwner = MockedMethod.create(service.phoneCache, "updateOwner")
 
         when:
-        res = service.tryExchangeOwners(p1, s1.id, PhoneOwnershipType.INDIVIDUAL)
+        Result res = service.tryExchangeOwners(tp1, s1.id, PhoneOwnershipType.INDIVIDUAL)
+        Phone.withSession { it.flush() }
 
-        then:
+        then: "the original phone owner (the team) now does not have any phone"
         res.status == ResultStatus.NO_CONTENT
-        p1.owner.ownerId == s1.id
-        p1.owner.type == PhoneOwnershipType.INDIVIDUAL
-        p2.owner.ownerId == t1.id
-        p2.owner.type == PhoneOwnershipType.GROUP
+        tp1.owner.ownerId == s1.id
+        tp1.owner.type == PhoneOwnershipType.INDIVIDUAL
+        PhoneOwnership.countByOwnerIdAndType(s1.id, PhoneOwnershipType.INDIVIDUAL) == 1
+        PhoneOwnership.countByOwnerIdAndType(tp1.id, PhoneOwnershipType.GROUP) == 0
+
+        and:
+        updateOwner.allArgs.find { it == [s1.id, PhoneOwnershipType.INDIVIDUAL, tp1.id] }
+        updateOwner.allArgs.find { it == [t1.id, PhoneOwnershipType.GROUP, null] }
+
+        cleanup:
+        updateOwner?.restore()
     }
 
     void "test trying to deactivate phone"() {

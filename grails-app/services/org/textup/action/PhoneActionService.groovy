@@ -31,8 +31,8 @@ class PhoneActionService implements HandlesActions<Long, Void> {
     // phone cache for owners BEFORE ths transaction flushes, it'll return the pre-switch values
     // and these incorrect values will persist in the cache. Conversely we also don't want to
     // pre-emptively update the cache in case the larger transaction fails
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
     @Override
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     Result<Void> tryHandleActions(Long pId, Map body) {
         Phones.mustFindForId(pId)
             .then { Phone p1 ->
@@ -77,26 +77,28 @@ class PhoneActionService implements HandlesActions<Long, Void> {
 
     // Exchange then validate so that, when we are updating the cache values, we can be sure
     // that the subsequent transaction flush will happen successfully
-    protected Result<Void> tryExchangeOwners(Phone p1, Long ownerId, PhoneOwnershipType type) {
-        Long originalOwnerId = p1.owner.ownerId
-        PhoneOwnershipType originalType = p1.owner.type
-        p1.owner.ownerId = ownerId
-        p1.owner.type = type
+    protected Result<Void> tryExchangeOwners(Phone p1, Long newOwnerId,
+        PhoneOwnershipType newOwnerType) {
+
+        Long oldOwnerId = p1.owner.ownerId
+        PhoneOwnershipType oldOwnerType = p1.owner.type
+        p1.owner.ownerId = newOwnerId
+        p1.owner.type = newOwnerType
         DomainUtils.trySave(p1)
             .then {
-                Phone otherPhone = phoneCache.findPhone(ownerId, type, true)
+                Phone otherPhone = phoneCache.findPhone(newOwnerId, newOwnerType, true)
                 if (otherPhone) {
-                    otherPhone.owner.ownerId = originalOwnerId
-                    otherPhone.owner.type = originalType
+                    otherPhone.owner.ownerId = oldOwnerId
+                    otherPhone.owner.type = oldOwnerType
                     DomainUtils.trySave(otherPhone)
                 }
                 else { Result.void() }
             }
             .then { Phone otherPhone = null ->
-                phoneCache.updateOwner(ownerId, type, p1.id)
-                if (otherPhone) {
-                    phoneCache.updateOwner(originalOwnerId, originalType, otherPhone.id)
-                }
+                phoneCache.updateOwner(newOwnerId, newOwnerType, p1.id)
+                // Either update the oldOwner with the other phone or NULL to indicate
+                // that it no longer has a phone
+                phoneCache.updateOwner(oldOwnerId, oldOwnerType, otherPhone?.id)
                 Result.void()
             }
     }

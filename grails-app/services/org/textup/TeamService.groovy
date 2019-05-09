@@ -2,6 +2,7 @@ package org.textup
 
 import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
+import org.springframework.transaction.annotation.Isolation
 import org.textup.action.*
 import org.textup.annotation.*
 import org.textup.rest.*
@@ -11,8 +12,13 @@ import org.textup.util.*
 import org.textup.util.domain.*
 import org.textup.validator.*
 
+// [NOTE] the isolation level set on the very top-most `@Transactional` declaration is what matters
+// That being said, we also set the isolation level here in case we call this service on its own
+// not in the context of a controller (with its controller-started transaction) to ensure that
+// the new `Phone` creation works in both scenarios
+
 @GrailsTypeChecked
-@Transactional
+@Transactional(isolation = Isolation.READ_COMMITTED)
 class TeamService implements ManagesDomain.Creater<Team>, ManagesDomain.Updater<Team>, ManagesDomain.Deleter {
 
     LocationService locationService
@@ -90,6 +96,10 @@ class TeamService implements ManagesDomain.Creater<Team>, ManagesDomain.Updater<
                 phoneService.tryFindAnyIdOrCreateImmediatelyForOwner(t1.id, PhoneOwnershipType.GROUP)
                     .curry(sId)
             }
+            // [NOTE] making this newly-created phone getable means that the isolation level
+            // for THIS transaction (not the nested transaction) needs to be `READ_COMMITTED`.
+            // Because transactions inherit by default, this means that the very top level
+            // transaction declaration in the CONTROLLER needs to be `READ_COMMITTED`
             .then { Long sId, Long pId -> Phones.mustFindForId(pId).curry(sId) }
             .then { Long sId, Phone p1 -> phoneService.tryUpdate(p1, phoneInfo, sId, timezone) }
     }

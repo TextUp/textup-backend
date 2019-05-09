@@ -3,6 +3,7 @@ package org.textup
 import grails.compiler.GrailsTypeChecked
 import grails.transaction.Transactional
 import java.util.concurrent.Future
+import org.springframework.transaction.annotation.Isolation
 import org.springframework.transaction.annotation.Propagation
 import org.textup.action.*
 import org.textup.annotation.*
@@ -51,6 +52,11 @@ class PhoneService {
         }
     }
 
+    // [NOTE] the isolation level set on the very top-most `@Transactional` declaration is what matters
+    // That being said, we also set the isolation level here in case we call this service on its own
+    // not in the context of a controller (with its controller-started transaction) to ensure that
+    // the new `Phone` creation works in both scenarios
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     Result<Phone> tryUpdate(Phone p1, TypeMap body, Long staffId, String timezone) {
         Future<?> future
         tryHandlePhoneActionsImmediatelyAndRefresh(p1, body)
@@ -81,6 +87,10 @@ class PhoneService {
                     // [NOTE] this means that this helper method needs to be called first
                     // because all changes to the phone object in this session will be discarded
                     // as the phone object is effectively refetched from the db
+                    // [NOTE] to make the new changes getable means that that the isolation level
+                    // for THIS transaction (not the nested transaction) needs to be `READ_COMMITTED`.
+                    // Because transactions inherit by default, this means that the very top level
+                    // transaction declaration in the CONTROLLER needs to be `READ_COMMITTED`
                     p1.refresh()
                     Result.void()
                 }

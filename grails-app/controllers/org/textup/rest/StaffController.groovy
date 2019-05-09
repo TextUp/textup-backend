@@ -6,12 +6,17 @@ import grails.transaction.Transactional
 import javax.servlet.http.HttpServletRequest
 import org.codehaus.groovy.grails.web.servlet.HttpHeaders
 import org.springframework.security.access.annotation.Secured
+import org.springframework.transaction.annotation.Isolation
 import org.textup.*
 import org.textup.structure.*
 import org.textup.type.*
 import org.textup.util.*
 import org.textup.util.domain.*
 import org.textup.validator.*
+
+// [NOTE] Isolation level for this parent `Transaction` needs to be `READ_COMMITTED` instead of the
+// MySQL default `REPEATABLE_READ` so that the new `Phone` created and then fetched via id will
+// not return a not-found error. See: https://stackoverflow.com/a/18697026
 
 @GrailsTypeChecked
 @Secured(["ROLE_USER", "ROLE_ADMIN"])
@@ -45,6 +50,7 @@ class StaffController extends BaseController {
 
     @Secured("permitAll")
     @Override
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     def save() {
         TypeMap qParams = TypeMap.create(params)
         RequestUtils.trySet(RequestUtils.TIMEZONE, qParams.string("timezone"))
@@ -57,6 +63,7 @@ class StaffController extends BaseController {
     }
 
     @Override
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     def update() {
         TypeMap qParams = TypeMap.create(params)
         RequestUtils.trySet(RequestUtils.TIMEZONE, qParams.string("timezone"))
