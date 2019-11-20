@@ -53,7 +53,7 @@ class Organizations {
         Collection<OrgStatus> orgStatuses = OrgStatus.ACTIVE_STATUSES) {
 
         new DetachedCriteria(Organization)
-            .build(forQuery())
+            .build(forQuery(query))
             .build(forStatuses(orgStatuses))
     }
 

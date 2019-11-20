@@ -38,7 +38,7 @@ class ScheduleUtilsSpec extends Specification {
 
     void "test build interval from strings"() {
         given:
-        DateTime start = DateTime.now()
+        DateTime start = DateTime.now().withHourOfDay(6) // avoid midnight errors
         DateTime end = start.plusHours(1)
         int daysToAdd = TestUtils.randIntegerUpTo(88, true)
         DateTimeFormatter dtf = JodaUtils.CURRENT_TIME_FORMAT
