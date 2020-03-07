@@ -71,20 +71,26 @@ class LocalIntervalUtils {
         intervalsString.tokenize(ScheduleUtils.RANGE_DELIMITER).each { String rangeString ->
             List<String> times = rangeString.tokenize(ScheduleUtils.TIME_DELIMITER)
             if (times.size() == 2) {
-                DateTime start = dtf
-                    .parseLocalTime(times[0])
-                    .toDateTime(dt)
-                    .withZoneRetainFields(DateTimeZone.UTC)
-                DateTime end = dtf
-                    .parseLocalTime(times[1])
-                    .toDateTime(dt)
-                    .withZoneRetainFields(DateTimeZone.UTC)
-                Interval interval = new Interval(start, end)
-                //if end of day interval, don't add it to intervals list yet
-                if (isEndOfDay(end)) {
-                    endOfDayInterval = interval
+                try {
+                    DateTime start = dtf
+                        .parseLocalTime(times[0])
+                        .toDateTime(dt)
+                        .withZoneRetainFields(DateTimeZone.UTC)
+                    DateTime end = dtf
+                        .parseLocalTime(times[1])
+                        .toDateTime(dt)
+                        .withZoneRetainFields(DateTimeZone.UTC)
+                    Interval interval = new Interval(start, end)
+                    //if end of day interval, don't add it to intervals list yet
+                    if (isEndOfDay(end)) {
+                        endOfDayInterval = interval
+                    }
+                    else { intervals << interval }
                 }
-                else { intervals << interval }
+                catch (Throwable e) {
+                    log.error("rehydrateAsIntervals: unable to build interval: ${e.message}")
+                    e.printStackTrace()
+                }
             }
             else {
                 log.error("rehydrateAsIntervals: for intervals $intervalsString, invalid range: $rangeString")
