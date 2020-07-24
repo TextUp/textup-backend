@@ -28,6 +28,8 @@ class RecordItemReceipt implements WithId, CanSave<RecordItemReceipt> {
         // an index because we often look up via apiId and lots of rows in this table
         // makes this a very slow query (from sql performance monitoring)
         apiId index: "ix_record_item_receipt_api_id"
+        // turn off optimistic locking because expect high concurrent writes
+        version false
     }
     static constraints = {
         contactNumberAsString phoneNumber: true

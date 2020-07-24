@@ -981,4 +981,6 @@ databaseChangeLog = {
 	include file: 'cleanup-tags-contacts-shared-contacts.groovy'
 
 	include file: 'future-message-notify-on-send.groovy'
+
+	include file: 'stop-optimistic-locking-record-items.groovy'
 }

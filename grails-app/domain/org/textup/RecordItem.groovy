@@ -51,6 +51,8 @@ class RecordItem implements ReadOnlyRecordItem, WithId, CanSave<RecordItem>, Com
         media fetch: "join", cascade: "save-update"
         whenCreated type: PersistentDateTime
         noteContents type: "text"
+        // turn off optimistic locking because expect high concurrent writes
+        version false
     }
     static constraints = {
     	authorName blank: true, nullable: true

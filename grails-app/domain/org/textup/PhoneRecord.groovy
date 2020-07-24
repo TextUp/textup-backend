@@ -40,6 +40,8 @@ class PhoneRecord implements WithId, CanSave<PhoneRecord> {
         record fetch: "join", cascade: "save-update"
         whenCreated type: PersistentDateTime
         shareSource fetch: "join", cascade: "save-update"
+        // turn off optimistic locking because expect high concurrent writes
+        version false
     }
     static constraints = { // default nullable: false
         record cascadeValidation: true

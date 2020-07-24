@@ -24,6 +24,8 @@ class Record implements ReadOnlyRecord, WithId, CanSave<Record> {
 
     static mapping = {
         lastRecordActivity type: PersistentDateTime
+        // turn off optimistic locking because expect high concurrent writes
+        version false
     }
 
     static Result<Record> tryCreate(VoiceLanguage lang1 = VoiceLanguage.ENGLISH) {
