@@ -22,6 +22,7 @@ class TwilioUtils {
 
     static final String BODY = "Body"
     static final String CALL_DURATION = "CallDuration"
+    static final String DIAL_BRIDGED = "DialBridged"
     static final String DIGITS = "Digits"
     static final String FROM = "From"
     static final String ID_ACCOUNT = "AccountSid"

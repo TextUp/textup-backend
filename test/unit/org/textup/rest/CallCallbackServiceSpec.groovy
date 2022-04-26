@@ -33,23 +33,32 @@ class CallCallbackServiceSpec extends Specification {
     void "test check if voicemail"() {
         given:
         PhoneNumber pNum1 = TestUtils.randPhoneNumber()
+        PhoneNumber pNum2 = TestUtils.randPhoneNumber()
         TypeMap params1 = TestUtils.randTypeMap()
-        TypeMap params2 = TypeMap.create((TwilioUtils.STATUS_DIALED_CALL): ReceiptStatus.SUCCESS.statuses[0])
+        TypeMap params2 = TypeMap.create((TwilioUtils.DIAL_BRIDGED): "false")
+        TypeMap params3 = TypeMap.create((TwilioUtils.DIAL_BRIDGED): "true")
 
         Phone p1 = GroovyMock()
         IncomingSession is1 = GroovyMock()
 
         MockedMethod recordVoicemailMessage = MockedMethod.create(CallTwiml, "recordVoicemailMessage")
 
-        when:
+        when: "bridged attribute is missing"
         Result res = service.checkIfVoicemail(p1, is1, params1)
 
         then:
         1 * is1.number >> pNum1
         recordVoicemailMessage.latestArgs == [p1, pNum1]
 
-        when:
+        when: "child call is not bridged"
         res = service.checkIfVoicemail(p1, is1, params2)
+
+        then:
+        1 * is1.number >> pNum2
+        recordVoicemailMessage.latestArgs == [p1, pNum2]
+
+        when: "child call is bridged"
+        res = service.checkIfVoicemail(p1, is1, params3)
 
         then:
         res.status == ResultStatus.OK

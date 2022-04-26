@@ -15,8 +15,12 @@ class CallCallbackService {
     TokenService tokenService
 
     Result<Closure> checkIfVoicemail(Phone p1, IncomingSession is1, TypeMap params) {
-        ReceiptStatus stat = ReceiptStatus.translate(params.string(TwilioUtils.STATUS_DIALED_CALL))
-        if (stat == ReceiptStatus.SUCCESS) { // call already connected so no voicemail
+        // Changes to the Dial verb in Nov 2021 changed the `DialCallStatus` from
+        // `no-answer` to `completed` if the child call connects but is not bridged, New `DialBridged`
+        // parameter added to distinguish the case when the child call is connected but does not bridge
+        // see https://support.twilio.com/hc/en-us/articles/4406841868699-TwiML-Dial-Verb-Enhancements
+        Boolean isBridged = params.boolean(TwilioUtils.DIAL_BRIDGED)
+        if (isBridged) { // call already connected so no voicemail
             TwilioUtils.noResponseTwiml()
         }
         else { CallTwiml.recordVoicemailMessage(p1, is1.number) }
